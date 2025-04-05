@@ -1,0 +1,36 @@
+_format_version: "2.1"
+_transform: true
+
+# 사용할 플러그인 목록 정의
+plugins:
+- name: cors
+  config:
+    origins:
+    - "*"
+    methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+    headers:
+    - Content-Type
+    - Authorization
+    - X-Requested-With
+    max_age: 3600
+
+# 서비스 정의 (실제 마이크로서비스가 준비되면 추가)
+services:
+  # 인증 서비스 - 예시
+  - name: auth-service
+    url: http://auth-service:3000
+    routes:
+      - name: auth-routes
+        paths:
+          - /api/v1/auth
+        strip_path: false
+    plugins:
+      - name: cors
+
+  # 다른 서비스들은 실제 구현 시 추가
