@@ -20,9 +20,9 @@ plugins:
     - X-Requested-With
     max_age: 3600
 
-# 서비스 정의 (실제 마이크로서비스가 준비되면 추가)
+# 서비스 정의 
 services:
-  # 인증 서비스 - 예시
+  # 인증 서비스 
   - name: auth-service
     url: http://auth-service:3000
     routes:
@@ -33,4 +33,13 @@ services:
     plugins:
       - name: cors
 
-  # 다른 서비스들은 실제 구현 시 추가
+  # 실시간 서비스
+  - name: realtime-service
+    url: http://realtime-service:3000
+    routes:
+      - name: realtime-routes
+        paths:
+          - /api/v1/realtime
+        strip_path: false
+    plugins:
+      - name: cors

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HaptiTalk - 관리자 포털</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        .container {
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e7f5fe;
+            border-radius: 4px;
+        }
+        .service {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 4px;
+            border-left: 4px solid #3498db;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HaptiTalk 관리자 포털</h1>
+        <p>HaptiTalk API 및 서비스 상태 모니터링 페이지입니다.</p>
+        
+        <div class="status">
+            <h2>서비스 상태</h2>
+            <div class="service">
+                <h3>API 게이트웨이</h3>
+                <p>상태: <span id="kong-status">확인 중...</span></p>
+            </div>
+            <div class="service">
+                <h3>인증 서비스</h3>
+                <p>상태: <span id="auth-status">확인 중...</span></p>
+            </div>
+            <div class="service">
+                <h3>실시간 서비스</h3>
+                <p>상태: <span id="realtime-status">확인 중...</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 서비스 상태 확인 함수
+        function checkServiceStatus() {
+            document.getElementById('kong-status').textContent = '정상';
+            document.getElementById('auth-status').textContent = '정상';
+            document.getElementById('realtime-status').textContent = '정상';
+        }
+        window.onload = function() { checkServiceStatus(); };
+    </script>
+</body>
+</html>
