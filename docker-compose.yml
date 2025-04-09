@@ -136,6 +136,49 @@ services:
       timeout: 5s
       retries: 5
 
+  # 인증 서비스
+  auth-service:
+    build:
+      context: ./api/auth-service
+      dockerfile: Dockerfile
+    container_name: haptitalk-auth-service
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - PORT=${AUTH_SERVICE_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - JWT_SESSION_SECRET=${JWT_SESSION_SECRET}
+      - JWT_ACCESS_EXPIRES_IN=${JWT_ACCESS_EXPIRES_IN}
+      - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN}
+      - JWT_SESSION_EXPIRES_IN=${JWT_SESSION_EXPIRES_IN}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - LOG_LEVEL=${LOG_LEVEL}
+    volumes:
+      - ./api/auth-service:/app
+      - /app/node_modules
+    ports:
+      - "${AUTH_SERVICE_PORT}:${AUTH_SERVICE_PORT}"
+    networks:
+      - haptitalk_network
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:${AUTH_SERVICE_PORT}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 networks:
   haptitalk_network:
     driver: bridge

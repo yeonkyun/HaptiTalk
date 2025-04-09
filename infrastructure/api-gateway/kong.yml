@@ -35,7 +35,7 @@ services:
 
   # 실시간 서비스
   - name: realtime-service
-    url: http://realtime-service:3000
+    url: http://realtime-service:3001
     routes:
       - name: realtime-routes
         paths:
