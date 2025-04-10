@@ -179,6 +179,37 @@ services:
       timeout: 5s
       retries: 5
 
+  # 실시간 서비스
+  realtime-service:
+    build:
+      context: ./api/realtime-service
+      dockerfile: Dockerfile
+    container_name: haptitalk-realtime-service
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - PORT=${REALTIME_SERVICE_PORT}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - JWT_SESSION_SECRET=${JWT_SESSION_SECRET}
+      - LOG_LEVEL=${LOG_LEVEL}
+    volumes:
+      - ./api/realtime-service:/app
+      - /app/node_modules
+    ports:
+      - "${REALTIME_SERVICE_PORT}:${REALTIME_SERVICE_PORT}"
+    networks:
+      - haptitalk_network
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:${REALTIME_SERVICE_PORT}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 networks:
   haptitalk_network:
     driver: bridge
