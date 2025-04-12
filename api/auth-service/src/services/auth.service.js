@@ -240,7 +240,7 @@ const authService = {
             const user = await User.findOne({
                 where: {
                     reset_token: resetToken,
-                    reset_token_expires_at: {[sequelize.Op.gt]: new Date()}
+                    reset_token_expires_at: {[User.Op.gt]: new Date()}
                 }
             });
 

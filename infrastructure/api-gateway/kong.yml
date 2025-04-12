@@ -43,3 +43,14 @@ services:
         strip_path: false
     plugins:
       - name: cors
+      
+  # 세션 서비스 (추가)
+  - name: session-service
+    url: http://session-service:3002
+    routes:
+      - name: session-routes
+        paths:
+          - /api/v1/sessions
+        strip_path: false
+    plugins:
+      - name: cors
