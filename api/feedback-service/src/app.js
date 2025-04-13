@@ -5,6 +5,7 @@ const {errorHandler} = require('./middleware/errorHandler.middleware');
 const logger = require('./utils/logger');
 const routes = require('./routes');
 const appConfig = require('./config/app');
+const {connectToMongoDB} = require('./config/mongodb');
 
 // Express 앱 초기화
 const app = express();
@@ -34,8 +35,16 @@ app.use(errorHandler);
 
 // 서버 시작
 const PORT = appConfig.port || 3003;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     logger.info(`Feedback service is running on port ${PORT}`);
+    
+    // MongoDB 연결 초기화
+    try {
+        await connectToMongoDB();
+        logger.info('MongoDB connection initialized successfully');
+    } catch (err) {
+        logger.error('Failed to initialize MongoDB connection:', err);
+    }
 });
 
 module.exports = app;

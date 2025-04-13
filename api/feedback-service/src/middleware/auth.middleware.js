@@ -20,7 +20,11 @@ const authenticateJWT = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-        req.user = decoded;
+        req.user = {
+            id: decoded.sub,
+            email: decoded.email,
+            type: decoded.type
+        };
         next();
     } catch (error) {
         return res.status(httpStatus.UNAUTHORIZED).json(formatResponse(

@@ -4,12 +4,7 @@ const sequelize = require('../config/database');
 const UserFeedbackSetting = sequelize.define('UserFeedbackSetting', {
     user_id: {
         type: DataTypes.UUID,
-        primaryKey: true,
-        references: {
-            model: 'users',
-            key: 'id'
-        },
-        schema: 'auth'
+        primaryKey: true
     },
     haptic_strength: {
         type: DataTypes.INTEGER,
@@ -52,7 +47,7 @@ const UserFeedbackSetting = sequelize.define('UserFeedbackSetting', {
     }
 }, {
     tableName: 'user_feedback_settings',
-    schema: 'auth',
+    schema: 'public',
     timestamps: true,
     underscored: true,
     createdAt: 'created_at',
