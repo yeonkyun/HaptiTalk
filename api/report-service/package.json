@@ -1,6 +1,6 @@
 {
   "name": "report-service",
-  "version": "0.1.0",
+  "version": "0.5.1",
   "description": "HaptiTalk Report Service",
   "main": "src/app.js",
   "scripts": {
