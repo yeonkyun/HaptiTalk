@@ -54,3 +54,14 @@ services:
         strip_path: false
     plugins:
       - name: cors
+
+  # 피드백 서비스
+  - name: feedback-service
+    url: http://feedback-service:3003
+    routes:
+      - name: feedback-routes
+        paths:
+          - /api/v1/feedback
+        strip_path: false
+    plugins:
+      - name: cors
