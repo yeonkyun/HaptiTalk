@@ -65,3 +65,14 @@ services:
         strip_path: false
     plugins:
       - name: cors
+
+  # 사용자 서비스
+  - name: user-service
+    url: http://user-service:3004
+    routes:
+      - name: user-routes
+        paths:
+          - /api/v1/users
+        strip_path: false
+    plugins:
+      - name: cors
