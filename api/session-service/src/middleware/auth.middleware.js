@@ -38,8 +38,14 @@ const authMiddleware = {
 
             // JWT 토큰 검증
             try {
-                const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-                req.user = decoded;
+                // JWT_SECRET 대신 JWT_ACCESS_SECRET 사용
+                const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET || 'your-secret-key');
+                
+                // 사용자 정보 설정
+                req.user = {
+                    ...decoded,
+                    id: decoded.sub  // sub 필드를 id로 설정
+                };
 
                 // 토큰의 사용자 ID를 사용해 추가 검증 수행 (선택 사항)
                 // 마이크로서비스 환경에서는 auth-service에 검증 요청을 보낼 수 있음

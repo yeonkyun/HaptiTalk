@@ -76,3 +76,14 @@ services:
         strip_path: false
     plugins:
       - name: cors
+
+  # 리포트 서비스
+  - name: report-service
+    url: http://report-service:3005
+    routes:
+      - name: report-routes
+        paths:
+          - /api/v1/reports
+        strip_path: false
+    plugins:
+      - name: cors
