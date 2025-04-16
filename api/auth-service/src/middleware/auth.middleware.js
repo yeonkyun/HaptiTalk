@@ -25,12 +25,20 @@ const authMiddleware = {
             const token = authHeader.split(' ')[1];
 
             // Verify token
-            const payload = await tokenService.verifyAccessToken(token);
+            const tokenVerification = await tokenService.verifyAccessToken(token);
+            
+            // Check if token is expiring soon
+            if (tokenVerification.status === 'expiring_soon') {
+                // Token is valid but expiring soon
+                // We'll still process the request but add a header to notify the client
+                res.set('X-Token-Expiring-Soon', 'true');
+                res.set('X-Token-Expires-In', tokenVerification.expiresIn.toString());
+            }
 
             // Attach user to request
             req.user = {
-                id: payload.sub,
-                email: payload.email
+                id: tokenVerification.payload.sub,
+                email: tokenVerification.payload.email
             };
 
             next();
@@ -39,18 +47,26 @@ const authMiddleware = {
 
             let status = httpStatus.UNAUTHORIZED;
             let message = 'Not authorized to access this resource';
+            let errorResponse = {
+                success: false,
+                message,
+                error: error.message
+            };
 
             if (error.message === 'Token expired') {
                 message = 'Access token expired';
+                errorResponse = {
+                    success: false,
+                    message,
+                    error: error.message,
+                    code: 'token_expired',
+                    needsRefresh: true
+                };
             } else if (error.message === 'Invalid token') {
                 message = 'Invalid access token';
             }
 
-            return res.status(status).json({
-                success: false,
-                message,
-                error: error.message
-            });
+            return res.status(status).json(errorResponse);
         }
     },
 

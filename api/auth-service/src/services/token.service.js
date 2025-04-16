@@ -47,6 +47,14 @@ const tokenService = {
             const refreshExpirySeconds = Math.floor(decodedRefresh.exp - decodedRefresh.iat);
             await redisHelpers.storeRefreshToken(refreshTokenId, user.id, refreshExpirySeconds);
 
+            // Store access token metadata for refresh optimization
+            await redisHelpers.storeTokenMetadata(accessToken, {
+                userId: user.id,
+                refreshTokenId,
+                createdAt: decodedAccess.iat,
+                expiresAt: decodedAccess.exp
+            });
+
             return {
                 access: {
                     token: accessToken,
@@ -98,9 +106,10 @@ const tokenService = {
     /**
      * Verify access token
      * @param {string} token - JWT token
-     * @returns {Object} - Decoded token payload
+     * @param {boolean} allowExpiringSoon - Whether to allow token that is expiring soon
+     * @returns {Object} - Decoded token payload and token status
      */
-    verifyAccessToken: async (token) => {
+    verifyAccessToken: async (token, allowExpiringSoon = false) => {
         try {
             // Check if token is blacklisted
             const isBlacklisted = await redisHelpers.isTokenBlacklisted(token);
@@ -108,7 +117,35 @@ const tokenService = {
                 throw new Error('Token has been revoked');
             }
 
-            return jwt.verify(token, JWT_CONFIG.ACCESS_TOKEN.SECRET);
+            // Decode token without verification to check expiration
+            const decoded = jwt.decode(token);
+            if (!decoded) {
+                throw new Error('Invalid token format');
+            }
+
+            const now = Math.floor(Date.now() / 1000);
+            const timeUntilExpiry = decoded.exp - now;
+            
+            // Calculate if token is expiring soon (less than 5 minutes)
+            const isExpiringSoon = timeUntilExpiry > 0 && timeUntilExpiry < 300;
+
+            if (isExpiringSoon && !allowExpiringSoon) {
+                // Return payload but with expiringSoon flag
+                return {
+                    payload: decoded,
+                    status: 'expiring_soon',
+                    expiresIn: timeUntilExpiry
+                };
+            }
+
+            // Verify token with JWT library
+            const verified = jwt.verify(token, JWT_CONFIG.ACCESS_TOKEN.SECRET);
+            
+            return {
+                payload: verified,
+                status: 'valid',
+                expiresIn: timeUntilExpiry
+            };
         } catch (error) {
             if (error.name === 'JsonWebTokenError') {
                 throw new Error('Invalid token');
@@ -116,6 +153,63 @@ const tokenService = {
                 throw new Error('Token expired');
             }
             throw error;
+        }
+    },
+
+    /**
+     * Check if token is expiring soon
+     * @param {string} token - JWT token
+     * @returns {Object} - Status information
+     */
+    checkTokenStatus: async (token) => {
+        try {
+            // Decode token without verification
+            const decoded = jwt.decode(token);
+            if (!decoded) {
+                return { 
+                    valid: false, 
+                    status: 'invalid',
+                    message: 'Invalid token format'
+                };
+            }
+
+            const now = Math.floor(Date.now() / 1000);
+            
+            // Check if already expired
+            if (decoded.exp <= now) {
+                return { 
+                    valid: false, 
+                    status: 'expired',
+                    message: 'Token has expired' 
+                };
+            }
+
+            // Check if expiring soon (less than 5 minutes)
+            const timeUntilExpiry = decoded.exp - now;
+            const isExpiringSoon = timeUntilExpiry < 300;
+
+            if (isExpiringSoon) {
+                return { 
+                    valid: true, 
+                    status: 'expiring_soon',
+                    expiresIn: timeUntilExpiry,
+                    message: 'Token is expiring soon' 
+                };
+            }
+
+            return { 
+                valid: true, 
+                status: 'valid',
+                expiresIn: timeUntilExpiry,
+                message: 'Token is valid' 
+            };
+        } catch (error) {
+            logger.error('Error checking token status:', error);
+            return { 
+                valid: false, 
+                status: 'error',
+                message: 'Error checking token' 
+            };
         }
     },
 
@@ -193,6 +287,9 @@ const tokenService = {
 
             // Add token to blacklist in Redis
             await redisHelpers.blacklistToken(token, decoded.exp);
+            
+            // Remove token metadata
+            await redisHelpers.removeTokenMetadata(token);
         } catch (error) {
             logger.error('Error revoking access token:', error);
             throw error;
@@ -215,6 +312,65 @@ const tokenService = {
         } catch (error) {
             logger.error('Error revoking refresh token:', error);
             throw error;
+        }
+    },
+    
+    /**
+     * Proactively refresh an access token that's about to expire
+     * @param {string} accessToken - Current access token
+     * @returns {Object} - New access token information or null if not needed
+     */
+    proactiveTokenRefresh: async (accessToken) => {
+        try {
+            const status = await tokenService.checkTokenStatus(accessToken);
+            
+            // Only refresh if token is expiring soon but still valid
+            if (status.status !== 'expiring_soon') {
+                return null;
+            }
+            
+            // Get token metadata from Redis
+            const metadata = await redisHelpers.getTokenMetadata(accessToken);
+            if (!metadata) {
+                return null;
+            }
+            
+            // Get user info
+            const user = { id: metadata.userId };
+            
+            // Generate a new access token only
+            const tokenPayload = {
+                sub: user.id,
+                email: user.email,
+                type: 'access'
+            };
+            
+            const newAccessToken = jwt.sign(
+                tokenPayload,
+                JWT_CONFIG.ACCESS_TOKEN.SECRET,
+                {expiresIn: JWT_CONFIG.ACCESS_TOKEN.EXPIRES_IN}
+            );
+            
+            const decodedAccess = jwt.decode(newAccessToken);
+            
+            // Store new token metadata
+            await redisHelpers.storeTokenMetadata(newAccessToken, {
+                userId: user.id,
+                refreshTokenId: metadata.refreshTokenId,
+                createdAt: decodedAccess.iat,
+                expiresAt: decodedAccess.exp
+            });
+            
+            // Blacklist the old token
+            await redisHelpers.blacklistToken(accessToken, jwt.decode(accessToken).exp);
+            
+            return {
+                token: newAccessToken,
+                expires: new Date(decodedAccess.exp * 1000)
+            };
+        } catch (error) {
+            logger.error('Error in proactive token refresh:', error);
+            return null;
         }
     }
 };
