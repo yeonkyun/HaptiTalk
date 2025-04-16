@@ -404,6 +404,120 @@ const sessionController = {
             logger.error(`Get timer status error for session ID ${req.params.id}:`, error);
             next(error);
         }
+    },
+
+    /**
+     * 세션 유효성 검증
+     * POST /api/v1/sessions/validate
+     */
+    validateSession: async (req, res, next) => {
+        try {
+            const { sessionId, userId } = req.body;
+
+            if (!sessionId || !userId) {
+                return res.status(httpStatus.BAD_REQUEST).json({
+                    success: false,
+                    message: '세션 ID와 사용자 ID가 필요합니다.'
+                });
+            }
+
+            // 세션 조회
+            try {
+                const session = await sessionService.getSession(sessionId);
+                
+                // 세션 상태 확인
+                if (session.status !== 'active') {
+                    return res.status(httpStatus.OK).json({
+                        success: true,
+                        data: {
+                            isValid: false,
+                            reason: 'inactive_session'
+                        }
+                    });
+                }
+
+                // 소유자 확인
+                if (session.user_id === userId) {
+                    return res.status(httpStatus.OK).json({
+                        success: true,
+                        data: {
+                            isValid: true,
+                            role: 'owner'
+                        }
+                    });
+                }
+
+                // 참가자 확인
+                const isParticipant = await sessionService.isSessionParticipant(sessionId, userId);
+                
+                return res.status(httpStatus.OK).json({
+                    success: true,
+                    data: {
+                        isValid: isParticipant,
+                        role: isParticipant ? 'participant' : null,
+                        reason: !isParticipant ? 'not_participant' : null
+                    }
+                });
+            } catch (error) {
+                // 세션 찾을 수 없음
+                return res.status(httpStatus.OK).json({
+                    success: true,
+                    data: {
+                        isValid: false,
+                        reason: 'session_not_found'
+                    }
+                });
+            }
+        } catch (error) {
+            logger.error(`세션 유효성 검증 오류:`, error);
+            next(error);
+        }
+    },
+
+    /**
+     * 세션 상태 조회
+     * GET /api/v1/sessions/:id/status
+     */
+    getSessionStatus: async (req, res, next) => {
+        try {
+            const { id } = req.params;
+
+            // 세션 상세 정보 조회
+            try {
+                const session = await sessionService.getSession(id);
+                
+                // 참가자 목록 조회
+                const participants = await sessionService.getSessionParticipants(id);
+                
+                // 최신 분석 결과 조회
+                const latestAnalysis = await sessionService.getLatestAnalysis(id);
+                
+                res.status(httpStatus.OK).json({
+                    success: true,
+                    data: {
+                        sessionId: id,
+                        title: session.title,
+                        status: session.status,
+                        type: session.type,
+                        startTime: session.created_at,
+                        endTime: session.end_time,
+                        duration: session.duration,
+                        ownerId: session.user_id,
+                        participants,
+                        participantsCount: participants.length,
+                        latestAnalysis
+                    }
+                });
+            } catch (error) {
+                return res.status(httpStatus.NOT_FOUND).json({
+                    success: false,
+                    message: '세션을 찾을 수 없습니다.'
+                });
+            }
+        } catch (error) {
+            logger.error(`세션 상태 조회 오류:`, error);
+            next(error);
+        }
     }
 };
 

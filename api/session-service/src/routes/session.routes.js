@@ -197,4 +197,33 @@ router.get(
     sessionController.getTimerStatus
 );
 
+/**
+ * @route POST /api/v1/sessions/validate
+ * @desc 세션 유효성 검증
+ * @access Private
+ */
+router.post(
+    '/validate',
+    [
+        body('sessionId').isUUID(4).withMessage('유효한 세션 ID가 아닙니다'),
+        body('userId').isUUID(4).withMessage('유효한 사용자 ID가 아닙니다'),
+        validationMiddleware.validate
+    ],
+    sessionController.validateSession
+);
+
+/**
+ * @route GET /api/v1/sessions/:id/status
+ * @desc 세션 상태 조회
+ * @access Private
+ */
+router.get(
+    '/:id/status',
+    [
+        param('id').isUUID(4).withMessage('유효한 세션 ID가 아닙니다'),
+        validationMiddleware.validate
+    ],
+    sessionController.getSessionStatus
+);
+
 module.exports = router;

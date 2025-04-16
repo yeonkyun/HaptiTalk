@@ -6,9 +6,13 @@ const helmet = require('helmet');
 const {createRedisClient} = require('./config/redis');
 const authMiddleware = require('./middleware/auth.middleware');
 const logger = require('./utils/logger');
+const {setServiceAuthToken} = require('./config/api-client');
 
 // 기본 설정
 const PORT = process.env.PORT || 3001;
+
+// 서비스 간 통신을 위한 API 토큰
+const INTER_SERVICE_TOKEN = process.env.INTER_SERVICE_TOKEN || 'default-service-token';
 
 // Redis 클라이언트 초기화
 const redisClient = createRedisClient();
@@ -72,6 +76,10 @@ const startServer = async () => {
         // Redis 연결 확인
         await redisClient.ping();
         logger.info('Redis 서버 연결 성공');
+
+        // 서비스 간 통신을 위한 API 토큰 설정
+        setServiceAuthToken(INTER_SERVICE_TOKEN);
+        logger.info('서비스 간 통신을 위한 인증 토큰이 설정되었습니다');
 
         // 서버 시작
         server.listen(PORT, () => {
