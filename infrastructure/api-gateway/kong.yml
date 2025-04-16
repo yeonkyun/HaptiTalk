@@ -32,6 +32,16 @@ services:
         strip_path: false
     plugins:
       - name: cors
+      
+  # 인증 서비스 Health 전용 서비스
+  - name: auth-service-health
+    url: http://auth-service:3000/health
+    routes:
+      - name: auth-health-route
+        paths:
+          - /api/health/auth
+    plugins:
+      - name: cors
 
   # 실시간 서비스
   - name: realtime-service
@@ -41,6 +51,16 @@ services:
         paths:
           - /api/v1/realtime
         strip_path: false
+    plugins:
+      - name: cors
+  
+  # 실시간 서비스 Health 전용 서비스  
+  - name: realtime-service-health
+    url: http://realtime-service:3001/health
+    routes:
+      - name: realtime-health-route
+        paths:
+          - /api/health/realtime
     plugins:
       - name: cors
       
@@ -54,6 +74,16 @@ services:
         strip_path: false
     plugins:
       - name: cors
+  
+  # 세션 서비스 Health 전용 서비스
+  - name: session-service-health
+    url: http://session-service:3002/health
+    routes:
+      - name: session-health-route
+        paths:
+          - /api/health/sessions
+    plugins:
+      - name: cors
 
   # 피드백 서비스
   - name: feedback-service
@@ -63,6 +93,16 @@ services:
         paths:
           - /api/v1/feedback
         strip_path: false
+    plugins:
+      - name: cors
+  
+  # 피드백 서비스 Health 전용 서비스
+  - name: feedback-service-health
+    url: http://feedback-service:3003/health
+    routes:
+      - name: feedback-health-route
+        paths:
+          - /api/health/feedback
     plugins:
       - name: cors
 
@@ -76,6 +116,16 @@ services:
         strip_path: false
     plugins:
       - name: cors
+  
+  # 사용자 서비스 Health 전용 서비스
+  - name: user-service-health
+    url: http://user-service:3004/health
+    routes:
+      - name: user-health-route
+        paths:
+          - /api/health/users
+    plugins:
+      - name: cors
 
   # 리포트 서비스
   - name: report-service
@@ -85,5 +135,15 @@ services:
         paths:
           - /api/v1/reports
         strip_path: false
+    plugins:
+      - name: cors
+  
+  # 리포트 서비스 Health 전용 서비스
+  - name: report-service-health
+    url: http://report-service:3005/health
+    routes:
+      - name: report-health-route
+        paths:
+          - /api/health/reports
     plugins:
       - name: cors

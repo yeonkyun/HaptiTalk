@@ -173,10 +173,10 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - JWT_SESSION_SECRET=${JWT_SESSION_SECRET}
+      - SESSION_SERVICE_URL=http://session-service:${SESSION_SERVICE_PORT}
+      - FEEDBACK_SERVICE_URL=http://feedback-service:${FEEDBACK_SERVICE_PORT}
+      - INTER_SERVICE_TOKEN=${JWT_SERVICE_SECRET:-service-token-for-inter-service-communication}
       - LOG_LEVEL=${LOG_LEVEL}
-    volumes:
-      - ./api/realtime-service:/app
-      - /app/node_modules
     ports:
       - "${REALTIME_SERVICE_PORT}:${REALTIME_SERVICE_PORT}"
     networks:
@@ -210,9 +210,6 @@ services:
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - JWT_SESSION_SECRET=${JWT_SESSION_SECRET}
       - LOG_LEVEL=${LOG_LEVEL}
-    volumes:
-      - ./api/session-service:/app
-      - /app/node_modules
     ports:
       - "${SESSION_SERVICE_PORT}:${SESSION_SERVICE_PORT}"
     networks:
