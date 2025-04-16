@@ -1,4 +1,5 @@
 const httpStatus = require('http-status');
+const Device = require('../models/device.model');
 const tokenService = require('../services/token.service');
 const logger = require('../utils/logger');
 
