@@ -59,6 +59,30 @@ const authValidation = {
     ]
 };
 
+// 서비스 인증 유효성 검사 스키마
+const serviceAuthValidation = {
+    generateToken: [
+        body('serviceId')
+            .isString().withMessage('서비스 ID는 문자열이어야 합니다')
+            .notEmpty().withMessage('서비스 ID는 필수입니다'),
+        body('serviceSecret')
+            .isString().withMessage('서비스 비밀키는 문자열이어야 합니다')
+            .notEmpty().withMessage('서비스 비밀키는 필수입니다')
+    ],
+
+    verifyToken: [
+        body('token')
+            .isString().withMessage('토큰은 문자열이어야 합니다')
+            .notEmpty().withMessage('토큰은 필수입니다')
+    ],
+
+    revokeToken: [
+        body('token')
+            .isString().withMessage('토큰은 문자열이어야 합니다')
+            .notEmpty().withMessage('토큰은 필수입니다')
+    ]
+};
+
 // Device validation schemas
 const deviceValidation = {
     registerDevice: [
@@ -118,5 +142,6 @@ const deviceValidation = {
 module.exports = {
     validate,
     authValidation,
+    serviceAuthValidation,
     deviceValidation
 };

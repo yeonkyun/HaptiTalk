@@ -30,6 +30,18 @@ services:
         paths:
           - /api/v1/auth
         strip_path: false
+      - name: devices-routes
+        paths:
+          - /api/v1/devices
+        strip_path: false
+      - name: token-status-route
+        paths:
+          - /token/status
+        strip_path: false
+      - name: token-refresh-route
+        paths:
+          - /token/proactive-refresh
+        strip_path: false
     plugins:
       - name: cors
       

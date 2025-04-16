@@ -14,10 +14,12 @@ redisClient.on('error', (err) => {
 const REDIS_KEYS = {
     ACCESS_TOKEN_BLACKLIST: 'auth:blacklist:access:',
     REFRESH_TOKEN: 'auth:refresh:',
+    SERVICE_TOKEN: 'auth:service:',
     VERIFICATION_TOKEN: 'auth:verification:',
     RESET_TOKEN: 'auth:reset:',
     ACTIVE_SESSIONS: 'auth:sessions:user:',
-    RATE_LIMIT: 'auth:rate-limit:'
+    RATE_LIMIT: 'auth:rate-limit:',
+    TOKEN_METADATA: 'auth:token:metadata:'
 };
 
 // Redis helper functions
@@ -74,6 +76,83 @@ const redisHelpers = {
      */
     removeRefreshToken: async (tokenId) => {
         await redisClient.del(`${REDIS_KEYS.REFRESH_TOKEN}${tokenId}`);
+    },
+
+    /**
+     * 서비스 토큰 저장
+     * @param {string} tokenId - 토큰 ID
+     * @param {string} serviceId - 서비스 ID
+     * @param {number} ttl - 만료 시간(초)
+     */
+    storeServiceToken: async (tokenId, serviceId, ttl) => {
+        await redisClient.set(`${REDIS_KEYS.SERVICE_TOKEN}${tokenId}`, serviceId, {
+            EX: ttl
+        });
+    },
+
+    /**
+     * 서비스 ID 조회
+     * @param {string} tokenId - 토큰 ID
+     * @returns {Promise<string|null>} - 서비스 ID 또는 null
+     */
+    getServiceIdFromToken: async (tokenId) => {
+        return await redisClient.get(`${REDIS_KEYS.SERVICE_TOKEN}${tokenId}`);
+    },
+
+    /**
+     * 서비스 토큰 삭제
+     * @param {string} tokenId - 토큰 ID
+     */
+    removeServiceToken: async (tokenId) => {
+        await redisClient.del(`${REDIS_KEYS.SERVICE_TOKEN}${tokenId}`);
+    },
+
+    /**
+     * Store token metadata for refresh optimization
+     * @param {string} token - The access token
+     * @param {Object} metadata - Token metadata including userId and refreshTokenId
+     */
+    storeTokenMetadata: async (token, metadata) => {
+        try {
+            // Store with TTL based on token expiry
+            const ttl = metadata.expiresAt - Math.floor(Date.now() / 1000);
+            if (ttl > 0) {
+                await redisClient.set(
+                    `${REDIS_KEYS.TOKEN_METADATA}${token}`, 
+                    JSON.stringify(metadata), 
+                    { EX: ttl + 60 } // Add a small buffer to ensure metadata outlives token
+                );
+            }
+        } catch (error) {
+            logger.error('Error storing token metadata:', error);
+        }
+    },
+
+    /**
+     * Get token metadata
+     * @param {string} token - The access token
+     * @returns {Promise<Object|null>} - Token metadata or null
+     */
+    getTokenMetadata: async (token) => {
+        try {
+            const metadata = await redisClient.get(`${REDIS_KEYS.TOKEN_METADATA}${token}`);
+            return metadata ? JSON.parse(metadata) : null;
+        } catch (error) {
+            logger.error('Error getting token metadata:', error);
+            return null;
+        }
+    },
+
+    /**
+     * Remove token metadata
+     * @param {string} token - The access token
+     */
+    removeTokenMetadata: async (token) => {
+        try {
+            await redisClient.del(`${REDIS_KEYS.TOKEN_METADATA}${token}`);
+        } catch (error) {
+            logger.error('Error removing token metadata:', error);
+        }
     }
 };
 
