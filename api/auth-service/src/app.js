@@ -30,6 +30,83 @@ app.get('/health', (req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/devices', deviceRoutes);
 
+
+app.get('/token/status', (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(400).json({
+            success: false,
+            message: 'Access token is required'
+        });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    // 토큰 서비스로 리디렉션
+    const tokenService = require('./services/token.service');
+    
+    tokenService.checkTokenStatus(token)
+        .then(status => {
+            return res.status(200).json({
+                success: true,
+                data: status
+            });
+        })
+        .catch(error => {
+            console.error('Error checking token status:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Error checking token status'
+            });
+        });
+});
+
+// 토큰 사전 갱신 엔드포인트 추가
+app.post('/token/proactive-refresh', (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(400).json({
+            success: false,
+            message: 'Access token is required'
+        });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    // 토큰 서비스로 리디렉션
+    const tokenService = require('./services/token.service');
+    
+    tokenService.proactiveTokenRefresh(token)
+        .then(newToken => {
+            if (!newToken) {
+                return res.status(200).json({
+                    success: true,
+                    data: {
+                        refreshed: false,
+                        message: 'Token refresh not needed'
+                    }
+                });
+            }
+            
+            return res.status(200).json({
+                success: true,
+                data: {
+                    refreshed: true,
+                    access_token: newToken.token,
+                    expires_in: Math.floor((newToken.expires - new Date()) / 1000)
+                },
+                message: 'Token refreshed proactively'
+            });
+        })
+        .catch(error => {
+            console.error('Error refreshing token:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Error refreshing token'
+            });
+        });
+});
+
 // Error handling middleware
 app.use(errorHandler);
 
