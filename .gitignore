@@ -45,3 +45,6 @@ build/
 dist/
 build/
 out/
+
+# 임시 스크립트
+scripts/

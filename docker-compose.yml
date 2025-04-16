@@ -100,34 +100,13 @@ services:
       timeout: 5s
       retries: 5
 
-  # NGINX 리버스 프록시
-  nginx:
-    image: nginx:1.23-alpine
-    container_name: haptitalk-nginx
-    restart: unless-stopped
-    volumes:
-      - ./infrastructure/reverse-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./infrastructure/reverse-proxy/html:/usr/share/nginx/html:ro
-    ports:
-      - "${NGINX_HTTP_PORT}:80"
-      - "${NGINX_HTTPS_PORT}:443"
-    networks:
-      - haptitalk_network
-    depends_on:
-      - kong
-    healthcheck:
-      test: ["CMD", "nginx", "-t"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # 정적 웹 서버 (관리자 페이지)
   static-web:
     image: nginx:1.23-alpine
     container_name: haptitalk-static-web
     restart: unless-stopped
     volumes:
-      - ./infrastructure/reverse-proxy/html:/usr/share/nginx/html:ro
+      - ./infrastructure/static-web/html:/usr/share/nginx/html:ro
     networks:
       - haptitalk_network
     healthcheck:
