@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hapti_talk/constants/colors.dart';
 import 'package:hapti_talk/screens/auth/login_screen.dart';
+import 'package:hapti_talk/screens/auth/signup_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 void main() {
@@ -126,7 +127,11 @@ class StartScreen extends StatelessWidget {
                 height: 55,
                 child: OutlinedButton(
                   onPressed: () {
-                    // 회원가입 화면으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const SignUpScreen()),
+                    );
                   },
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.primaryColor),
