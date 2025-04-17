@@ -3,40 +3,28 @@ const feedbackHandler = require('./feedback.handler');
 const analysisHandler = require('./analysis.handler');
 const logger = require('../utils/logger');
 
-module.exports = (io, redisClient) => {
-    // Redis Pub/Sub 채널 구독
-    const redisSub = redisClient.duplicate();
-
-    // 피드백 채널 구독
-    redisSub.psubscribe('feedback:channel:*');
-
-    // 분석 이벤트 채널 구독
-    redisSub.psubscribe('analysis:events:*');
-
-    // Redis 메시지 수신 시 처리
-    redisSub.on('pmessage', (pattern, channel, message) => {
-        try {
-            const payload = JSON.parse(message);
-
-            if (pattern === 'feedback:channel:*') {
-                const sessionId = channel.split(':')[2];
-                io.to(`session:${sessionId}`).emit('feedback', payload);
-                logger.debug(`피드백 전달: 세션 ${sessionId}`);
-            } else if (pattern === 'analysis:events:*') {
-                const sessionId = channel.split(':')[2];
-                io.to(`session:${sessionId}`).emit('analysis_update', payload);
-                logger.debug(`분석 업데이트 전달: 세션 ${sessionId}`);
-            }
-        } catch (error) {
-            logger.error(`Redis 메시지 처리 오류: ${error.message}`);
-        }
-    });
-
+module.exports = (io, redisClient, pubSub) => {
     // 클라이언트 연결 처리
     io.on('connection', (socket) => {
         const {user} = socket;
 
         logger.info(`사용자 ${user.id} 연결됨 (소켓 ID: ${socket.id})`);
+
+        // 연결 상태 모니터링을 위한 ping_check 핸들러
+        socket.on('ping_check', (data, callback) => {
+            try {
+                if (callback && typeof callback === 'function') {
+                    callback({
+                        status: 'ok',
+                        timestamp: Date.now(),
+                        received: data.timestamp,
+                        socketId: socket.id
+                    });
+                }
+            } catch (error) {
+                logger.error(`ping_check 응답 오류: ${error.message}`);
+            }
+        });
 
         // 사용자 세션 관리
         sessionHandler(io, socket, redisClient);
@@ -47,43 +35,62 @@ module.exports = (io, redisClient) => {
         // 분석 데이터 처리
         analysisHandler(io, socket, redisClient);
 
-        // 핑/퐁 처리
+        // 핑/퐁 처리 (클라이언트 지연 시간 측정용)
         socket.on('ping', (data) => {
+            // 메시지 체크 및 에러 방지
+            const messageId = data && data.message_id ? data.message_id : `ping_${Date.now()}`;
+            
             socket.emit('pong', {
-                timestamp: new Date().toISOString(),
+                timestamp: Date.now(),
                 server_time: new Date().toISOString(),
-                message_id: data.message_id,
-                in_reply_to: data.message_id
+                message_id: `pong_${Date.now()}`,
+                in_reply_to: messageId
             });
         });
 
-        // 연결 종료 처리
-        socket.on('disconnect', async () => {
+        // 연결 종료 처리 - ConnectionManager로 이관
+        socket.on('disconnect', () => {
+            logger.info(`사용자 ${user?.id || '알 수 없음'} 소켓 연결 종료됨 (소켓 ID: ${socket.id})`);
+        });
+        
+        // 클라이언트 측 연결 상태 정보 수집
+        socket.on('connection_stats', (stats) => {
             try {
-                // 사용자 연결 정보 제거
-                if (user) {
-                    // 현재 세션 확인
-                    const sessionId = await redisClient.hget(`connections:user:${user.id}`, 'sessionId');
-
-                    if (sessionId) {
-                        // 세션 참여 상태 제거
-                        await redisClient.srem(`session:participants:${sessionId}`, user.id);
-
-                        // 다른 참가자들에게 참가자 퇴장 알림
-                        socket.to(`session:${sessionId}`).emit('participant_left', {
-                            userId: user.id,
-                            timestamp: new Date().toISOString()
-                        });
-                    }
-
-                    // 연결 정보 제거
-                    await redisClient.hdel(`connections:user:${user.id}`, 'sessionId');
-                    await redisClient.del(`connections:device:${socket.id}`);
+                if (stats && typeof stats === 'object') {
+                    // 연결 통계 저장 (선택적)
+                    redisClient.hset(
+                        `socket:stats:${socket.id}`,
+                        'lastReported', Date.now(),
+                        'reconnectAttempts', stats.reconnectAttempts || 0,
+                        'latency', stats.latency || 0,
+                        'transport', stats.transport || socket.conn.transport.name
+                    ).catch(err => logger.error(`연결 통계 저장 오류: ${err.message}`));
+                    
+                    logger.debug(`클라이언트 연결 상태: ${socket.id}, 지연시간=${stats.latency}ms, 재연결=${stats.reconnectAttempts}회`);
                 }
-
-                logger.info(`사용자 ${user?.id || '알 수 없음'} 연결 종료됨 (소켓 ID: ${socket.id})`);
             } catch (error) {
-                logger.error(`연결 종료 처리 오류: ${error.message}`);
+                logger.error(`연결 통계 처리 오류: ${error.message}`);
+            }
+        });
+        
+        // 메시지 배치 수신 처리
+        socket.on('message_batch', (messages) => {
+            try {
+                if (Array.isArray(messages)) {
+                    for (const msg of messages) {
+                        if (msg && msg.event) {
+                            // 각 메시지 유형에 맞게 처리
+                            const handlers = socket.eventHandlers || {};
+                            const handler = handlers[msg.event];
+                            
+                            if (handler && typeof handler === 'function') {
+                                handler(msg.data);
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                logger.error(`메시지 배치 처리 오류: ${error.message}`);
             }
         });
     });
