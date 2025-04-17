@@ -7,8 +7,10 @@ filebeat.inputs:
         host: "unix:///var/run/docker.sock"
     - decode_json_fields:
         fields: ["message"]
-        target: "json"
+        target: ""
         overwrite_keys: true
+        process_array: false
+        max_depth: 2
 
 # 특정 서비스들의 로그 파일 직접 지정
 - type: log
@@ -54,6 +56,10 @@ filebeat.inputs:
   fields:
     service: session-service
   fields_under_root: true
+  multiline:
+    pattern: '^[[:space:]]+(at|\.{3})[[:space:]]+\b|^Caused by:'
+    negate: false
+    match: after
 
 - type: log
   enabled: true
@@ -62,10 +68,29 @@ filebeat.inputs:
   fields:
     service: feedback-service
   fields_under_root: true
+  multiline:
+    pattern: '^[[:space:]]+(at|\.{3})[[:space:]]+\b|^Caused by:'
+    negate: false
+    match: after
+
+processors:
+  - add_host_metadata: ~
+  - add_cloud_metadata: ~
+  - add_fields:
+      target: ''
+      fields:
+        service: '${SERVICE_NAME:unknown}'
+  - drop_event:
+      when:
+        regexp:
+          message: '^\s*$'
 
 # Logstash로 출력 설정
 output.logstash:
   hosts: ["logstash:5044"]
+  loadbalance: true
+  ssl.enabled: false
+  timeout: 30s
 
 # 로깅 설정
 logging.level: info
@@ -83,7 +108,8 @@ queue.mem:
   flush.timeout: 5s
 
 max_procs: 1
-setup.dashboards.enabled: true
-setup.kibana:
-  host: "kibana:5601"
-setup.template.enabled: true 
+
+# 초기 설정 - Kibana 의존성 비활성화
+setup.dashboards.enabled: false
+setup.kibana.enabled: false
+setup.template.enabled: false 

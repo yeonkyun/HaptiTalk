@@ -20,6 +20,7 @@ services:
       - "${ELASTICSEARCH_PORT:-9200}:9200"
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
+      - ./elasticsearch/setup-ilm.sh:/usr/share/elasticsearch/setup-ilm.sh:ro
     networks:
       - elk_network
 
@@ -47,6 +48,8 @@ services:
       - "${LOGSTASH_API_PORT:-9600}:9600"
     environment:
       - "LS_JAVA_OPTS=${LS_JAVA_OPTS}"
+      - "ELASTIC_USERNAME=${ELASTIC_USERNAME}"
+      - "ELASTIC_PASSWORD=${ELASTIC_PASSWORD}"
     volumes:
       - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
     depends_on:
@@ -54,8 +57,32 @@ services:
     networks:
       - elk_network
 
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.14.0
+    container_name: haptitalk-filebeat
+    user: root
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log:/var/log:ro
+      - filebeat-data:/usr/share/filebeat/data
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=${ELASTIC_USERNAME}
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+    depends_on:
+      - elasticsearch
+      - logstash
+    networks:
+      - elk_network
+    command: filebeat -e -strict.perms=false
+    restart: unless-stopped
+
 volumes:
   elasticsearch-data:
+    driver: local
+  filebeat-data:
     driver: local
 
 networks:
