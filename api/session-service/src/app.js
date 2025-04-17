@@ -9,6 +9,7 @@ const {redisClient} = require('./config/redis');
 const sessionRoutes = require('./routes/session.routes');
 const errorHandler = require('./middleware/errorHandler.middleware');
 const logger = require('./utils/logger');
+const { v4: uuidv4 } = require('uuid');
 
 // 환경변수 로드
 dotenv.config();
@@ -17,19 +18,37 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3002;
 
+// 요청 ID 미들웨어 - 각 요청에 고유 ID 부여
+app.use((req, res, next) => {
+    req.id = req.headers['x-request-id'] || uuidv4();
+    res.setHeader('X-Request-ID', req.id);
+    next();
+});
+
 // 미들웨어 설정
 app.use(helmet()); // 보안 헤더 설정
 app.use(compression()); // 응답 압축
 app.use(cors()); // CORS 설정
+
+// 로깅 미들웨어 추가
+app.use(logger.requestMiddleware);
+
+// Morgan 설정 변경 - JSON 형식 로그 출력
+app.use(morgan((tokens, req, res) => {
+    return JSON.stringify({
+        method: tokens.method(req, res),
+        url: tokens.url(req, res),
+        status: tokens.status(req, res),
+        contentLength: tokens.res(req, res, 'content-length'),
+        responseTime: tokens['response-time'](req, res),
+        timestamp: new Date().toISOString(),
+        requestId: req.id,
+        userAgent: tokens['user-agent'](req, res)
+    });
+}, { stream: { write: message => logger.http(message) } }));
+
 app.use(express.json()); // JSON 파싱
 app.use(express.urlencoded({extended: true})); // URL 인코딩 파싱
-
-// 로깅 미들웨어
-app.use(morgan('dev', {
-    stream: {
-        write: (message) => logger.info(message.trim())
-    }
-}));
 
 // 라우트 설정
 app.use('/api/v1/sessions', sessionRoutes);
@@ -42,6 +61,9 @@ app.get('/health', (req, res) => {
         timestamp: new Date().toISOString()
     });
 });
+
+// 로깅 에러 미들웨어 추가
+app.use(logger.errorMiddleware);
 
 // 404 처리 미들웨어
 app.use(errorHandler.notFoundHandler);
@@ -60,7 +82,10 @@ const startServer = async () => {
         const dbConnected = await testConnection();
 
         if (!dbConnected) {
-            logger.error('Failed to connect to database. Exiting...');
+            logger.error('Failed to connect to database. Exiting...', {
+                component: 'database',
+                status: 'failed'
+            });
             process.exit(1);
         }
 
@@ -71,20 +96,50 @@ const startServer = async () => {
 
         // 서버 시작
         app.listen(PORT, () => {
-            logger.info(`Session service running on port ${PORT}`);
+            logger.info(`Session service running on port ${PORT}`, { 
+                port: PORT, 
+                environment: process.env.NODE_ENV,
+                node_version: process.version
+            });
         });
     } catch (error) {
-        logger.error('Error starting server:', error);
+        logger.error('Error starting server:', { 
+            error: error.message, 
+            stack: error.stack,
+            component: 'startup'
+        });
         process.exit(1);
     }
 };
 
 // Redis 연결 오류 처리
 redisClient.on('error', (err) => {
-    logger.error('Redis connection error:', err);
+    logger.error('Redis connection error:', { 
+        error: err.message,
+        stack: err.stack,
+        component: 'redis'
+    });
     if (process.env.NODE_ENV === 'production') {
         process.exit(1);
     }
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection', { 
+        reason: reason instanceof Error ? reason.message : reason,
+        stack: reason instanceof Error ? reason.stack : undefined,
+        promise
+    });
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception', { 
+        error: error.message, 
+        stack: error.stack
+    });
+    process.exit(1);
 });
 
 // 서버 시작
@@ -92,20 +147,32 @@ startServer();
 
 // 깔끔한 종료 처리
 const gracefulShutdown = async () => {
-    logger.info('Shutting down gracefully...');
+    logger.info('Shutting down gracefully...', {
+        component: 'lifecycle',
+        action: 'shutdown'
+    });
 
     try {
         // 활성 연결 종료
         await sequelize.close();
-        logger.info('Database connections closed');
+        logger.info('Database connections closed', {
+            component: 'database',
+            status: 'closed'
+        });
 
         await redisClient.quit();
-        logger.info('Redis connections closed');
+        logger.info('Redis connections closed', {
+            component: 'redis',
+            status: 'closed'
+        });
 
         // 정상 종료
         process.exit(0);
     } catch (error) {
-        logger.error('Error during shutdown:', error);
+        logger.error('Error during shutdown:', { 
+            error: error.message,
+            stack: error.stack
+        });
         process.exit(1);
     }
 };
