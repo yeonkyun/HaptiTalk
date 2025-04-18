@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hapti_talk/constants/colors.dart';
 import 'package:hapti_talk/screens/main_tab.dart';
+import 'package:hapti_talk/services/auth_service.dart';
+import 'package:hapti_talk/services/service_locator.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -13,6 +15,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final AuthService _authService = serviceLocator.authService; // 서비스 로케이터 사용
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _errorMessage;
@@ -25,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // 로그인 검증 함수
-  void _validateAndLogin() {
+  void _validateAndLogin() async {
     setState(() {
       _errorMessage = null;
       _isLoading = true;
@@ -48,19 +51,31 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // 여기서 실제 로그인 API 호출 로직을 추가할 수 있습니다
-    // 지금은 간단히 1초 후 메인 탭으로 이동하도록 합니다
-    Future.delayed(const Duration(seconds: 1), () {
-      setState(() {
-        _isLoading = false;
-      });
+    // 로그인 서비스 호출
+    final response = await _authService.login(
+      _emailController.text.trim(),
+      _passwordController.text,
+    );
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (response.success) {
+      // 로그인 성공
+      if (!mounted) return;
 
       // 메인 화면으로 이동
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const MainTab()),
       );
-    });
+    } else {
+      // 로그인 실패
+      setState(() {
+        _errorMessage = response.errorMessage ?? '로그인에 실패했습니다.';
+      });
+    }
   }
 
   @override
