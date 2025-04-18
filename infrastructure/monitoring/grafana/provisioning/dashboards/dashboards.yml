@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: 'HaptiTalk'
+    orgId: 1
+    folder: 'HaptiTalk'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/json 

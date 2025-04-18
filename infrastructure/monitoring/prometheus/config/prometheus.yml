@@ -1,0 +1,42 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['haptitalk-auth-service:3000']
+    metrics_path: '/metrics'
+
+  - job_name: 'realtime-service'
+    static_configs:
+      - targets: ['haptitalk-realtime-service:3001']
+    metrics_path: '/metrics'
+
+  - job_name: 'session-service'
+    static_configs:
+      - targets: ['haptitalk-session-service:3002']
+    metrics_path: '/metrics'
+
+  - job_name: 'feedback-service'
+    static_configs:
+      - targets: ['haptitalk-feedback-service:3003']
+    metrics_path: '/metrics'
+
+  - job_name: 'user-service'
+    static_configs:
+      - targets: ['haptitalk-user-service:3004']
+    metrics_path: '/metrics'
+
+  - job_name: 'report-service'
+    static_configs:
+      - targets: ['haptitalk-report-service:3005']
+    metrics_path: '/metrics'
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['haptitalk-node-exporter:9100'] 

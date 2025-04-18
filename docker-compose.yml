@@ -346,6 +346,7 @@ services:
 networks:
   haptitalk_network:
     driver: bridge
+    name: haptitalk_network
 
 volumes:
   postgres_data:
