@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hapti_talk/constants/colors.dart';
+import 'package:hapti_talk/screens/main_tab.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -13,12 +14,53 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  // 로그인 검증 함수
+  void _validateAndLogin() {
+    setState(() {
+      _errorMessage = null;
+      _isLoading = true;
+    });
+
+    // 이메일과 비밀번호 입력 확인
+    if (_emailController.text.trim().isEmpty) {
+      setState(() {
+        _errorMessage = '이메일을 입력해주세요';
+        _isLoading = false;
+      });
+      return;
+    }
+
+    if (_passwordController.text.isEmpty) {
+      setState(() {
+        _errorMessage = '비밀번호를 입력해주세요';
+        _isLoading = false;
+      });
+      return;
+    }
+
+    // 여기서 실제 로그인 API 호출 로직을 추가할 수 있습니다
+    // 지금은 간단히 1초 후 메인 탭으로 이동하도록 합니다
+    Future.delayed(const Duration(seconds: 1), () {
+      setState(() {
+        _isLoading = false;
+      });
+
+      // 메인 화면으로 이동
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainTab()),
+      );
+    });
   }
 
   @override
@@ -157,6 +199,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
 
+                // 오류 메시지
+                if (_errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+
                 // 비밀번호 찾기 링크
                 Align(
                   alignment: Alignment.centerRight,
@@ -185,23 +240,32 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: () {
-                      // 로그인 기능 구현
-                    },
+                    onPressed: _isLoading ? null : _validateAndLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryColor,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      disabledBackgroundColor:
+                          AppColors.primaryColor.withOpacity(0.6),
                     ),
-                    child: const Text(
-                      '로그인',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.0,
+                            ),
+                          )
+                        : const Text(
+                            '로그인',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 30),
