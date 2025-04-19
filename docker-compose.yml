@@ -142,9 +142,11 @@ services:
       - EMAIL_FROM=${EMAIL_FROM}
       - FRONTEND_URL=${FRONTEND_URL}
       - LOG_LEVEL=${LOG_LEVEL}
+      # OpenTelemetry 트레이싱 설정
+      - SERVICE_NAME=auth-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/auth-service:/app
-      - /app/node_modules
     ports:
       - "${AUTH_SERVICE_PORT}:${AUTH_SERVICE_PORT}"
     networks:
@@ -165,6 +167,8 @@ services:
       dockerfile: Dockerfile
     container_name: haptitalk-realtime-service
     restart: unless-stopped
+    volumes:
+      - ./api/realtime-service:/app
     environment:
       - NODE_ENV=development
       - PORT=${REALTIME_SERVICE_PORT}
@@ -177,6 +181,9 @@ services:
       - FEEDBACK_SERVICE_URL=http://feedback-service:${FEEDBACK_SERVICE_PORT}
       - INTER_SERVICE_TOKEN=${JWT_SERVICE_SECRET:-service-token-for-inter-service-communication}
       - LOG_LEVEL=${LOG_LEVEL}
+      # OpenTelemetry 트레이싱 설정
+      - SERVICE_NAME=realtime-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     ports:
       - "${REALTIME_SERVICE_PORT}:${REALTIME_SERVICE_PORT}"
     networks:
@@ -196,6 +203,8 @@ services:
       dockerfile: Dockerfile
     container_name: haptitalk-session-service
     restart: unless-stopped
+    volumes:
+      - ./api/session-service:/app
     environment:
       - NODE_ENV=development
       - PORT=${SESSION_SERVICE_PORT}
@@ -210,6 +219,9 @@ services:
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - JWT_SESSION_SECRET=${JWT_SESSION_SECRET}
       - LOG_LEVEL=${LOG_LEVEL}
+      # OpenTelemetry 트레이싱 설정
+      - SERVICE_NAME=session-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     ports:
       - "${SESSION_SERVICE_PORT}:${SESSION_SERVICE_PORT}"
     networks:
@@ -248,9 +260,11 @@ services:
       - MONGO_PORT=27017
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - LOG_LEVEL=${LOG_LEVEL}
+      # OpenTelemetry 트레이싱 설정
+      - SERVICE_NAME=feedback-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/feedback-service:/app
-      - /app/node_modules
     ports:
       - "${FEEDBACK_SERVICE_PORT}:${FEEDBACK_SERVICE_PORT}"
     networks:
@@ -285,9 +299,11 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - LOG_LEVEL=${LOG_LEVEL}
+      # OpenTelemetry 트레이싱 설정
+      - SERVICE_NAME=user-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/user-service:/app
-      - /app/node_modules
     ports:
       - "${USER_SERVICE_PORT}:${USER_SERVICE_PORT}"
     networks:
@@ -326,9 +342,11 @@ services:
       - MONGO_PORT=27017
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - LOG_LEVEL=${LOG_LEVEL}
+      # OpenTelemetry 트레이싱 설정
+      - SERVICE_NAME=report-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/report-service:/app
-      - /app/node_modules
     ports:
       - "${REPORT_SERVICE_PORT}:${REPORT_SERVICE_PORT}"
     networks:
@@ -346,6 +364,7 @@ services:
 networks:
   haptitalk_network:
     driver: bridge
+    name: haptitalk_network
 
 volumes:
   postgres_data:

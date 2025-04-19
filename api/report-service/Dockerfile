@@ -2,22 +2,29 @@ FROM node:16-alpine
 
 WORKDIR /app
 
-# 필요한 의존성 설치
+# 기본 빌드 도구만 설치
 RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    cairo-dev \
-    jpeg-dev \
-    pango-dev \
-    giflib-dev
+    pkgconf
 
+# 패키지 파일 복사
 COPY package*.json ./
 
-RUN npm install
+# package.json 수정하여 chart.js와 canvas 의존성 제거
+RUN sed -i 's/"chart.js": ".*",//g' package.json && \
+    sed -i 's/"chartjs-node-canvas": ".*",//g' package.json
 
+# 필수 패키지만 설치
+RUN npm install --production morgan prom-client express winston cors helmet jsonwebtoken ioredis pg sequelize
+
+# 소스 코드 복사
 COPY . .
 
-EXPOSE ${PORT}
+# 헬스체크 및 시작 스크립트
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD wget -qO- http://localhost:${PORT:-3005}/health || exit 1
 
-CMD ["npm", "start"]
+# 시작 명령어
+CMD ["node", "src/app.js"]

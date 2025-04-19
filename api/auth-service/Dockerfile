@@ -12,7 +12,8 @@ RUN apk update && \
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --production
+RUN npm ci --production && \
+    npm install morgan prom-client
 
 # Copy source code
 COPY . .

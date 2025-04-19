@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.14.0
+    container_name: haptitalk-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - bootstrap.system_call_filter=false
+      - "ES_JAVA_OPTS=${ES_JAVA_OPTS}"
+      - xpack.security.enabled=false
+      - "ELASTIC_PASSWORD=${ELASTIC_PASSWORD}"
+      - "xpack.security.transport.ssl.enabled=false"
+      - "xpack.security.http.ssl.enabled=false"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "${ELASTICSEARCH_PORT:-9200}:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+      - ./elasticsearch/setup-ilm.sh:/usr/share/elasticsearch/setup-ilm.sh:ro
+    networks:
+      - elk_network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.14.0
+    container_name: haptitalk-kibana
+    ports:
+      - "${KIBANA_PORT:-5601}:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=${ELASTIC_USERNAME}
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+    depends_on:
+      - elasticsearch
+    networks:
+      - elk_network
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.14.0
+    container_name: haptitalk-logstash
+    ports:
+      - "${LOGSTASH_BEATS_PORT:-5044}:5044"
+      - "${LOGSTASH_TCP_PORT:-5046}:5000/tcp"
+      - "${LOGSTASH_TCP_PORT:-5046}:5000/udp"
+      - "${LOGSTASH_API_PORT:-9600}:9600"
+    environment:
+      - "LS_JAVA_OPTS=${LS_JAVA_OPTS}"
+      - "ELASTIC_USERNAME=${ELASTIC_USERNAME}"
+      - "ELASTIC_PASSWORD=${ELASTIC_PASSWORD}"
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+    depends_on:
+      - elasticsearch
+    networks:
+      - elk_network
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.14.0
+    container_name: haptitalk-filebeat
+    user: root
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log:/var/log:ro
+      - filebeat-data:/usr/share/filebeat/data
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=${ELASTIC_USERNAME}
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+    depends_on:
+      - elasticsearch
+      - logstash
+    networks:
+      - elk_network
+    command: filebeat -e -strict.perms=false
+    restart: unless-stopped
+
+volumes:
+  elasticsearch-data:
+    driver: local
+  filebeat-data:
+    driver: local
+
+networks:
+  elk_network:
+    driver: bridge 

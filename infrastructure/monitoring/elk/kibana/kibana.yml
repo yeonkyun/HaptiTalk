@@ -1,0 +1,34 @@
+server.name: haptitalk-kibana
+server.host: "0.0.0.0"
+server.port: 5601
+
+# Elasticsearch 연결 설정
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+elasticsearch.requestTimeout: 90000
+
+# 로깅 설정
+logging.root.level: info
+logging.verbose: false
+logging.json: true
+
+# 모니터링 설정
+monitoring.ui.container.elasticsearch.enabled: true
+monitoring.ui.container.logstash.enabled: true
+
+# 보안 설정
+xpack.security.enabled: false
+xpack.reporting.encryptionKey: "${KIBANA_REPORTING_KEY}"
+xpack.security.encryptionKey: "${KIBANA_SECURITY_KEY}"
+
+# 국제화 설정
+i18n.locale: "ko"
+
+# 인덱스 관리
+kibana.index: ".kibana"
+
+# 기본 설정
+server.basePath: ""
+server.rewriteBasePath: false
+
+# 대시보드 설정
+kibana.defaultAppId: "home" 

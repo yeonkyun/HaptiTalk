@@ -1,6 +1,7 @@
 const { ObjectId } = require('mongodb');
 const PDFDocument = require('pdfkit');
-const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
+// canvas 의존성 제거
+// const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const mongodbService = require('./mongodb.service');
 const logger = require('../utils/logger');
 const chartsUtils = require('../utils/charts');
@@ -49,15 +50,19 @@ const reportService = {
             // MongoDB에 리포트 저장
             await db.collection('sessionReports').insertOne(reportData);
 
-            // 차트 포함 옵션이 true인 경우 차트 데이터 생성
+            // 차트 생성 비활성화
             if (options.includeCharts) {
-                reportData.charts = await this._generateChartData(sessionAnalytics, feedbackHistory);
+                // reportData.charts = await this._generateChartData(sessionAnalytics, feedbackHistory);
+                logger.info('Chart generation is disabled');
+                reportData.charts = { disabled: true, message: 'Chart generation is temporarily disabled' };
             }
 
-            // PDF 형식을 요청한 경우 PDF 버퍼 생성
+            // PDF 생성 비활성화
             if (options.format === 'pdf') {
-                const pdfBuffer = await this.generateReportPdf(userId, reportData._id.toString());
-                reportData.pdfUrl = `/api/v1/reports/${reportData._id}/export`;
+                // const pdfBuffer = await this.generateReportPdf(userId, reportData._id.toString());
+                logger.info('PDF generation is disabled');
+                reportData.pdfUrl = null; 
+                reportData.pdfDisabled = true;
             }
 
             // 필요 없는 필드 제거 (디테일 레벨에 따라)
@@ -152,70 +157,13 @@ const reportService = {
     },
 
     /**
-     * PDF 형식의 리포트 생성
+     * PDF 형식의 리포트 생성 (비활성화)
      */
     async generateReportPdf(userId, reportId) {
         try {
-            // 리포트 데이터 조회
-            const report = await this.getReportById(userId, reportId);
-
-            // PDF 생성
-            const doc = new PDFDocument({ margin: 50 });
-            const buffers = [];
-
-            doc.on('data', buffers.push.bind(buffers));
-
-            // 제목 및 메타데이터
-            doc.fontSize(25).text('HaptiTalk 대화 분석 리포트', { align: 'center' });
-            doc.moveDown();
-            doc.fontSize(12).text(`세션 유형: ${report.sessionType}`, { align: 'center' });
-            doc.fontSize(12).text(`날짜: ${new Date(report.createdAt).toLocaleDateString()}`, { align: 'center' });
-            doc.fontSize(12).text(`세션 길이: ${Math.floor(report.duration / 60)}분 ${report.duration % 60}초`, { align: 'center' });
-
-            doc.moveDown(2);
-
-            // 전체 인사이트
-            doc.fontSize(18).text('주요 인사이트');
-            doc.moveDown();
-            report.overallInsights.forEach(insight => {
-                doc.fontSize(12).text(`• ${insight}`, { indent: 20 });
-            });
-
-            doc.moveDown(2);
-
-            // 주요 지표
-            doc.fontSize(18).text('주요 지표');
-            doc.moveDown();
-            Object.entries(report.keyMetrics).forEach(([key, value]) => {
-                doc.fontSize(12).text(`${key}: ${value}`, { indent: 20 });
-            });
-
-            doc.moveDown(2);
-
-            // 감정 분석
-            doc.fontSize(18).text('감정 분석');
-            doc.moveDown();
-            doc.fontSize(12).text(`긍정: ${report.emotionAnalysis.positive * 100}%`);
-            doc.fontSize(12).text(`중립: ${report.emotionAnalysis.neutral * 100}%`);
-            doc.fontSize(12).text(`부정: ${report.emotionAnalysis.negative * 100}%`);
-
-            // 차트가 있는 경우, 차트 이미지 추가 (실제로는 차트를 이미지로 생성하는 로직 필요)
-
-            doc.moveDown(2);
-
-            // 개선 영역
-            doc.fontSize(18).text('개선 영역');
-            doc.moveDown();
-            report.improvementAreas.forEach(area => {
-                doc.fontSize(14).text(area.area);
-                doc.fontSize(12).text(area.suggestion, { indent: 20 });
-                doc.moveDown();
-            });
-
-            // PDF 종료
-            doc.end();
-
-            return Buffer.concat(buffers);
+            logger.info('PDF generation is disabled');
+            // 임시 PDF 버퍼 반환
+            return Buffer.from('PDF generation is disabled');
         } catch (error) {
             logger.error(`Error generating PDF: ${error.message}`);
             throw error;
@@ -398,131 +346,14 @@ const reportService = {
         return null;
     },
     /**
-     * 내부 헬퍼 메서드: 차트 데이터 생성
+     * 내부 헬퍼 메서드: 차트 데이터 생성 (비활성화)
      */
     async _generateChartData(sessionAnalytics, feedbackHistory) {
-        const chartData = {};
-
-        // 감정 분포 파이 차트 데이터
-        chartData.emotionDistribution = {
-            type: 'pie',
-            data: {
-                labels: ['긍정적', '중립적', '부정적'],
-                datasets: [{
-                    data: [
-                        sessionAnalytics.summary.emotionScores.positive,
-                        sessionAnalytics.summary.emotionScores.neutral,
-                        sessionAnalytics.summary.emotionScores.negative
-                    ],
-                    backgroundColor: ['#4CAF50', '#FFC107', '#F44336']
-                }]
-            }
+        logger.info('Chart generation is disabled');
+        return {
+            disabled: true,
+            message: 'Chart generation is temporarily disabled'
         };
-
-        // 시간별 감정 추이 라인 차트 데이터
-        if (sessionAnalytics.timeline && sessionAnalytics.timeline.length > 0) {
-            const labels = sessionAnalytics.timeline.map(t => `${Math.floor(t.timestamp / 60)}분`);
-            const positiveData = sessionAnalytics.timeline.map(t => 
-                t.data && t.data.emotionScore ? t.data.emotionScore : 
-                (t.emotions?.user?.joy || 0)
-            );
-            const neutralData = sessionAnalytics.timeline.map(t => t.emotions?.user?.neutral || 0);
-            const negativeData = sessionAnalytics.timeline.map(t => 
-                t.data && t.data.emotionScore ? (1 - t.data.emotionScore) * 0.5 : 
-                (t.emotions?.user?.sadness || 0)
-            );
-
-            chartData.emotionTimeline = {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [
-                        {
-                            label: '긍정적',
-                            data: positiveData,
-                            borderColor: '#4CAF50',
-                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
-                            fill: true
-                        },
-                        {
-                            label: '중립적',
-                            data: neutralData,
-                            borderColor: '#FFC107',
-                            backgroundColor: 'rgba(255, 193, 7, 0.1)',
-                            fill: true
-                        },
-                        {
-                            label: '부정적',
-                            data: negativeData,
-                            borderColor: '#F44336',
-                            backgroundColor: 'rgba(244, 67, 54, 0.1)',
-                            fill: true
-                        }
-                    ]
-                }
-            };
-        }
-
-        // 말하기 속도 추이 차트 데이터
-        if (sessionAnalytics.timeline && sessionAnalytics.timeline.length > 0) {
-            const labels = sessionAnalytics.timeline.map(t => `${Math.floor(t.timestamp / 60)}분`);
-            
-            // 더미 데이터 생성
-            const userSpeakingRate = sessionAnalytics.timeline.map((t, i) => 
-                sessionAnalytics.summary.averageSpeakingRate + Math.sin(i) * 10
-            );
-            const otherSpeakingRate = sessionAnalytics.timeline.map((t, i) => 
-                sessionAnalytics.summary.averageSpeakingRate - 10 + Math.cos(i) * 10
-            );
-
-            chartData.speakingRateTimeline = {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [
-                        {
-                            label: '사용자',
-                            data: userSpeakingRate,
-                            borderColor: '#2196F3',
-                            backgroundColor: 'rgba(33, 150, 243, 0.1)',
-                            fill: false
-                        },
-                        {
-                            label: '상대방',
-                            data: otherSpeakingRate,
-                            borderColor: '#9C27B0',
-                            backgroundColor: 'rgba(156, 39, 176, 0.1)',
-                            fill: false
-                        }
-                    ]
-                }
-            };
-        }
-
-        // 피드백 유형 분포 차트 데이터
-        if (feedbackHistory && feedbackHistory.length > 0) {
-            const feedbackTypes = {};
-            feedbackHistory.forEach(feedback => {
-                if (!feedbackTypes[feedback.feedbackType]) {
-                    feedbackTypes[feedback.feedbackType] = 0;
-                }
-                feedbackTypes[feedback.feedbackType]++;
-            });
-
-            chartData.feedbackDistribution = {
-                type: 'bar',
-                data: {
-                    labels: Object.keys(feedbackTypes),
-                    datasets: [{
-                        label: '피드백 횟수',
-                        data: Object.values(feedbackTypes),
-                        backgroundColor: '#3F51B5'
-                    }]
-                }
-            };
-        }
-
-        return chartData;
     },
 
     /**
