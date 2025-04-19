@@ -9,6 +9,7 @@ const {redisClient} = require('./config/redis');
 const sessionRoutes = require('./routes/session.routes');
 const errorHandler = require('./middleware/errorHandler.middleware');
 const logger = require('./utils/logger');
+const metrics = require('./utils/metrics');
 const { v4: uuidv4 } = require('uuid');
 
 // 환경변수 로드
@@ -32,6 +33,21 @@ app.use(cors()); // CORS 설정
 
 // 로깅 미들웨어 추가
 app.use(logger.requestMiddleware);
+
+// 메트릭 미들웨어 설정
+metrics.setupMetricsMiddleware(app);
+
+// 명시적 메트릭 라우트 등록
+app.get('/metrics', async (req, res) => {
+  try {
+    logger.info('명시적 메트릭 엔드포인트 접근', { path: '/metrics' });
+    res.set('Content-Type', metrics.register.contentType);
+    res.end(await metrics.register.metrics());
+  } catch (error) {
+    logger.error('명시적 메트릭 생성 중 오류 발생', { error: error.message, stack: error.stack });
+    res.status(500).end();
+  }
+});
 
 // Morgan 설정 변경 - JSON 형식 로그 출력
 app.use(morgan((tokens, req, res) => {
@@ -64,6 +80,9 @@ app.get('/health', (req, res) => {
 
 // 로깅 에러 미들웨어 추가
 app.use(logger.errorMiddleware);
+
+// 메트릭 에러 미들웨어 추가
+app.use(metrics.errorMetricsMiddleware);
 
 // 404 처리 미들웨어
 app.use(errorHandler.notFoundHandler);

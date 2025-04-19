@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const {errorHandler} = require('./middleware/errorHandler.middleware');
 const logger = require('./utils/logger');
+const metrics = require('./utils/metrics');
 const routes = require('./routes');
 const appConfig = require('./config/app');
 const {connectToMongoDB} = require('./config/mongodb');
@@ -25,6 +26,9 @@ app.use(cors());
 
 // 로깅 미들웨어 추가
 app.use(logger.requestMiddleware);
+
+// 메트릭 미들웨어 설정
+metrics.setupMetricsMiddleware(app);
 
 // Morgan 설정 변경 - JSON 형식 로그 출력
 app.use(morgan((tokens, req, res) => {
@@ -53,6 +57,9 @@ app.get('/health', (req, res) => {
 
 // 로깅 에러 미들웨어 추가
 app.use(logger.errorMiddleware);
+
+// 메트릭 에러 미들웨어 추가
+app.use(metrics.errorMetricsMiddleware);
 
 // 에러 핸들링 미들웨어
 app.use(errorHandler);

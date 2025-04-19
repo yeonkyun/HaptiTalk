@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const {sequelize} = require('./config/database');
 const {redisClient} = require('./config/redis');
 const logger = require('./utils/logger');
+const metrics = require('./utils/metrics');
 const authRoutes = require('./routes/auth.routes');
 const deviceRoutes = require('./routes/device.routes');
 const errorHandler = require('./middleware/errorHandler.middleware');
@@ -28,6 +29,9 @@ app.use(cors()); // CORS support
 
 // 로깅 미들웨어 추가
 app.use(logger.requestMiddleware);
+
+// 메트릭 미들웨어 설정
+metrics.setupMetricsMiddleware(app);
 
 // Morgan 설정 변경 - JSON 형식 로그 출력
 app.use(morgan((tokens, req, res) => {
@@ -134,6 +138,9 @@ app.post('/token/proactive-refresh', (req, res) => {
 
 // 로깅 에러 미들웨어 추가
 app.use(logger.errorMiddleware);
+
+// 메트릭 에러 미들웨어 추가
+app.use(metrics.errorMetricsMiddleware);
 
 // Error handling middleware
 app.use(errorHandler);

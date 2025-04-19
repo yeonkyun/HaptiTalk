@@ -144,7 +144,6 @@ services:
       - LOG_LEVEL=${LOG_LEVEL}
     volumes:
       - ./api/auth-service:/app
-      - /app/node_modules
     ports:
       - "${AUTH_SERVICE_PORT}:${AUTH_SERVICE_PORT}"
     networks:
@@ -250,7 +249,6 @@ services:
       - LOG_LEVEL=${LOG_LEVEL}
     volumes:
       - ./api/feedback-service:/app
-      - /app/node_modules
     ports:
       - "${FEEDBACK_SERVICE_PORT}:${FEEDBACK_SERVICE_PORT}"
     networks:
@@ -287,7 +285,6 @@ services:
       - LOG_LEVEL=${LOG_LEVEL}
     volumes:
       - ./api/user-service:/app
-      - /app/node_modules
     ports:
       - "${USER_SERVICE_PORT}:${USER_SERVICE_PORT}"
     networks:
@@ -328,7 +325,6 @@ services:
       - LOG_LEVEL=${LOG_LEVEL}
     volumes:
       - ./api/report-service:/app
-      - /app/node_modules
     ports:
       - "${REPORT_SERVICE_PORT}:${REPORT_SERVICE_PORT}"
     networks:

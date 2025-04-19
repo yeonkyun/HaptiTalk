@@ -3,6 +3,7 @@ const authService = require('../services/auth.service');
 const emailService = require('../services/email.service');
 const tokenService = require('../services/token.service');
 const logger = require('../utils/logger');
+const { metrics } = require('../utils/metrics');
 
 const authController = {
     /**
@@ -27,6 +28,9 @@ const authController = {
                 );
             }
 
+            // Record successful registration in metrics
+            metrics.registrationsTotal.inc({ status: 'success' });
+
             // Return response
             return res.status(httpStatus.CREATED).json({
                 success: true,
@@ -40,6 +44,8 @@ const authController = {
                 message: 'Registration successful. Please verify your email.'
             });
         } catch (error) {
+            // Record failed registration in metrics
+            metrics.registrationsTotal.inc({ status: 'failed' });
             next(error);
         }
     },
@@ -57,6 +63,9 @@ const authController = {
             // Login user
             const {user, tokens} = await authService.login(email, password, device_info);
 
+            // Record successful login in metrics
+            metrics.loginAttemptsTotal.inc({ status: 'success' });
+
             // Return response
             return res.status(httpStatus.OK).json({
                 success: true,
@@ -69,6 +78,8 @@ const authController = {
                 message: 'Login successful'
             });
         } catch (error) {
+            // Record failed login in metrics
+            metrics.loginAttemptsTotal.inc({ status: 'failed' });
             next(error);
         }
     },
@@ -111,6 +122,9 @@ const authController = {
             // Refresh token
             const tokens = await authService.refreshAuth(refresh_token);
 
+            // Record successful token refresh in metrics
+            metrics.tokenRefreshTotal.inc({ status: 'success' });
+
             // Return response
             return res.status(httpStatus.OK).json({
                 success: true,
@@ -122,6 +136,8 @@ const authController = {
                 message: 'Token refreshed successfully'
             });
         } catch (error) {
+            // Record failed token refresh in metrics
+            metrics.tokenRefreshTotal.inc({ status: 'failed' });
             next(error);
         }
     },
@@ -189,6 +205,9 @@ const authController = {
                 });
             }
             
+            // Record successful proactive token refresh in metrics
+            metrics.tokenRefreshTotal.inc({ status: 'success' });
+            
             return res.status(httpStatus.OK).json({
                 success: true,
                 data: {
@@ -199,6 +218,8 @@ const authController = {
                 message: 'Token refreshed proactively'
             });
         } catch (error) {
+            // Record failed proactive token refresh in metrics
+            metrics.tokenRefreshTotal.inc({ status: 'failed' });
             next(error);
         }
     },

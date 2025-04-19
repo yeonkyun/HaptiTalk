@@ -7,6 +7,7 @@ const morgan = require('morgan');
 const {createRedisClient} = require('./config/redis');
 const authMiddleware = require('./middleware/auth.middleware');
 const logger = require('./utils/logger');
+const metrics = require('./utils/metrics');
 const {setServiceAuthToken} = require('./config/api-client');
 const ConnectionManager = require('./utils/connection-manager');
 const SocketMonitor = require('./utils/socket-monitor');
@@ -39,6 +40,9 @@ app.use(cors());
 
 // 로깅 미들웨어 추가
 app.use(logger.requestMiddleware);
+
+// 메트릭 미들웨어 설정
+metrics.setupMetricsMiddleware(app);
 
 // Morgan 설정 변경 - JSON 형식 로그 출력
 app.use(morgan((tokens, req, res) => {
@@ -88,6 +92,9 @@ const io = new Server(server, {
         threshold: 1024, // 1KB 이상 메시지에 압축 적용
     }
 });
+
+// 메트릭 모니터링 설정
+metrics.monitorSocketIO(io);
 
 // 연결 관리자 및 모니터링 초기화
 const connectionManager = new ConnectionManager(io, redisClient);
@@ -148,6 +155,9 @@ app.get('/api/v1/realtime/socket/:socketId', authMiddleware.validateServiceToken
 
 // 에러 미들웨어 추가
 app.use(logger.errorMiddleware);
+
+// 메트릭 에러 미들웨어 추가
+app.use(metrics.errorMetricsMiddleware);
 
 // 이벤트 핸들러 등록
 require('./events')(io, redisClient, pubSub);
