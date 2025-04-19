@@ -21,6 +21,14 @@ HaptiTalk 마이크로서비스 아키텍처를 위한 모니터링 시스템 �
 - Grafana: 메트릭 시각화 및 대시보드
 - Node Exporter: 시스템 메트릭 수집
 
+### 3. Jaeger (분산 트레이싱)
+
+[Jaeger 설정 및 사용 방법](./jaeger/README.md)
+
+- Jaeger UI: 트레이스 시각화 및 분석
+- Jaeger Collector: 스팬 데이터 수집 및 저장
+- OpenTelemetry Collector: 다양한 형식의 트레이싱 데이터 수집 및 변환
+
 ## 주요 기능
 
 ### 로그 모니터링
@@ -34,6 +42,12 @@ HaptiTalk 마이크로서비스 아키텍처를 위한 모니터링 시스템 �
 - API 성능 및 오류율 모니터링
 - 사용자 정의 메트릭 지원
 - 알림 설정 및 대시보드 제공
+
+### 분산 트레이싱
+- 요청의 전체 경로 추적
+- 서비스 간 호출 지연 시간 측정
+- 성능 병목 구간 식별
+- 오류 및 문제 추적/디버깅
 
 ## 사용 방법
 
@@ -51,6 +65,13 @@ cd prometheus
 
 # Prometheus/Grafana 중지
 ./stop-monitoring.sh
+
+# Jaeger 분산 트레이싱 시작
+cd jaeger
+./start-monitoring.sh
+
+# Jaeger 분산 트레이싱 중지
+./stop-monitoring.sh
 ```
 
 ## 모니터링 접속 정보
@@ -63,4 +84,9 @@ cd prometheus
 ### Prometheus/Grafana
 - **Prometheus**: http://localhost:9090 - 메트릭 쿼리 및 그래프
 - **Grafana**: http://localhost:3000 - 대시보드 및 시각화
-- **Node Exporter**: http://localhost:9100/metrics - 시스템 메트릭 
+- **Node Exporter**: http://localhost:9100/metrics - 시스템 메트릭
+
+### Jaeger 분산 트레이싱
+- **Jaeger UI**: http://localhost:16686 - 트레이스 검색 및 시각화
+- **OpenTelemetry Collector**: http://localhost:4317 - OTLP gRPC 엔드포인트
+- **OpenTelemetry Collector HTTP**: http://localhost:4318 - OTLP HTTP 엔드포인트 

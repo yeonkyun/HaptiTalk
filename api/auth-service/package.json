@@ -13,6 +13,11 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@opentelemetry/auto-instrumentations-node": "^0.58.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.200.0",
+    "@opentelemetry/resources": "^2.0.0",
+    "@opentelemetry/sdk-node": "^0.200.0",
+    "@opentelemetry/semantic-conventions": "^1.32.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",

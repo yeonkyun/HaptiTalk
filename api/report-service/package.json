@@ -9,6 +9,11 @@
     "test": "jest"
   },
   "dependencies": {
+    "@opentelemetry/auto-instrumentations-node": "^0.58.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.200.0",
+    "@opentelemetry/resources": "^2.0.0",
+    "@opentelemetry/sdk-node": "^0.200.0",
+    "@opentelemetry/semantic-conventions": "^1.32.0",
     "chart.js": "^3.8.0",
     "chartjs-node-canvas": "^4.1.6",
     "cors": "^2.8.5",

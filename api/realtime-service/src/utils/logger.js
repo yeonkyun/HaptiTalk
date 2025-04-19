@@ -2,7 +2,7 @@ const winston = require('winston');
 const { format } = winston;
 
 // 서비스 이름 설정
-const SERVICE_NAME = 'realtime-service';
+const SERVICE_NAME = process.env.SERVICE_NAME || 'realtime-service';
 
 // Define log format with standardized structure
 const logFormat = format.combine(

@@ -1,3 +1,6 @@
+// OpenTelemetry 트레이싱 초기화 (가장 먼저 로드되어야 함)
+require('./utils/tracing');
+
 require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
