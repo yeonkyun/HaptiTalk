@@ -1,6 +1,6 @@
-# HaptiTalk 모니터링 시스템
+# HaptiTalk 통합 모니터링 시스템
 
-HaptiTalk 마이크로서비스 아키텍처를 위한 모니터링 시스템 구성입니다.
+HaptiTalk 마이크로서비스 아키텍처를 위한 통합 모니터링 시스템 구성입니다.
 
 ## 구성 요소
 
@@ -49,44 +49,68 @@ HaptiTalk 마이크로서비스 아키텍처를 위한 모니터링 시스템 �
 - 성능 병목 구간 식별
 - 오류 및 문제 추적/디버깅
 
+## 통합 모니터링
+
+### 통합 모니터링 설정
+
+HaptiTalk는 Grafana를 중심으로 모든 모니터링 데이터를 통합하여 볼 수 있도록 구성되어 있습니다. 이를 통해 다음과 같은 이점이 있습니다:
+
+- 단일 인터페이스에서 모든 모니터링 데이터 확인 가능
+- 서비스 상태, 로그, 트레이스 데이터의 상관 관계 분석
+- 통합 알림 및 대시보드 구성
+
+### 통합 데이터 소스
+
+Grafana에는 다음 데이터 소스가 설정되어 있습니다:
+
+1. **Prometheus**: 메트릭 데이터 조회
+2. **Elasticsearch**: 로그 데이터 조회
+3. **Jaeger**: 분산 트레이싱 데이터 조회
+
+### 통합 대시보드
+
+`HaptiTalk 통합 모니터링 대시보드`는 다음 정보를 한 화면에서 제공합니다:
+
+- 서비스 상태 및 가용성
+- API 응답 시간 및 오류율
+- 중요 로그 메시지 (오류/경고)
+- 성능이 느린 요청의 트레이스 정보
+
 ## 사용 방법
+
+### 통합 모니터링 시작
+
+```bash
+# 전체 통합 모니터링 시스템 시작
+./start-integrated-monitoring.sh
+
+# 전체 통합 모니터링 시스템 중지
+./stop-integrated-monitoring.sh
+```
+
+### 개별 모니터링 시스템 시작
 
 ```bash
 # ELK 스택 시작
 cd elk
 ./start-monitoring.sh
 
-# ELK 스택 중지
-./stop-monitoring.sh
-
 # Prometheus/Grafana 시작
 cd prometheus
 ./start-monitoring.sh
 
-# Prometheus/Grafana 중지
-./stop-monitoring.sh
-
 # Jaeger 분산 트레이싱 시작
 cd jaeger
 ./start-monitoring.sh
-
-# Jaeger 분산 트레이싱 중지
-./stop-monitoring.sh
 ```
 
 ## 모니터링 접속 정보
 
-### ELK 스택
+### 통합 대시보드
+- **Grafana**: http://localhost:3000 - 통합 모니터링 대시보드 (기본 계정: admin/admin)
+
+### 개별 모니터링 시스템
 - **Kibana**: http://localhost:5601 - 로그 분석 및 대시보드
 - **Elasticsearch**: http://localhost:9200 - 로그 데이터 API
-- **Logstash**: http://localhost:9600 - 로그 수집 상태
-
-### Prometheus/Grafana
 - **Prometheus**: http://localhost:9090 - 메트릭 쿼리 및 그래프
-- **Grafana**: http://localhost:3000 - 대시보드 및 시각화
-- **Node Exporter**: http://localhost:9100/metrics - 시스템 메트릭
-
-### Jaeger 분산 트레이싱
-- **Jaeger UI**: http://localhost:16686 - 트레이스 검색 및 시각화
-- **OpenTelemetry Collector**: http://localhost:4317 - OTLP gRPC 엔드포인트
-- **OpenTelemetry Collector HTTP**: http://localhost:4318 - OTLP HTTP 엔드포인트 
+- **Jaeger UI**: http://localhost:16686 - 트레이스 검색 및 시각화 

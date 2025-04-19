@@ -24,7 +24,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -643,8 +642,8 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "HaptiTalk 서비스 대시보드",
-  "uid": "haptitalk-nodejs",
+  "title": "NodeJS 서비스 모니터링",
+  "uid": "nodejs-services",
   "version": 1,
   "weekStart": ""
 } 

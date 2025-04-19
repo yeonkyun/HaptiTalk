@@ -1,0 +1,373 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": null,
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "title": "HaptiTalk 통합 모니터링 대시보드",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "서비스 상태 개요",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "text": "Down",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "Up",
+                  "color": "green"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 3
+      },
+      "id": 2,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "pluginVersion": "8.4.3",
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "exemplar": true,
+          "expr": "up",
+          "interval": "",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "서비스 상태",
+      "type": "bargauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "API 성능 및 오류율",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 3
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "min"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "8.4.3",
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "exemplar": true,
+          "expr": "rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m])",
+          "interval": "",
+          "legendFormat": "{{job}}-{{route}}",
+          "refId": "A"
+        }
+      ],
+      "title": "API 응답 시간",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Elasticsearch",
+      "description": "서비스별 로그 수준 분포",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 11
+      },
+      "id": 4,
+      "title": "오류 및 경고 로그",
+      "type": "logs",
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
+      "targets": [
+        {
+          "datasource": "Elasticsearch",
+          "refId": "A",
+          "metrics": [{"type": "logs", "id": "1"}],
+          "query": "level:error OR level:warn",
+          "alias": "",
+          "bucketAggs": [
+            {
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "id": "2"
+            }
+          ],
+          "timeField": "@timestamp"
+        }
+      ]
+    },
+    {
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 11
+      },
+      "id": 5,
+      "title": "분산 트레이싱 (모든 서비스)",
+      "type": "graph",
+      "description": "마이크로서비스간 트레이스 데이터 보기",
+      "datasource": "Jaeger",
+      "targets": [
+        {
+          "datasource": "Jaeger",
+          "refId": "A",
+          "queryType": "search",
+          "service": "user-service"
+        },
+        {
+          "datasource": "Jaeger",
+          "refId": "B",
+          "queryType": "search",
+          "service": "auth-service"
+        },
+        {
+          "datasource": "Jaeger",
+          "refId": "C",
+          "queryType": "search",
+          "service": "feedback-service"
+        },
+        {
+          "datasource": "Jaeger",
+          "refId": "D",
+          "queryType": "search",
+          "service": "session-service"
+        },
+        {
+          "datasource": "Jaeger",
+          "refId": "E",
+          "queryType": "search",
+          "service": "report-service"
+        },
+        {
+          "datasource": "Jaeger",
+          "refId": "F",
+          "queryType": "search",
+          "service": "realtime-service"
+        }
+      ],
+      "renderer": "flot",
+      "options": {
+        "dataLinks": [
+          {
+            "title": "유저 서비스 트레이스",
+            "url": "http://localhost:16686/search?service=user-service",
+            "targetBlank": true
+          },
+          {
+            "title": "인증 서비스 트레이스",
+            "url": "http://localhost:16686/search?service=auth-service",
+            "targetBlank": true
+          },
+          {
+            "title": "피드백 서비스 트레이스",
+            "url": "http://localhost:16686/search?service=feedback-service",
+            "targetBlank": true
+          },
+          {
+            "title": "세션 서비스 트레이스",
+            "url": "http://localhost:16686/search?service=session-service",
+            "targetBlank": true
+          },
+          {
+            "title": "리포트 서비스 트레이스",
+            "url": "http://localhost:16686/search?service=report-service",
+            "targetBlank": true
+          },
+          {
+            "title": "실시간 서비스 트레이스",
+            "url": "http://localhost:16686/search?service=realtime-service",
+            "targetBlank": true
+          }
+        ]
+      }
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 34,
+  "style": "dark",
+  "tags": ["integrated", "monitoring"],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "definition": "label_values(up, job)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Service",
+        "multi": false,
+        "name": "service",
+        "options": [],
+        "query": {
+          "query": "label_values(up, job)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "HaptiTalk - System Overview",
+  "uid": "haptitalk-overview",
+  "version": 1,
+  "weekStart": ""
+} 
