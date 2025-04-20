@@ -2,6 +2,9 @@ version: '3.8'
 name: prometheus-monitoring
 
 services:
+  # 1. 마이크로서비스 모니터링은 각 서비스에 내장됨
+  
+  # 2. 핵심 모니터링 서비스
   prometheus:
     image: prom/prometheus:v2.43.0
     container_name: haptitalk-prometheus
@@ -69,6 +72,151 @@ services:
       - haptitalk_network
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:9100/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 3. 데이터베이스 모니터링
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.40
+    container_name: haptitalk-mongodb-exporter
+    restart: unless-stopped
+    command:
+      - '--mongodb.uri=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD_ENCODED}@haptitalk-mongodb:27017/haptitalk'
+      - '--collect-all'
+    ports:
+      - "${MONGODB_EXPORTER_PORT:-9216}:9216"
+    networks:
+      - prometheus_network
+      - haptitalk_network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9216/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-exporter:
+    image: wrouesnel/postgres_exporter:latest
+    container_name: haptitalk-postgres-exporter
+    restart: unless-stopped
+    environment:
+      - DATA_SOURCE_NAME=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@haptitalk-postgres:5432/postgres?sslmode=disable
+    ports:
+      - "${POSTGRES_EXPORTER_PORT:-9187}:9187"
+    networks:
+      - prometheus_network
+      - haptitalk_network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9187/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: haptitalk-redis-exporter
+    restart: unless-stopped
+    environment:
+      - REDIS_ADDR=redis://haptitalk-redis:6379
+    ports:
+      - "${REDIS_EXPORTER_PORT:-9121}:9121"
+    networks:
+      - prometheus_network
+      - haptitalk_network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9121/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 4. 로깅 및 트레이싱 모니터링
+  elasticsearch-exporter:
+    image: justwatch/elasticsearch_exporter:1.1.0
+    container_name: haptitalk-elasticsearch-exporter
+    restart: unless-stopped
+    command:
+      - '--es.uri=http://haptitalk-elasticsearch:9200'
+    ports:
+      - "${ELASTICSEARCH_EXPORTER_PORT:-9114}:9114"
+    networks:
+      - prometheus_network
+      - haptitalk_network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9114/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      
+  kibana-exporter:
+    image: prom/blackbox-exporter:v0.19.0
+    container_name: haptitalk-kibana-exporter
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/blackbox-exporter/config.yml'
+    volumes:
+      - ./config/blackbox-kibana.yml:/etc/blackbox-exporter/config.yml
+    ports:
+      - "${KIBANA_EXPORTER_PORT:-9563}:9115"
+    networks:
+      - prometheus_network
+      - haptitalk_network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9115/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      
+  logstash-exporter:
+    image: bonniernews/logstash_exporter:v0.1.2
+    container_name: haptitalk-logstash-exporter
+    restart: unless-stopped
+    command:
+      - "--logstash.endpoint=http://haptitalk-logstash:9600"
+    ports:
+      - "${LOGSTASH_EXPORTER_PORT:-9304}:9304"
+    networks:
+      - prometheus_network
+      - haptitalk_network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9304/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      
+  filebeat-exporter:
+    image: trustpilot/beat-exporter:0.4.0
+    container_name: haptitalk-filebeat-exporter
+    restart: unless-stopped
+    environment:
+      - BEAT_NAME=filebeat
+      - BEAT_URI=http://haptitalk-filebeat:5066
+    ports:
+      - "${FILEBEAT_EXPORTER_PORT:-9479}:9479"
+    networks:
+      - prometheus_network
+      - haptitalk_network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9479/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 5. API 게이트웨이 모니터링
+  kong-exporter:
+    image: prom/blackbox-exporter:v0.19.0
+    container_name: haptitalk-kong-exporter
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/blackbox-exporter/config.yml'
+    volumes:
+      - ./config/blackbox-kong.yml:/etc/blackbox-exporter/config.yml
+    ports:
+      - "${KONG_EXPORTER_PORT:-9701}:9115"
+    networks:
+      - prometheus_network
+      - haptitalk_network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9115/health"]
       interval: 10s
       timeout: 5s
       retries: 5

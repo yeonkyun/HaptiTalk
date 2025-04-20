@@ -3,10 +3,7 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'prometheus'
-    static_configs:
-      - targets: ['localhost:9090']
-
+  # 1. 마이크로서비스
   - job_name: 'auth-service'
     static_configs:
       - targets: ['haptitalk-auth-service:3000']
@@ -37,6 +34,76 @@ scrape_configs:
       - targets: ['haptitalk-report-service:3005']
     metrics_path: '/metrics'
 
+  # 2. 핵심 모니터링 서비스
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
   - job_name: 'node-exporter'
     static_configs:
-      - targets: ['haptitalk-node-exporter:9100'] 
+      - targets: ['haptitalk-node-exporter:9100']
+
+  # 3. 데이터베이스 서비스
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['haptitalk-mongodb-exporter:9216']
+    metrics_path: '/metrics'
+
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['haptitalk-postgres-exporter:9187']
+    metrics_path: '/metrics'
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['haptitalk-redis-exporter:9121']
+    metrics_path: '/metrics'
+
+  # 4. 로깅 및 트레이싱 서비스
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: ['haptitalk-elasticsearch-exporter:9114']
+    metrics_path: '/metrics'
+
+  - job_name: 'kibana'
+    static_configs:
+      - targets: ['haptitalk-kibana-exporter:9563']
+    metrics_path: '/metrics'
+    
+  - job_name: 'logstash'
+    static_configs:
+      - targets: ['haptitalk-logstash:9600']
+    metrics_path: '/metrics'
+    
+  - job_name: 'filebeat'
+    static_configs:
+      - targets: ['haptitalk-filebeat:5066']
+    metrics_path: '/metrics'
+
+  - job_name: 'jaeger'
+    static_configs:
+      - targets: ['haptitalk-jaeger:14269']
+    metrics_path: '/metrics'
+    
+  # 5. API 게이트웨이
+  - job_name: 'kong'
+    static_configs:
+      - targets: ['haptitalk-kong:8001']
+    metrics_path: '/metrics'
+    
+  - job_name: 'blackbox-kong'
+    metrics_path: /probe
+    params:
+      module: [http_kong]
+    static_configs:
+      - targets:
+        - http://haptitalk-kong:8000/status
+        - http://haptitalk-kong:8001/status
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: haptitalk-blackbox:9115
+    
