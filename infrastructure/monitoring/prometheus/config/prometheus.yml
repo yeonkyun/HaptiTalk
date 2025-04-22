@@ -91,7 +91,7 @@ scrape_configs:
       - targets: ['haptitalk-kong:8001']
     metrics_path: '/metrics'
     
-  - job_name: 'blackbox-kong'
+  - job_name: 'blackbox-kong-status'
     metrics_path: /probe
     params:
       module: [http_kong]
@@ -105,5 +105,20 @@ scrape_configs:
       - source_labels: [__param_target]
         target_label: instance
       - target_label: __address__
-        replacement: haptitalk-blackbox:9115
+        replacement: haptitalk-kong-exporter:9115
+        
+  - job_name: 'blackbox-mongodb-status'
+    metrics_path: /probe
+    params:
+      module: [http_mongodb]
+    static_configs:
+      - targets:
+        - http://haptitalk-mongodb:27017
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: haptitalk-mongodb-blackbox-exporter:9115
     

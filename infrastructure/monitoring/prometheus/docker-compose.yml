@@ -11,12 +11,14 @@ services:
     restart: unless-stopped
     volumes:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
+      - ./data/prometheus:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=2d'
+      - '--storage.tsdb.retention.size=2GB'
     ports:
       - "${PROMETHEUS_PORT}:9090"
     networks:
@@ -27,13 +29,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   grafana:
     image: grafana/grafana:11.2.0
     container_name: haptitalk-grafana
     restart: unless-stopped
     volumes:
-      - grafana_data:/var/lib/grafana
+      - ./data/grafana:/var/lib/grafana
       - ../grafana/provisioning:/etc/grafana/provisioning
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
@@ -52,6 +59,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   node-exporter:
     image: prom/node-exporter:v1.5.0
@@ -75,6 +87,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # 3. 데이터베이스 모니터링
   mongodb-exporter:
@@ -82,7 +99,7 @@ services:
     container_name: haptitalk-mongodb-exporter
     restart: unless-stopped
     command:
-      - '--mongodb.uri=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD_ENCODED}@haptitalk-mongodb:27017/haptitalk'
+      - '--mongodb.uri=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD_ENCODED}@haptitalk-mongodb:27017/haptitalk?authSource=admin'
       - '--collect-all'
     ports:
       - "${MONGODB_EXPORTER_PORT:-9216}:9216"
@@ -94,6 +111,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   postgres-exporter:
     image: wrouesnel/postgres_exporter:latest
@@ -111,6 +133,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis-exporter:
     image: oliver006/redis_exporter:latest
@@ -128,6 +155,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # 4. 로깅 및 트레이싱 모니터링
   elasticsearch-exporter:
@@ -146,6 +178,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
       
   kibana-exporter:
     image: prom/blackbox-exporter:v0.19.0
@@ -165,6 +202,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
       
   logstash-exporter:
     image: bonniernews/logstash_exporter:v0.1.2
@@ -182,24 +224,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      
-  filebeat-exporter:
-    image: trustpilot/beat-exporter:0.4.0
-    container_name: haptitalk-filebeat-exporter
-    restart: unless-stopped
-    environment:
-      - BEAT_NAME=filebeat
-      - BEAT_URI=http://haptitalk-filebeat:5066
-    ports:
-      - "${FILEBEAT_EXPORTER_PORT:-9479}:9479"
-    networks:
-      - prometheus_network
-      - haptitalk_network
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9479/metrics"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # 5. API 게이트웨이 모니터링
   kong-exporter:
@@ -220,10 +249,25 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-volumes:
-  prometheus_data:
-  grafana_data:
+      
+  mongodb-blackbox-exporter:
+    image: prom/blackbox-exporter:v0.19.0
+    container_name: haptitalk-mongodb-blackbox-exporter
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/blackbox-exporter/config.yml'
+    volumes:
+      - ./config/blackbox-mongodb.yml:/etc/blackbox-exporter/config.yml
+    ports:
+      - "9702:9115"
+    networks:
+      - prometheus_network
+      - haptitalk_network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9115/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 networks:
   prometheus_network:
