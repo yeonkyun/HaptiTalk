@@ -1,7 +1,9 @@
 const httpStatus = require('http-status');
 const authService = require('../services/auth.service');
 const emailService = require('../services/email.service');
+const tokenService = require('../services/token.service');
 const logger = require('../utils/logger');
+const { metrics } = require('../utils/metrics');
 
 const authController = {
     /**
@@ -26,6 +28,9 @@ const authController = {
                 );
             }
 
+            // Record successful registration in metrics
+            metrics.registrationsTotal.inc({ status: 'success' });
+
             // Return response
             return res.status(httpStatus.CREATED).json({
                 success: true,
@@ -39,6 +44,8 @@ const authController = {
                 message: 'Registration successful. Please verify your email.'
             });
         } catch (error) {
+            // Record failed registration in metrics
+            metrics.registrationsTotal.inc({ status: 'failed' });
             next(error);
         }
     },
@@ -56,6 +63,9 @@ const authController = {
             // Login user
             const {user, tokens} = await authService.login(email, password, device_info);
 
+            // Record successful login in metrics
+            metrics.loginAttemptsTotal.inc({ status: 'success' });
+
             // Return response
             return res.status(httpStatus.OK).json({
                 success: true,
@@ -68,6 +78,8 @@ const authController = {
                 message: 'Login successful'
             });
         } catch (error) {
+            // Record failed login in metrics
+            metrics.loginAttemptsTotal.inc({ status: 'failed' });
             next(error);
         }
     },
@@ -110,6 +122,9 @@ const authController = {
             // Refresh token
             const tokens = await authService.refreshAuth(refresh_token);
 
+            // Record successful token refresh in metrics
+            metrics.tokenRefreshTotal.inc({ status: 'success' });
+
             // Return response
             return res.status(httpStatus.OK).json({
                 success: true,
@@ -121,6 +136,90 @@ const authController = {
                 message: 'Token refreshed successfully'
             });
         } catch (error) {
+            // Record failed token refresh in metrics
+            metrics.tokenRefreshTotal.inc({ status: 'failed' });
+            next(error);
+        }
+    },
+
+    /**
+     * Check token status
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     * @param {Function} next - Express next function
+     */
+    checkTokenStatus: async (req, res, next) => {
+        try {
+            const authHeader = req.headers.authorization;
+            
+            if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                return res.status(httpStatus.BAD_REQUEST).json({
+                    success: false,
+                    message: 'Access token is required'
+                });
+            }
+            
+            const token = authHeader.split(' ')[1];
+            
+            // Check token status
+            const status = await tokenService.checkTokenStatus(token);
+            
+            return res.status(httpStatus.OK).json({
+                success: true,
+                data: status
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+    
+    /**
+     * Proactively refresh token
+     * @param {Object} req - Express request object
+     * @param {Object} res - Express response object
+     * @param {Function} next - Express next function
+     */
+    proactiveTokenRefresh: async (req, res, next) => {
+        try {
+            const authHeader = req.headers.authorization;
+            
+            if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                return res.status(httpStatus.BAD_REQUEST).json({
+                    success: false,
+                    message: 'Access token is required'
+                });
+            }
+            
+            const token = authHeader.split(' ')[1];
+            
+            // Try to refresh token proactively
+            const newToken = await tokenService.proactiveTokenRefresh(token);
+            
+            if (!newToken) {
+                return res.status(httpStatus.OK).json({
+                    success: true,
+                    data: {
+                        refreshed: false,
+                        message: 'Token refresh not needed'
+                    }
+                });
+            }
+            
+            // Record successful proactive token refresh in metrics
+            metrics.tokenRefreshTotal.inc({ status: 'success' });
+            
+            return res.status(httpStatus.OK).json({
+                success: true,
+                data: {
+                    refreshed: true,
+                    access_token: newToken.token,
+                    expires_in: Math.floor((newToken.expires - new Date()) / 1000)
+                },
+                message: 'Token refreshed proactively'
+            });
+        } catch (error) {
+            // Record failed proactive token refresh in metrics
+            metrics.tokenRefreshTotal.inc({ status: 'failed' });
             next(error);
         }
     },

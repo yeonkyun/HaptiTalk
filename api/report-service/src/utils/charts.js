@@ -1,18 +1,20 @@
-const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
+// canvas 모듈 의존성 문제로 인해 임시 대체 모듈
+// const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 
-// 차트 캔버스 설정
+// 차트 캔버스 설정 (실제 생성하지 않고 더미 데이터 반환)
 const width = 800;
 const height = 600;
-const chartCanvas = new ChartJSNodeCanvas({ width, height, backgroundColour: 'white' });
+// const chartCanvas = new ChartJSNodeCanvas({ width, height, backgroundColour: 'white' });
 
 const chartsUtils = {
     /**
-     * 차트 설정을 기반으로 이미지 생성
+     * 차트 설정을 기반으로 이미지 생성 (임시 대체 함수)
      */
     async generateChartImage(chartConfig) {
         try {
-            const buffer = await chartCanvas.renderToBuffer(chartConfig);
-            return buffer;
+            // 실제 차트를 생성하지 않고 더미 버퍼 반환
+            const dummyBuffer = Buffer.from('Chart generation disabled');
+            return dummyBuffer;
         } catch (error) {
             throw new Error(`Chart generation error: ${error.message}`);
         }
