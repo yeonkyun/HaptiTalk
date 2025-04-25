@@ -60,6 +60,71 @@
                   }
                 },
                 "type": "value"
+              },
+              {
+                "type": "value",
+                "options": {
+                  "blackbox-kong-status": {
+                    "text": "Kong API 상태"
+                  },
+                  "kong": {
+                    "text": "Kong 게이트웨이"
+                  },
+                  "mongodb": {
+                    "text": "MongoDB"
+                  },
+                  "blackbox-mongodb-status": {
+                    "text": "MongoDB 상태"
+                  },
+                  "postgres": {
+                    "text": "PostgreSQL"
+                  },
+                  "redis": {
+                    "text": "Redis"
+                  },
+                  "elasticsearch": {
+                    "text": "Elasticsearch"
+                  },
+                  "kibana": {
+                    "text": "Kibana"
+                  },
+                  "blackbox-kibana": {
+                    "text": "Kibana 상태"
+                  },
+                  "logstash": {
+                    "text": "Logstash"
+                  },
+                  "filebeat": {
+                    "text": "Filebeat"
+                  },
+                  "jaeger": {
+                    "text": "Jaeger"
+                  },
+                  "node-exporter": {
+                    "text": "호스트 시스템"
+                  },
+                  "prometheus": {
+                    "text": "Prometheus"
+                  },
+                  "user-service": {
+                    "text": "사용자 서비스"
+                  },
+                  "auth-service": {
+                    "text": "인증 서비스"
+                  },
+                  "realtime-service": {
+                    "text": "실시간 서비스"
+                  },
+                  "session-service": {
+                    "text": "세션 서비스"
+                  },
+                  "feedback-service": {
+                    "text": "피드백 서비스"
+                  },
+                  "report-service": {
+                    "text": "리포트 서비스"
+                  }
+                }
               }
             ],
             "thresholds": {
@@ -74,19 +139,22 @@
                   "value": 1
                 }
               ]
-            }
+            },
+            "min": 0,
+            "max": 1,
+            "unit": "none"
           },
           "overrides": []
         },
         "gridPos": {
           "h": 8,
-          "w": 12,
+          "w": 24,
           "x": 0,
           "y": 3
         },
         "id": 2,
         "options": {
-          "displayMode": "basic",
+          "displayMode": "gradient",
           "orientation": "horizontal",
           "reduceOptions": {
             "calcs": [
@@ -96,14 +164,20 @@
             "values": false
           },
           "showUnfilled": true,
-          "text": {}
+          "text": {
+            "titleSize": 16,
+            "valueSize": 14
+          },
+          "nameWidth": 350,
+          "valueWidth": 80,
+          "showValue": "always"
         },
         "pluginVersion": "8.4.3",
         "targets": [
           {
             "datasource": "Prometheus",
             "exemplar": true,
-            "expr": "up",
+            "expr": "up{job=~\".+\"}",
             "interval": "",
             "legendFormat": "{{job}}",
             "refId": "A"
@@ -169,8 +243,8 @@
         "gridPos": {
           "h": 8,
           "w": 12,
-          "x": 12,
-          "y": 3
+          "x": 0,
+          "y": 11
         },
         "id": 3,
         "options": {
@@ -208,7 +282,7 @@
         "gridPos": {
           "h": 8,
           "w": 12,
-          "x": 0,
+          "x": 12,
           "y": 11
         },
         "id": 4,
@@ -246,8 +320,8 @@
         "gridPos": {
           "h": 8,
           "w": 12,
-          "x": 12,
-          "y": 11
+          "x": 0,
+          "y": 19
         },
         "id": 5,
         "title": "분산 트레이싱 - $service",
@@ -315,6 +389,186 @@
             }
           ]
         }
+      },
+      {
+        "datasource": "Prometheus",
+        "description": "MongoDB 데이터베이스 성능 모니터링",
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": true,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            },
+            "unit": "ops"
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 19
+        },
+        "id": 6,
+        "options": {
+          "legend": {
+            "calcs": [
+              "mean",
+              "max",
+              "min"
+            ],
+            "displayMode": "table",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "pluginVersion": "8.4.3",
+        "targets": [
+          {
+            "datasource": "Prometheus",
+            "exemplar": true,
+            "expr": "rate(mongodb_op_counters_total{type=~\"query|insert|update|delete\"}[5m])",
+            "interval": "",
+            "legendFormat": "{{type}}",
+            "refId": "A"
+          }
+        ],
+        "title": "MongoDB 작업 성능",
+        "type": "timeseries"
+      },
+      {
+        "datasource": "Prometheus",
+        "description": "MongoDB 연결 상태 및 지연 시간",
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": true,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            },
+            "unit": "ms"
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 27
+        },
+        "id": 7,
+        "options": {
+          "legend": {
+            "calcs": [
+              "mean",
+              "max",
+              "min"
+            ],
+            "displayMode": "table",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "pluginVersion": "8.4.3",
+        "targets": [
+          {
+            "datasource": "Prometheus",
+            "exemplar": true,
+            "expr": "rate(mongodb_mongod_metrics_operation_total{type=\"latency\"}[5m])",
+            "interval": "",
+            "legendFormat": "{{op_type}}",
+            "refId": "A"
+          }
+        ],
+        "title": "MongoDB 작업 지연시간",
+        "type": "timeseries"
       }
     ],
     "refresh": "10s",

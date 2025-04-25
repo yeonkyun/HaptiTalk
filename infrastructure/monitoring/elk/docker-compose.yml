@@ -26,6 +26,7 @@ services:
       - ./elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
     networks:
       - elk_network
+      - haptitalk_network
     logging:
       driver: "json-file"
       options:
@@ -45,6 +46,7 @@ services:
       - elasticsearch
     networks:
       - elk_network
+      - haptitalk_network
     logging:
       driver: "json-file"
       options:
@@ -70,6 +72,7 @@ services:
       - elasticsearch
     networks:
       - elk_network
+      - haptitalk_network
     logging:
       driver: "json-file"
       options:
@@ -95,6 +98,7 @@ services:
       - logstash
     networks:
       - elk_network
+      - haptitalk_network
     command: filebeat -e -strict.perms=false
     restart: unless-stopped
     logging:
@@ -111,4 +115,6 @@ volumes:
 
 networks:
   elk_network:
-    driver: bridge 
+    driver: bridge
+  haptitalk_network:
+    external: true 
