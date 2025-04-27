@@ -3,6 +3,9 @@ import 'package:hapti_talk/screens/haptic_practice_screen.dart';
 import 'package:hapti_talk/data/mock_data.dart';
 import 'package:hapti_talk/models/session.dart';
 import 'package:hapti_talk/models/tip.dart';
+import 'package:hapti_talk/constants/colors.dart';
+import 'package:hapti_talk/screens/new_session_screen.dart';
+import 'package:hapti_talk/screens/smartwatch_manager_screen.dart';
 
 class MainTab extends StatefulWidget {
   const MainTab({Key? key}) : super(key: key);
@@ -130,7 +133,14 @@ class _MainTabState extends State<MainTab> {
                     child: _buildQuickActionButton(
                       icon: Icons.play_circle_outline,
                       label: '새 세션',
-                      onTap: () {},
+                      onTap: () {
+                        // 새 세션 화면으로 이동
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const NewSessionScreen()),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 15),
@@ -140,6 +150,31 @@ class _MainTabState extends State<MainTab> {
                       label: '기록',
                       onTap: () {},
                     ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 15),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildQuickActionButton(
+                      icon: Icons.watch,
+                      label: '스마트워치',
+                      onTap: () {
+                        // 스마트워치 관리 화면으로 이동
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const SmartWatchManagerScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Container(), // 빈 컨테이너 (필요시 다른 빠른 실행 버튼 추가)
                   ),
                 ],
               ),
