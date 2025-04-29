@@ -5,7 +5,13 @@
 
 const logger = require('./logger');
 const MessageBatcher = require('./message-batcher');
-const kafkaClient = require('./kafka');
+const { createKafkaClient } = require('../../../shared/kafka-client');
+
+// Kafka 클라이언트 생성
+const kafkaClient = createKafkaClient({
+  clientId: process.env.SERVICE_NAME || 'realtime-service',
+  logger
+});
 
 class HybridMessaging {
   constructor(redisClient, io, options = {}) {
@@ -117,10 +123,11 @@ class HybridMessaging {
     try {
       // Kafka 컨슈머 초기화 및 메시지 처리 함수 등록
       await kafkaClient.initConsumer(
-        groupId,
-        [topic],
-        (message) => this.handleKafkaMessage(topic, message),
-        options
+        {
+          groupId,
+          topics: [topic]
+        },
+        (message) => this.handleKafkaMessage(topic, message)
       );
       
       logger.info(`Kafka 토픽 구독 시작: ${topic}`, { 
@@ -164,21 +171,13 @@ class HybridMessaging {
   async unsubscribeKafka(topic, groupId = null) {
     this.kafkaTopics.delete(topic);
     
-    if (groupId) {
-      await kafkaClient.stopConsumer(groupId);
-      logger.debug(`Kafka 토픽 구독 해제: ${topic} (그룹: ${groupId})`, { 
-        component: 'messaging', 
-        type: 'kafka' 
-      });
-    } else {
-      // groupId를 지정하지 않은 경우 기본 그룹 ID 사용
-      const defaultGroupId = `${this.kafkaGroupId}-${topic}`;
-      await kafkaClient.stopConsumer(defaultGroupId);
-      logger.debug(`Kafka 토픽 구독 해제: ${topic} (그룹: ${defaultGroupId})`, { 
-        component: 'messaging', 
-        type: 'kafka' 
-      });
-    }
+    // 공통 Kafka 클라이언트는 stopConsumer 대신 disconnect() 메서드를 사용합니다.
+    // 현재 컨슈머 중지는 disconnect()를 통해 한번에 처리됩니다.
+    logger.debug(`Kafka 토픽 구독 해제: ${topic}`, { 
+      component: 'messaging', 
+      type: 'kafka',
+      groupId: groupId || `${this.kafkaGroupId}-${topic}`
+    });
   }
 
   /**
