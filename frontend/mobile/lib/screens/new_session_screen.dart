@@ -3,7 +3,6 @@ import 'package:hapti_talk/constants/colors.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hapti_talk/screens/smartwatch_manager_screen.dart';
 import 'package:hapti_talk/services/service_locator.dart';
-import 'package:hapti_talk/screens/realtime_analysis_screen.dart';
 
 class NewSessionScreen extends StatefulWidget {
   const NewSessionScreen({Key? key}) : super(key: key);
@@ -533,18 +532,6 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     // 세션 시작 로직 구현
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => RealtimeAnalysisScreen(
-                          sessionTitle: _sessionNameController.text.isEmpty
-                              ? "새 세션"
-                              : _sessionNameController.text,
-                          sessionTag: _selectedMode,
-                          elapsedTime: "00:00:00",
-                        ),
-                      ),
-                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryColor,
