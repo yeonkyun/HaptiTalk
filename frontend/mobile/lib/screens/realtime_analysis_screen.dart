@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:hapti_talk/constants/colors.dart';
-import 'package:hapti_talk/screens/analysis_summary_screen.dart';
 
 class RealtimeAnalysisScreen extends StatefulWidget {
   final String sessionTitle;
@@ -588,21 +587,8 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
               ),
               InkWell(
                 onTap: () {
-                  // 타이머 정지
-                  _timer?.cancel();
-
-                  // AnalysisSummaryScreen으로 이동
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AnalysisSummaryScreen(
-                        sessionTitle: widget.sessionTitle,
-                        sessionTag: widget.sessionTag,
-                        sessionDate: '2024년 3월 23일 오후 2:30', // 현재 날짜로 설정 가능
-                        sessionDuration: '1시간 32분', // 실제 elapsedTime 기반으로 설정 가능
-                      ),
-                    ),
-                  );
+                  // 정지 버튼을 누르면 다른 화면으로 이동할 예정
+                  // 현재는 아무 기능 없음
                 },
                 child: _buildControlButton(
                   icon: Icons.stop,
