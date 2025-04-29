@@ -3,12 +3,9 @@ import 'package:hapti_talk/constants/colors.dart';
 import 'package:hapti_talk/screens/auth/login_screen.dart';
 import 'package:hapti_talk/screens/auth/signup_screen.dart';
 import 'package:hapti_talk/screens/main_tab.dart';
-import 'package:hapti_talk/services/service_locator.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 void main() {
-  // 서비스 로케이터 초기화
-  serviceLocator.setup();
   runApp(const MyApp());
 }
 
