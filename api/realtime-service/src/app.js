@@ -12,9 +12,10 @@ const authMiddleware = require('./middleware/auth.middleware');
 const logger = require('./utils/logger');
 const metrics = require('./utils/metrics');
 const {setServiceAuthToken} = require('./config/api-client');
+// const RedisPubSub = require('./utils/redis-pubsub'); // 기존 Redis PubSub 대체
+const HybridMessaging = require('./utils/hybrid-messaging'); // 하이브리드 메시징 시스템 추가
 const ConnectionManager = require('./utils/connection-manager');
 const SocketMonitor = require('./utils/socket-monitor');
-const RedisPubSub = require('./utils/redis-pubsub');
 const { v4: uuidv4 } = require('uuid');
 
 // 기본 설정
@@ -22,6 +23,11 @@ const PORT = process.env.PORT || 3001;
 
 // 서비스 간 통신을 위한 API 토큰
 const INTER_SERVICE_TOKEN = process.env.INTER_SERVICE_TOKEN || 'default-service-token';
+
+// Kafka 토픽 설정
+const KAFKA_TOPIC_SESSION_EVENTS = process.env.KAFKA_TOPIC_SESSION_EVENTS || 'haptitalk-session-events';
+const KAFKA_TOPIC_ANALYSIS_RESULTS = process.env.KAFKA_TOPIC_ANALYSIS_RESULTS || 'haptitalk-analysis-results';
+const KAFKA_TOPIC_FEEDBACK_COMMANDS = process.env.KAFKA_TOPIC_FEEDBACK_COMMANDS || 'haptitalk-feedback-commands';
 
 // Redis 클라이언트 초기화
 const redisClient = createRedisClient();
@@ -102,10 +108,13 @@ metrics.monitorSocketIO(io);
 // 연결 관리자 및 모니터링 초기화
 const connectionManager = new ConnectionManager(io, redisClient);
 const socketMonitor = new SocketMonitor(io, redisClient);
-const pubSub = new RedisPubSub(redisClient, io, {
+
+// 하이브리드 메시징 시스템 초기화 (기존 RedisPubSub 대체)
+const messagingSystem = new HybridMessaging(redisClient, io, {
     batchSize: 20,
     flushInterval: 50,
-    retryAttempts: 3
+    retryAttempts: 3,
+    kafkaGroupId: 'realtime-service'
 });
 
 // Socket.io 미들웨어 적용
@@ -162,8 +171,8 @@ app.use(logger.errorMiddleware);
 // 메트릭 에러 미들웨어 추가
 app.use(metrics.errorMetricsMiddleware);
 
-// 이벤트 핸들러 등록
-require('./events')(io, redisClient, pubSub);
+// 이벤트 핸들러 등록 (messagingSystem 전달)
+require('./events')(io, redisClient, messagingSystem);
 
 // 연결 활동 업데이트 함수
 const updateActivity = async (socket) => {
@@ -226,18 +235,48 @@ const startServer = async () => {
         // 소켓 모니터링 시작
         socketMonitor.start();
         
-        // Redis PubSub 초기화
-        await pubSub.start();
+        // 하이브리드 메시징 시스템 시작
+        await messagingSystem.start();
         
-        // 피드백 및 분석 채널 구독
-        pubSub.subscribe('feedback:channel:*', (channel, message) => {
+        // 실시간 피드백 구독 (Redis + Kafka 하이브리드 구현)
+        
+        // 1. Redis를 통한 실시간 피드백 구독 (낮은 지연 시간)
+        messagingSystem.subscribeRedis('feedback:channel:*', (channel, message) => {
             const sessionId = channel.split(':')[2];
             io.to(`session:${sessionId}`).emit('feedback', message);
+            logger.debug(`Redis를 통해 피드백 전달: ${sessionId}`, { component: 'messaging', type: 'redis' });
         });
         
-        pubSub.subscribe('analysis:events:*', (channel, message) => {
-            const sessionId = channel.split(':')[2];
-            io.to(`session:${sessionId}`).emit('analysis_update', message);
+        // 2. Kafka를 통한 분석 결과 구독 (지속성 및 신뢰성)
+        await messagingSystem.subscribeKafka(KAFKA_TOPIC_ANALYSIS_RESULTS, (topic, message) => {
+            // 메시지에서 세션 ID 추출
+            const { sessionId, data } = message;
+            if (sessionId) {
+                io.to(`session:${sessionId}`).emit('analysis_update', data);
+                logger.debug(`Kafka를 통해 분석 결과 전달: ${sessionId}`, { component: 'messaging', type: 'kafka' });
+            }
+        });
+        
+        // 3. Kafka를 통한 세션 이벤트 구독
+        await messagingSystem.subscribeKafka(KAFKA_TOPIC_SESSION_EVENTS, (topic, message) => {
+            // 세션 이벤트 처리 로직
+            const { sessionId, eventType, data } = message;
+            if (sessionId && eventType) {
+                io.to(`session:${sessionId}`).emit('session_event', { type: eventType, data });
+                logger.debug(`Kafka를 통해 세션 이벤트 전달: ${sessionId} (${eventType})`, { 
+                    component: 'messaging', 
+                    type: 'kafka' 
+                });
+            }
+        });
+        
+        // 4. Kafka를 통한 피드백 명령 구독 (백업 및 복구용)
+        await messagingSystem.subscribeKafka(KAFKA_TOPIC_FEEDBACK_COMMANDS, (topic, message) => {
+            const { sessionId, command } = message;
+            if (sessionId && command) {
+                io.to(`session:${sessionId}`).emit('feedback', command);
+                logger.debug(`Kafka를 통해 피드백 명령 전달: ${sessionId}`, { component: 'messaging', type: 'kafka' });
+            }
         });
 
         // 서버 시작
@@ -289,8 +328,8 @@ const gracefulShutdown = async () => {
     // 연결 관리자 정리
     connectionManager.cleanup();
     
-    // PubSub 정리
-    await pubSub.stop();
+    // 하이브리드 메시징 시스템 정리
+    await messagingSystem.stop();
 
     // Socket.io 연결 종료
     io.close(() => {
@@ -333,4 +372,11 @@ process.on('SIGINT', gracefulShutdown);
 // 서버 시작
 startServer();
 
-module.exports = {app, server, io, connectionManager, socketMonitor, pubSub};
+module.exports = { 
+    app, 
+    server, 
+    io, 
+    connectionManager, 
+    socketMonitor, 
+    messagingSystem // RedisPubSub 대신 HybridMessaging 내보내기
+};
