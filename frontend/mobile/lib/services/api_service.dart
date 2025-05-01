@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:hapti_talk/config/app_config.dart';
+import 'package:haptitalk/config/app_config.dart';
 
 class ApiService {
   final String baseUrl = AppConfig.apiBaseUrl;

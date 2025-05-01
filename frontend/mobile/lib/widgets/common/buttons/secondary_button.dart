@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hapti_talk/constants/colors.dart';
-import 'package:hapti_talk/constants/dimensions.dart';
+import 'package:haptitalk/constants/colors.dart';
+import 'package:haptitalk/constants/dimensions.dart';
 
 class SecondaryButton extends StatelessWidget {
   final String text;

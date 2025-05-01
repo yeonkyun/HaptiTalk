@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:hapti_talk/constants/colors.dart';
+import 'package:haptitalk/constants/colors.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:haptitalk/screens/main/main_tab_screen.dart';
+import 'package:haptitalk/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -13,6 +15,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -185,26 +189,74 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: () {
-                      // 로그인 기능 구현
-                    },
+                    onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryColor,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      '로그인',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            '로그인',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+
+                if (_errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontSize: 14,
                       ),
                     ),
                   ),
+
+                const SizedBox(height: 20),
+
+                // 테스트 계정 정보 표시
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        '테스트 계정:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text('이메일: test@example.com'),
+                      Text('비밀번호: password123'),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 30),
+
+                const SizedBox(height: 20),
 
                 // 구분선과 또는 텍스트
                 Row(
@@ -295,5 +347,49 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Center(child: SvgPicture.asset(svgAsset, width: 24, height: 24)),
       ),
     );
+  }
+
+  // 로그인 처리 메서드
+  Future<void> _handleLogin() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = '이메일과 비밀번호를 입력해주세요.';
+      });
+      return;
+    }
+
+    try {
+      final success = await AuthService().login(email, password);
+
+      if (success) {
+        if (!mounted) return;
+
+        // 로그인 성공 시 메인 화면으로 이동
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const MainTabScreen(),
+          ),
+        );
+      } else {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = '로그인 중 오류가 발생했습니다.';
+      });
+    }
   }
 }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:hapti_talk/constants/colors.dart';
-import 'package:hapti_talk/constants/dimensions.dart';
-import 'package:hapti_talk/widgets/common/buttons/primary_button.dart';
-import 'package:hapti_talk/widgets/common/buttons/secondary_button.dart';
+import 'package:haptitalk/constants/colors.dart';
+import 'package:haptitalk/constants/dimensions.dart';
+import 'package:haptitalk/widgets/common/buttons/primary_button.dart';
+import 'package:haptitalk/widgets/common/buttons/secondary_button.dart';
 
 class ConfirmationDialog extends StatelessWidget {
   final String title;

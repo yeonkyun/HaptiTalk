@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hapti_talk/constants/colors.dart';
-import 'package:hapti_talk/screens/auth/login_screen.dart';
+import 'package:haptitalk/constants/colors.dart';
+import 'package:haptitalk/screens/auth/login_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class SignUpScreen extends StatefulWidget {

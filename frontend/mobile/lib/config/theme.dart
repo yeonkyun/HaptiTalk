@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hapti_talk/constants/colors.dart';
+import 'package:haptitalk/constants/colors.dart';
 
 class AppTheme {
   // 라이트 테마

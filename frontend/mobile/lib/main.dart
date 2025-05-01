@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:hapti_talk/config/app_config.dart';
-import 'package:hapti_talk/config/routes.dart';
-import 'package:hapti_talk/config/theme.dart';
-import 'package:hapti_talk/constants/colors.dart';
-import 'package:hapti_talk/constants/strings.dart';
-import 'package:hapti_talk/screens/auth/login_screen.dart';
-import 'package:hapti_talk/screens/auth/signup_screen.dart';
-import 'package:hapti_talk/services/local_storage_service.dart';
-import 'package:hapti_talk/services/navigation_service.dart';
-import 'package:hapti_talk/widgets/common/buttons/primary_button.dart';
-import 'package:hapti_talk/widgets/common/buttons/secondary_button.dart';
+import 'package:haptitalk/config/app_config.dart';
+import 'package:haptitalk/config/routes.dart';
+import 'package:haptitalk/config/theme.dart';
+import 'package:haptitalk/constants/colors.dart';
+import 'package:haptitalk/constants/strings.dart';
+import 'package:haptitalk/screens/auth/login_screen.dart';
+import 'package:haptitalk/screens/auth/signup_screen.dart';
+import 'package:haptitalk/screens/main/main_tab_screen.dart';
+import 'package:haptitalk/services/local_storage_service.dart';
+import 'package:haptitalk/services/navigation_service.dart';
+import 'package:haptitalk/widgets/common/buttons/primary_button.dart';
+import 'package:haptitalk/widgets/common/buttons/secondary_button.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -106,13 +107,19 @@ class StartScreen extends StatelessWidget {
               // 로그인 버튼
               PrimaryButton(
                 text: AppStrings.login,
-                onPressed: () => NavigationService.navigateTo(AppRoutes.login),
+                onPressed: () {
+                  // 실제 로그인 화면으로 이동하도록 변경
+                  NavigationService.navigateTo(AppRoutes.login);
+                },
               ),
               const SizedBox(height: 15),
               // 회원가입 버튼
               SecondaryButton(
                 text: AppStrings.signup,
-                onPressed: () => NavigationService.navigateTo(AppRoutes.signup),
+                onPressed: () {
+                  // 실제 회원가입 화면으로 이동하도록 변경
+                  NavigationService.navigateTo(AppRoutes.signup);
+                },
               ),
               const SizedBox(height: 20),
               // 소셜 로그인 구분선
