@@ -3,7 +3,8 @@ const feedbackHandler = require('./feedback.handler');
 const analysisHandler = require('./analysis.handler');
 const logger = require('../utils/logger');
 
-module.exports = (io, redisClient, pubSub) => {
+// HybridMessaging 시스템을 사용하도록 수정
+module.exports = (io, redisClient, messagingSystem) => {
     // 클라이언트 연결 처리
     io.on('connection', (socket) => {
         const {user} = socket;
@@ -26,14 +27,14 @@ module.exports = (io, redisClient, pubSub) => {
             }
         });
 
-        // 사용자 세션 관리
-        sessionHandler(io, socket, redisClient);
+        // 사용자 세션 관리 - HybridMessaging 전달
+        sessionHandler(io, socket, redisClient, messagingSystem);
 
-        // 피드백 이벤트 처리
-        feedbackHandler(io, socket, redisClient);
+        // 피드백 이벤트 처리 - HybridMessaging 전달
+        feedbackHandler(io, socket, redisClient, messagingSystem);
 
-        // 분석 데이터 처리
-        analysisHandler(io, socket, redisClient);
+        // 분석 데이터 처리 - HybridMessaging 전달
+        analysisHandler(io, socket, redisClient, messagingSystem);
 
         // 핑/퐁 처리 (클라이언트 지연 시간 측정용)
         socket.on('ping', (data) => {

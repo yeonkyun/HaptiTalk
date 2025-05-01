@@ -1,5 +1,5 @@
 const httpStatus = require('http-status');
-const authService = require('../../../src/services/auth.service');
+const authService = require('../../src/services/auth.service');
 const { setupTestDatabase, cleanupTestDatabase, setupRedis, cleanupRedis } = require('./setup');
 
 describe('AuthService Integration Tests', () => {
