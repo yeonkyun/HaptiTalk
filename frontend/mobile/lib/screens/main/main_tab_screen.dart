@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:haptitalk/constants/colors.dart';
 import 'package:haptitalk/screens/main/home_screen.dart';
+import 'package:haptitalk/screens/history/history_screen.dart';
 
 class MainTabScreen extends StatefulWidget {
   const MainTabScreen({super.key});
@@ -15,7 +16,7 @@ class _MainTabScreenState extends State<MainTabScreen> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const Center(child: Text('분석 화면')), // 임시 - 나중에 AnalysisScreen으로 교체
-    const Center(child: Text('기록 화면')), // 임시 - 나중에 SessionsHistoryScreen으로 교체
+    const HistoryScreen(), // 세션 기록 화면
     const Center(child: Text('프로필 화면')), // 임시 - 나중에 ProfileScreen으로 교체
   ];
 
