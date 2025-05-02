@@ -22,6 +22,26 @@ class _MainTabScreenState extends State<MainTabScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // HomeScreen의 global callback 설정
+    onMainTabIndexChange = (index) {
+      if (index >= 0 && index < _screens.length) {
+        setState(() {
+          _currentIndex = index;
+        });
+      }
+    };
+  }
+
+  @override
+  void dispose() {
+    // HomeScreen callback 해제
+    onMainTabIndexChange = null;
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _screens[_currentIndex],

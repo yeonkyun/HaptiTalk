@@ -4,6 +4,10 @@ import 'package:haptitalk/constants/colors.dart';
 import 'package:haptitalk/services/navigation_service.dart';
 import 'package:haptitalk/widgets/common/cards/base_card.dart';
 
+// 메인탭 인덱스 변경을 위한 전역 함수 추가
+// 실제로는 Provider, GetX, Bloc 같은 상태 관리 솔루션을 사용하는 것이 좋습니다
+Function(int)? onMainTabIndexChange;
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -178,8 +182,12 @@ class HomeScreen extends StatelessWidget {
               child: _buildActionButton(
                 icon: Icons.history,
                 label: '기록',
-                onTap: () =>
-                    NavigationService.navigateTo(AppRoutes.sessionsHistory),
+                onTap: () {
+                  // 전역 콜백 함수를 통해 메인 탭의 인덱스를 기록 탭(인덱스 2)으로 변경
+                  if (onMainTabIndexChange != null) {
+                    onMainTabIndexChange!(2); // 기록 탭 인덱스로 변경
+                  }
+                },
               ),
             ),
           ],
