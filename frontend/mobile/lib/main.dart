@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import 'package:haptitalk/config/app_config.dart';
 import 'package:haptitalk/config/routes.dart';
 import 'package:haptitalk/config/theme.dart';
 import 'package:haptitalk/constants/colors.dart';
 import 'package:haptitalk/constants/strings.dart';
+import 'package:haptitalk/providers/analysis_provider.dart';
+import 'package:haptitalk/providers/session_provider.dart';
+import 'package:haptitalk/repositories/analysis_repository.dart';
+import 'package:haptitalk/repositories/session_repository.dart';
 import 'package:haptitalk/screens/auth/login_screen.dart';
 import 'package:haptitalk/screens/auth/signup_screen.dart';
 import 'package:haptitalk/screens/main/main_tab_screen.dart';
+import 'package:haptitalk/services/api_service.dart';
 import 'package:haptitalk/services/local_storage_service.dart';
 import 'package:haptitalk/services/navigation_service.dart';
 import 'package:haptitalk/widgets/common/buttons/primary_button.dart';
@@ -26,7 +32,25 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  runApp(const MyApp());
+  // 서비스 및 Repository 생성
+  final apiService = ApiService.create();
+  final localStorageService = LocalStorageService();
+
+  final sessionRepository = SessionRepository(apiService, localStorageService);
+  final analysisRepository =
+      AnalysisRepository(apiService, localStorageService);
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+            create: (_) => SessionProvider(sessionRepository)),
+        ChangeNotifierProvider(
+            create: (_) => AnalysisProvider(analysisRepository)),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
