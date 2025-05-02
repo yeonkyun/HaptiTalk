@@ -126,6 +126,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: const Text(
           '기록',
           style: TextStyle(

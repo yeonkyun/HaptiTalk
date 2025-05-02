@@ -9,7 +9,7 @@ import 'package:haptitalk/screens/session/new_session_screen.dart';
 // import 'package:haptitalk/screens/analysis/analysis_summary_screen.dart';
 import 'package:haptitalk/screens/history/history_screen.dart';
 // import 'package:haptitalk/screens/profile/profile_screen.dart';
-// import 'package:haptitalk/screens/profile/settings_screen.dart';
+import 'package:haptitalk/screens/profile/settings_screen.dart';
 // import 'package:haptitalk/screens/profile/subscription_screen.dart';
 
 class AppRoutes {
@@ -41,7 +41,7 @@ class AppRoutes {
       // analysisSummary: (context) => const AnalysisSummaryScreen(),
       sessionsHistory: (context) => const HistoryScreen(),
       // profile: (context) => const ProfileScreen(),
-      // settings: (context) => const SettingsScreen(),
+      settings: (context) => const SettingsScreen(),
       // subscription: (context) => const SubscriptionScreen(),
     };
   }

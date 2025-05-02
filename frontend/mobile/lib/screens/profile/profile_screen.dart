@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../constants/assets.dart';
+import '../../config/routes.dart';
+import '../../services/navigation_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -12,6 +14,7 @@ class ProfileScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: const Text(
           '프로필',
           style: TextStyle(
@@ -26,6 +29,7 @@ class ProfileScreen extends StatelessWidget {
             color: AppColors.secondaryTextColor,
             onPressed: () {
               // 설정 화면으로 이동
+              NavigationService.navigateTo(AppRoutes.settings);
             },
           ),
         ],
