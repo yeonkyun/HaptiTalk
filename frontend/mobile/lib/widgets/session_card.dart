@@ -187,26 +187,7 @@ class SessionCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    // 진행 도트
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: List.generate(
-                        5,
-                        (index) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 17),
-                          child: Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: index / 4 <= session.progress
-                                  ? AppColors.primaryColor
-                                  : AppColors.dividerColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                    // 진행 도트 제거
                   ],
                 ),
               ),
