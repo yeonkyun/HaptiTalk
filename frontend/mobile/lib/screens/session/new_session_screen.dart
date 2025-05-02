@@ -296,6 +296,7 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
                       NavigationService.navigateTo(
                         AppRoutes.realtimeAnalysis,
                         arguments: {
+                          'sessionId': 'default_session_id',
                           'sessionName': _sessionNameController.text.isEmpty
                               ? '세션 - $_selectedSessionMode'
                               : _sessionNameController.text,

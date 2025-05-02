@@ -3,78 +3,101 @@ import 'package:http/http.dart' as http;
 import 'package:haptitalk/config/app_config.dart';
 
 class ApiService {
-  final String baseUrl = AppConfig.apiBaseUrl;
-  final Map<String, String> headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
+  final String baseUrl;
+  final Map<String, String> headers;
 
-  // 토큰 설정
-  void setToken(String token) {
-    headers['Authorization'] = 'Bearer $token';
+  ApiService({
+    required this.baseUrl,
+    required this.headers,
+  });
+
+  // 기본 인스턴스 생성
+  factory ApiService.create() {
+    return ApiService(
+      baseUrl: AppConfig.apiBaseUrl,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    );
+  }
+
+  // 헤더 업데이트 (토큰 추가 등)
+  void updateHeaders(Map<String, String> newHeaders) {
+    headers.addAll(newHeaders);
   }
 
   // GET 요청
-  Future<dynamic> get(String endpoint) async {
+  Future<dynamic> get(String endpoint,
+      {Map<String, dynamic>? queryParams}) async {
+    final uri = Uri.parse('$baseUrl$endpoint').replace(
+      queryParameters: queryParams,
+    );
+
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: headers,
-      );
-      return _handleResponse(response);
+      final response = await http.get(uri, headers: headers);
+      return _processResponse(response);
     } catch (e) {
-      throw Exception('네트워크 요청 실패: $e');
+      throw Exception('GET 요청 실패: $e');
     }
   }
 
   // POST 요청
-  Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
+  Future<dynamic> post(String endpoint, {dynamic body}) async {
+    final uri = Uri.parse('$baseUrl$endpoint');
+
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl$endpoint'),
+        uri,
         headers: headers,
-        body: jsonEncode(data),
+        body: body != null ? json.encode(body) : null,
       );
-      return _handleResponse(response);
+      return _processResponse(response);
     } catch (e) {
-      throw Exception('네트워크 요청 실패: $e');
+      throw Exception('POST 요청 실패: $e');
     }
   }
 
   // PUT 요청
-  Future<dynamic> put(String endpoint, Map<String, dynamic> data) async {
+  Future<dynamic> put(String endpoint, {dynamic body}) async {
+    final uri = Uri.parse('$baseUrl$endpoint');
+
     try {
       final response = await http.put(
-        Uri.parse('$baseUrl$endpoint'),
+        uri,
         headers: headers,
-        body: jsonEncode(data),
+        body: body != null ? json.encode(body) : null,
       );
-      return _handleResponse(response);
+      return _processResponse(response);
     } catch (e) {
-      throw Exception('네트워크 요청 실패: $e');
+      throw Exception('PUT 요청 실패: $e');
     }
   }
 
   // DELETE 요청
   Future<dynamic> delete(String endpoint) async {
+    final uri = Uri.parse('$baseUrl$endpoint');
+
     try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: headers,
-      );
-      return _handleResponse(response);
+      final response = await http.delete(uri, headers: headers);
+      return _processResponse(response);
     } catch (e) {
-      throw Exception('네트워크 요청 실패: $e');
+      throw Exception('DELETE 요청 실패: $e');
     }
   }
 
   // 응답 처리
-  dynamic _handleResponse(http.Response response) {
+  dynamic _processResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      if (response.body.isEmpty) return null;
-      return jsonDecode(response.body);
+      // 성공적인 응답
+      if (response.body.isEmpty) {
+        return {};
+      }
+      return json.decode(response.body);
     } else {
-      throw Exception('API 오류: ${response.statusCode} - ${response.body}');
+      // 에러 응답
+      throw Exception(
+          'API 요청 실패: ${response.statusCode} ${response.reasonPhrase}');
     }
   }
 }

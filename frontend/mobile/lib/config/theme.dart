@@ -5,12 +5,12 @@ class AppTheme {
   // 라이트 테마
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
-    primaryColor: AppColors.primaryColor,
+    primaryColor: AppColors.primary,
     scaffoldBackgroundColor: Colors.white,
     colorScheme: ColorScheme.fromSeed(
-      seedColor: AppColors.primaryColor,
-      primary: AppColors.primaryColor,
-      secondary: AppColors.secondaryColor,
+      seedColor: AppColors.primary,
+      primary: AppColors.primary,
+      secondary: AppColors.secondary,
       background: Colors.white,
     ),
 
@@ -19,9 +19,9 @@ class AppTheme {
       backgroundColor: Colors.white,
       elevation: 0,
       centerTitle: true,
-      iconTheme: IconThemeData(color: AppColors.textColor),
+      iconTheme: IconThemeData(color: AppColors.text),
       titleTextStyle: TextStyle(
-        color: AppColors.textColor,
+        color: AppColors.text,
         fontSize: 18,
         fontWeight: FontWeight.w600,
       ),
@@ -30,7 +30,7 @@ class AppTheme {
     // 버튼 테마
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primaryColor,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -41,8 +41,8 @@ class AppTheme {
 
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primaryColor,
-        side: const BorderSide(color: AppColors.primaryColor),
+        foregroundColor: AppColors.primary,
+        side: const BorderSide(color: AppColors.primary),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -53,30 +53,30 @@ class AppTheme {
     // 텍스트 테마
     textTheme: const TextTheme(
       displayLarge: TextStyle(
-        color: AppColors.textColor,
+        color: AppColors.text,
         fontSize: 28,
         fontWeight: FontWeight.bold,
       ),
       displayMedium: TextStyle(
-        color: AppColors.textColor,
+        color: AppColors.text,
         fontSize: 24,
         fontWeight: FontWeight.bold,
       ),
       displaySmall: TextStyle(
-        color: AppColors.textColor,
+        color: AppColors.text,
         fontSize: 20,
         fontWeight: FontWeight.bold,
       ),
       bodyLarge: TextStyle(
-        color: AppColors.textColor,
+        color: AppColors.text,
         fontSize: 16,
       ),
       bodyMedium: TextStyle(
-        color: AppColors.textColor,
+        color: AppColors.text,
         fontSize: 14,
       ),
       labelLarge: TextStyle(
-        color: AppColors.textColor,
+        color: AppColors.text,
         fontSize: 16,
         fontWeight: FontWeight.w600,
       ),
@@ -85,8 +85,8 @@ class AppTheme {
     // 입력 필드 테마
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: AppColors.inputBackgroundColor,
-      hintStyle: TextStyle(color: AppColors.hintTextColor),
+      fillColor: AppColors.background,
+      hintStyle: TextStyle(color: AppColors.secondaryText),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,

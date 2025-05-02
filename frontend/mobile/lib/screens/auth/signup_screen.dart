@@ -53,18 +53,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textColor),
+          icon: const Icon(Icons.arrow_back, color: AppColors.text),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
           '회원가입',
           style: TextStyle(
-            color: AppColors.textColor,
+            color: AppColors.text,
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
@@ -129,7 +129,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           _obscurePassword
                               ? Icons.visibility_off
                               : Icons.visibility,
-                          color: AppColors.secondaryTextColor,
+                          color: AppColors.secondaryText,
                         ),
                         onPressed: () {
                           setState(() {
@@ -156,7 +156,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const Text(
                       '영문, 숫자, 특수문자 조합 8자 이상',
                       style: TextStyle(
-                        color: AppColors.hintTextColor,
+                        color: AppColors.secondaryText,
                         fontSize: 12,
                       ),
                     ),
@@ -174,7 +174,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           _obscureConfirmPassword
                               ? Icons.visibility_off
                               : Icons.visibility,
-                          color: AppColors.secondaryTextColor,
+                          color: AppColors.secondaryText,
                         ),
                         onPressed: () {
                           setState(() {
@@ -200,7 +200,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         const Text(
                           '전화번호',
                           style: TextStyle(
-                            color: AppColors.textColor,
+                            color: AppColors.text,
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
@@ -209,7 +209,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         const Text(
                           '(선택)',
                           style: TextStyle(
-                            color: AppColors.hintTextColor,
+                            color: AppColors.secondaryText,
                             fontSize: 12,
                           ),
                         ),
@@ -228,7 +228,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const Text(
                       '약관 동의',
                       style: TextStyle(
-                        color: AppColors.textColor,
+                        color: AppColors.text,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -264,7 +264,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           child: const Icon(
                             Icons.arrow_forward_ios,
                             size: 18,
-                            color: AppColors.hintTextColor,
+                            color: AppColors.secondaryText,
                           ),
                         ),
                       ],
@@ -325,14 +325,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               const Text(
                                 '마케팅 정보 수신 동의 ',
                                 style: TextStyle(
-                                  color: AppColors.textColor,
+                                  color: AppColors.text,
                                   fontSize: 14,
                                 ),
                               ),
                               const Text(
                                 '(선택)',
                                 style: TextStyle(
-                                  color: AppColors.hintTextColor,
+                                  color: AppColors.secondaryText,
                                   fontSize: 12,
                                 ),
                               ),
@@ -346,7 +346,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           child: const Icon(
                             Icons.arrow_forward_ios,
                             size: 18,
-                            color: AppColors.hintTextColor,
+                            color: AppColors.secondaryText,
                           ),
                         ),
                       ],
@@ -395,7 +395,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       children: [
                         const Expanded(
                           child: Divider(
-                            color: AppColors.dividerColor,
+                            color: AppColors.border,
                             thickness: 1,
                           ),
                         ),
@@ -404,14 +404,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           child: Text(
                             '또는',
                             style: TextStyle(
-                              color: AppColors.hintTextColor,
+                              color: AppColors.secondaryText,
                               fontSize: 14,
                             ),
                           ),
                         ),
                         const Expanded(
                           child: Divider(
-                            color: AppColors.dividerColor,
+                            color: AppColors.border,
                             thickness: 1,
                           ),
                         ),
