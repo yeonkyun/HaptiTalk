@@ -3,7 +3,7 @@ import 'package:haptitalk/screens/auth/login_screen.dart';
 import 'package:haptitalk/screens/auth/signup_screen.dart';
 import 'package:haptitalk/screens/main/main_tab_screen.dart';
 // import 'package:haptitalk/screens/onboarding/onboarding_screen.dart';
-// import 'package:haptitalk/screens/session/new_session_screen.dart';
+import 'package:haptitalk/screens/session/new_session_screen.dart';
 // import 'package:haptitalk/screens/session/session_details_screen.dart';
 // import 'package:haptitalk/screens/analysis/realtime_analysis_screen.dart';
 // import 'package:haptitalk/screens/analysis/analysis_summary_screen.dart';
@@ -35,7 +35,7 @@ class AppRoutes {
       signup: (context) => const SignUpScreen(),
       main: (context) => const MainTabScreen(),
       // onboarding: (context) => const OnboardingScreen(),
-      // newSession: (context) => const NewSessionScreen(),
+      newSession: (context) => const NewSessionScreen(),
       // sessionDetails: (context) => const SessionDetailsScreen(),
       // realtimeAnalysis: (context) => const RealtimeAnalysisScreen(),
       // analysisSummary: (context) => const AnalysisSummaryScreen(),
