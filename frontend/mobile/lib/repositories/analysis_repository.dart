@@ -1,8 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 
 import '../models/analysis/analysis_result.dart';
+import '../models/analysis/emotion_data.dart';
+import '../models/analysis/metrics.dart';
 import '../services/api_service.dart';
 import '../services/local_storage_service.dart';
 
@@ -16,56 +20,16 @@ class AnalysisRepository {
   // 분석 결과 조회
   Future<AnalysisResult> getAnalysisResult(String sessionId) async {
     try {
-      // 실제 앱에서는 API를 통해 분석 결과 조회
-      // 예시 구현에서는 더미 데이터 사용
+      // 실제 API 연동 시
+      // final response = await _apiService.get('/analysis/$sessionId');
+      // return AnalysisResult.fromJson(response.data);
 
-      // 감정 데이터 생성
-      final emotionData = EmotionData(
-        emotionState: _getRandomEmotionState(),
-        likability: _random.nextInt(21) + 70, // 70-90 사이 랜덤 값
-        interest: _random.nextInt(21) + 70, // 70-90 사이 랜덤 값
-        emotionBreakdown: {
-          '긍정': 0.7,
-          '중립': 0.2,
-          '부정': 0.1,
-        },
-      );
-
-      // 말하기 지표 생성
-      final speakingMetrics = SpeakingMetrics(
-        speakingSpeed: _random.nextInt(31) + 70, // 70-100 사이 랜덤 값
-        confidence: _random.nextInt(31) + 65, // 65-95 사이 랜덤 값
-        clarity: _random.nextInt(31) + 65, // 65-95 사이 랜덤 값
-        fillerWordCount: _random.nextInt(10), // 0-9 사이 랜덤 값
-        wordFrequency: {
-          '여행': 4,
-          '좋아해요': 2,
-          '사진': 3,
-          '제주도': 2,
-        },
-      );
-
-      // 더미 분석 결과 생성
-      final result = AnalysisResult(
-        sessionId: sessionId,
-        transcription:
-            '저는 평소에 여행을 좋아해서 시간이 날 때마다 이곳저곳 다니는 편이에요. 사진 찍는 것도 좋아해서 여행지에서 사진을 많이 찍어요. 특히 자연 경관이 아름다운 곳이나 역사적인 장소를 방문하는 걸 좋아합니다. 최근에는 제주도에 다녀왔는데, 정말 예뻤어요. 다음에는 어디로 여행 가보셨나요?',
-        emotionData: emotionData,
-        speakingMetrics: speakingMetrics,
-        suggestedTopics: ['여행 경험', '좋아하는 여행지', '사진 취미', '역사적 장소', '제주도 명소'],
-        feedback: [
-          '말하기 속도가 빨라지고 있어요. 좀 더 천천히 말해보세요.',
-          '질문을 통해 대화를 이어나가는 것이 좋습니다.'
-        ],
-        timestamp: DateTime.now(),
-      );
-
-      // 결과 저장
-      await _saveAnalysisResult(result);
-
-      return result;
+      // 데모 데이터 반환 (실제 API 연동 전까지 사용)
+      return await _loadDemoAnalysisResult(sessionId);
     } catch (e) {
-      throw Exception('분석 결과 조회 실패: $e');
+      print('분석 결과를 가져오는 데 실패했습니다: $e');
+      // 오류가 발생해도 기본 데이터를 반환
+      return await _loadDemoAnalysisResult('default');
     }
   }
 
@@ -116,5 +80,213 @@ class AnalysisRepository {
   String _getRandomEmotionState() {
     final states = ['긍정적', '중립적', '열정적', '흥미로움', '활기참'];
     return states[_random.nextInt(states.length)];
+  }
+
+  // 데모 분석 결과 로드
+  Future<AnalysisResult> _loadDemoAnalysisResult(String sessionId) async {
+    try {
+      // 데모 데이터 (JSON 파일에서 로드) - 실제 프로젝트에서는 assets에 넣고 사용
+      await Future.delayed(Duration(milliseconds: 800)); // API 호출 시뮬레이션
+
+      // 데모 데이터 생성
+      final emotionData = List.generate(
+        60, // 1분간의 데이터
+        (index) => EmotionData(
+          timestamp: index.toDouble(),
+          emotionType: index % 20 < 10 ? '긍정적' : '부정적',
+          value: 50 + (index % 10) * 5,
+          description: '감정 데이터 $index',
+        ),
+      );
+
+      final emotionChangePoints = [
+        EmotionChangePoint(
+          time: '00:05:21',
+          timestamp: 321,
+          description: '주제에 대한 관심 표현',
+          emotionValue: 85,
+          label: '관심 증가',
+          topics: ['취미', '여행'],
+        ),
+        EmotionChangePoint(
+          time: '00:12:48',
+          timestamp: 768,
+          description: '의견 불일치 발생',
+          emotionValue: 35,
+          label: '부정적 변화',
+          topics: ['정치', '사회 이슈'],
+        ),
+        EmotionChangePoint(
+          time: '00:18:15',
+          timestamp: 1095,
+          description: '공통 관심사 발견',
+          emotionValue: 90,
+          label: '긍정적 전환',
+          topics: ['영화', '음악'],
+        ),
+      ];
+
+      final habitPatterns = [
+        HabitPattern(
+          type: '습관어 반복',
+          count: 15,
+          description: '대화 중 "음...", "그니까" 등의 표현을 자주 사용합니다.',
+          examples: ['음...', '그니까', '뭐지'],
+        ),
+        HabitPattern(
+          type: '말 끊기',
+          count: 5,
+          description: '상대방의 말을 끊고 본인의 이야기를 시작하는 경우가 있습니다.',
+          examples: ['잠깐만요', '그게 아니라'],
+        ),
+        HabitPattern(
+          type: '속도 변화',
+          count: 8,
+          description: '흥미로운 주제에서 말의 속도가 빨라지는 패턴이 있습니다.',
+          examples: ['취미 이야기', '영화 이야기'],
+        ),
+      ];
+
+      final emotionFeedbacks = [
+        EmotionFeedback(
+          type: '긍정적인 포인트',
+          content: '상대방의 이야기에 관심을 보이며 적극적으로 반응합니다.',
+        ),
+        EmotionFeedback(
+          type: '개선 포인트',
+          content: '민감한 주제에서 감정 표현이 다소 과격해집니다.',
+        ),
+        EmotionFeedback(
+          type: '제안',
+          content: '상대방의 관점을 더 이해하려는 질문을 해보세요.',
+        ),
+      ];
+
+      final topics = [
+        ConversationTopic(
+          name: '취미',
+          percentage: 35,
+          isPrimary: true,
+        ),
+        ConversationTopic(
+          name: '일상',
+          percentage: 25,
+          isPrimary: false,
+        ),
+        ConversationTopic(
+          name: '영화',
+          percentage: 20,
+          isPrimary: false,
+        ),
+        ConversationTopic(
+          name: '여행',
+          percentage: 15,
+          isPrimary: false,
+        ),
+        ConversationTopic(
+          name: '음악',
+          percentage: 5,
+          isPrimary: false,
+        ),
+      ];
+
+      final topicTimepoints = [
+        TopicTimepoint(
+          time: '00:02:10',
+          timestamp: 130,
+          description: '인사 및 안부 나눔',
+          topics: ['일상'],
+        ),
+        TopicTimepoint(
+          time: '00:08:45',
+          timestamp: 525,
+          description: '취미 활동에 대한 대화 시작',
+          topics: ['취미', '여행'],
+        ),
+        TopicTimepoint(
+          time: '00:15:30',
+          timestamp: 930,
+          description: '최근 본 영화에 대한 이야기',
+          topics: ['영화', '음악'],
+        ),
+      ];
+
+      final topicInsights = [
+        TopicInsight(
+          topic: '취미',
+          insight: '취미 활동에 대한 대화에서 가장 활발한 상호작용이 이루어졌습니다.',
+        ),
+        TopicInsight(
+          topic: '일상',
+          insight: '일상 대화는 편안한 분위기를 조성했지만 깊이 있는 대화로 발전하지 못했습니다.',
+        ),
+        TopicInsight(
+          topic: '영화',
+          insight: '영화 취향이 비슷하여 공감대 형성에 도움이 되었습니다.',
+        ),
+      ];
+
+      final recommendedTopics = [
+        RecommendedTopic(
+          topic: '여행',
+          description: '여행에 대한 더 구체적인 경험과 계획에 대해 이야기해보세요.',
+          questions: [
+            '가장 기억에 남는 여행지는 어디인가요?',
+            '다음에 가보고 싶은 여행지가 있나요?',
+            '여행 중 특별한 경험이 있었나요?'
+          ],
+        ),
+        RecommendedTopic(
+          topic: '음식',
+          description: '음식 취향은 개인의 성향을 잘 보여주는 주제입니다.',
+          questions: [
+            '좋아하는 음식이나 요리는 무엇인가요?',
+            '직접 요리해본 음식이 있나요?',
+            '특별한 음식 관련 추억이 있나요?'
+          ],
+        ),
+      ];
+
+      return AnalysisResult(
+        sessionId: sessionId,
+        title: '첫 번째 미팅 대화',
+        date: DateTime.now().subtract(Duration(days: 2, hours: 5)),
+        category: '소개팅',
+        emotionData: emotionData.cast<EmotionData>(),
+        emotionChangePoints: emotionChangePoints,
+        metrics: SessionMetrics(
+          totalDuration: 1800, // 30분
+          audioRecorded: true,
+          speakingMetrics: SpeakingMetrics(
+            speechRate: 125, // 분당 단어 수
+            tonality: 75, // %
+            clarity: 85, // %
+            habitPatterns: habitPatterns,
+          ),
+          emotionMetrics: EmotionMetrics(
+            averageInterest: 72, // %
+            averageLikeability: 68, // %
+            peakLikeability: 92, // %
+            lowestLikeability: 35, // %
+            feedbacks: emotionFeedbacks,
+          ),
+          conversationMetrics: ConversationMetrics(
+            contributionRatio: 55, // %
+            listeningScore: 78, // %
+            interruptionCount: 5,
+            flowDescription:
+                '전반적으로 자연스러운 대화 흐름을 유지하였으나, 일부 주제에서 의견 불일치가 있었습니다.',
+          ),
+          topicMetrics: TopicMetrics(
+            topics: topics,
+            timepoints: topicTimepoints,
+            insights: topicInsights,
+            recommendations: recommendedTopics,
+          ),
+        ),
+      );
+    } catch (e) {
+      throw Exception('데모 분석 결과 생성에 실패했습니다: $e');
+    }
   }
 }

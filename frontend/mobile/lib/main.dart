@@ -23,7 +23,7 @@ import 'package:haptitalk/widgets/common/buttons/secondary_button.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 서비스 초기화
+  // LocalStorageService 초기화
   await LocalStorageService.init();
 
   // 세로 방향만 지원
@@ -46,7 +46,8 @@ void main() async {
         ChangeNotifierProvider(
             create: (_) => SessionProvider(sessionRepository)),
         ChangeNotifierProvider(
-            create: (_) => AnalysisProvider(analysisRepository)),
+            create: (_) =>
+                AnalysisProvider(analysisRepository: analysisRepository)),
       ],
       child: const MyApp(),
     ),

@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../models/analysis/analysis_result.dart';
 import '../repositories/analysis_repository.dart';
 
-class AnalysisProvider with ChangeNotifier {
+class AnalysisProvider extends ChangeNotifier {
   final AnalysisRepository _analysisRepository;
 
   AnalysisResult? _currentAnalysis;
@@ -24,7 +25,8 @@ class AnalysisProvider with ChangeNotifier {
   StreamController<AnalysisResult>? _analysisStreamController;
   Stream<AnalysisResult>? _analysisStream;
 
-  AnalysisProvider(this._analysisRepository);
+  AnalysisProvider({required AnalysisRepository analysisRepository})
+      : _analysisRepository = analysisRepository;
 
   // Getters
   AnalysisResult? get currentAnalysis => _currentAnalysis;
@@ -179,5 +181,36 @@ class AnalysisProvider with ChangeNotifier {
   void dispose() {
     _analysisStreamController?.close();
     super.dispose();
+  }
+
+  // 세션 ID로 분석 결과를 가져오는 메서드
+  Future<AnalysisResult> getAnalysisResult(String sessionId) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      final result = await _analysisRepository.getAnalysisResult(sessionId);
+      _currentAnalysis = result;
+
+      _isLoading = false;
+      notifyListeners();
+
+      return result;
+    } catch (e) {
+      _isLoading = false;
+      _error = e.toString();
+      notifyListeners();
+      print('Error in getAnalysisResult: $e');
+      // 오류가 발생해도 기본 데이터를 반환
+      return await _analysisRepository.getAnalysisResult('default');
+    }
+  }
+
+  // 분석 결과 상태 초기화
+  void clearAnalysisResult() {
+    _currentAnalysis = null;
+    _error = null;
+    notifyListeners();
   }
 }

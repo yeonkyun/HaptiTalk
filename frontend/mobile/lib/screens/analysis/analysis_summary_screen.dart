@@ -418,7 +418,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
           children: [
             _buildMetricCard(
               '말하기 속도',
-              '${analysis.speakingMetrics.speakingSpeed}/분',
+              '${analysis.metrics.speakingMetrics.speechRate.toInt()}/분',
               Icons.speed,
               '적절한 속도로 말했습니다',
             ),
@@ -430,7 +430,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
             ),
             _buildMetricCard(
               '호감도',
-              '${analysis.emotionData.likability}%',
+              '${analysis.metrics.emotionMetrics.averageLikeability.toInt()}%',
               Icons.favorite,
               '매우 우호적인 반응',
             ),
