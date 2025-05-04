@@ -230,6 +230,7 @@ services:
     volumes:
       - ./api/auth-service:/app
       - ./api/shared:/app/api/shared
+      - /app/node_modules
     ports:
       - "${AUTH_SERVICE_PORT}:${AUTH_SERVICE_PORT}"
     networks:
@@ -254,6 +255,7 @@ services:
     volumes:
       - ./api/realtime-service:/app
       - ./api/shared:/app/api/shared
+      - /app/node_modules
     environment:
       - NODE_ENV=development
       - PORT=${REALTIME_SERVICE_PORT}
@@ -316,6 +318,7 @@ services:
     volumes:
       - ./api/session-service:/app
       - ./api/shared:/app/api/shared
+      - /app/node_modules
     ports:
       - "${SESSION_SERVICE_PORT}:${SESSION_SERVICE_PORT}"
     networks:
@@ -364,6 +367,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/feedback-service:/app
+      - ./api/shared:/app/api/shared
+      - /app/node_modules
     ports:
       - "${FEEDBACK_SERVICE_PORT}:${FEEDBACK_SERVICE_PORT}"
     networks:
@@ -407,6 +412,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/user-service:/app
+      - ./api/shared:/app/api/shared
+      - /app/node_modules
     ports:
       - "${USER_SERVICE_PORT}:${USER_SERVICE_PORT}"
     networks:
@@ -455,6 +462,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/report-service:/app
+      - ./api/shared:/app/api/shared
+      - /app/node_modules
     ports:
       - "${REPORT_SERVICE_PORT}:${REPORT_SERVICE_PORT}"
     networks:
