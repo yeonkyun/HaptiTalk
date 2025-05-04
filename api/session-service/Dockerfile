@@ -13,6 +13,9 @@ RUN npm install
 # 소스 코드 복사
 COPY . .
 
+# shared 디렉토리 생성 (볼륨 마운트용)
+RUN mkdir -p /app/api/shared
+
 # 3002 포트 노출
 EXPOSE 3002
 

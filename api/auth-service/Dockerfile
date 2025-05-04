@@ -18,6 +18,9 @@ RUN npm ci --production && \
 # Copy source code
 COPY . .
 
+# Create shared directory structure if it doesn't exist
+RUN mkdir -p /app/api/shared
+
 # Create logs directory
 RUN mkdir -p logs
 

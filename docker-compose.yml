@@ -229,6 +229,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/auth-service:/app
+      - ./api/shared:/app/api/shared
     ports:
       - "${AUTH_SERVICE_PORT}:${AUTH_SERVICE_PORT}"
     networks:
@@ -252,6 +253,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./api/realtime-service:/app
+      - ./api/shared:/app/api/shared
     environment:
       - NODE_ENV=development
       - PORT=${REALTIME_SERVICE_PORT}
@@ -292,8 +294,6 @@ services:
       dockerfile: Dockerfile
     container_name: haptitalk-session-service
     restart: unless-stopped
-    volumes:
-      - ./api/session-service:/app
     environment:
       - NODE_ENV=development
       - PORT=${SESSION_SERVICE_PORT}
@@ -305,7 +305,6 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - JWT_SESSION_SECRET=${JWT_SESSION_SECRET}
       - LOG_LEVEL=${LOG_LEVEL}
       # Kafka 설정
@@ -314,6 +313,9 @@ services:
       # OpenTelemetry 트레이싱 설정
       - SERVICE_NAME=session-service
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
+    volumes:
+      - ./api/session-service:/app
+      - ./api/shared:/app/api/shared
     ports:
       - "${SESSION_SERVICE_PORT}:${SESSION_SERVICE_PORT}"
     networks:
