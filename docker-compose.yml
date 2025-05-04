@@ -102,7 +102,9 @@ services:
       - "${KAFKA_PORT:-9092}:9092"
     environment:
       - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
       - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
       - ALLOW_PLAINTEXT_LISTENER=yes
       - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
       - KAFKA_CFG_DELETE_TOPIC_ENABLE=true
@@ -229,6 +231,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/auth-service:/app
+      - ./api/shared:/app/api/shared
+      - /app/node_modules
     ports:
       - "${AUTH_SERVICE_PORT}:${AUTH_SERVICE_PORT}"
     networks:
@@ -252,6 +256,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./api/realtime-service:/app
+      - ./api/shared:/app/api/shared
+      - /app/node_modules
     environment:
       - NODE_ENV=development
       - PORT=${REALTIME_SERVICE_PORT}
@@ -292,8 +298,6 @@ services:
       dockerfile: Dockerfile
     container_name: haptitalk-session-service
     restart: unless-stopped
-    volumes:
-      - ./api/session-service:/app
     environment:
       - NODE_ENV=development
       - PORT=${SESSION_SERVICE_PORT}
@@ -305,7 +309,6 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - JWT_SESSION_SECRET=${JWT_SESSION_SECRET}
       - LOG_LEVEL=${LOG_LEVEL}
       # Kafka 설정
@@ -314,6 +317,10 @@ services:
       # OpenTelemetry 트레이싱 설정
       - SERVICE_NAME=session-service
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
+    volumes:
+      - ./api/session-service:/app
+      - ./api/shared:/app/api/shared
+      - /app/node_modules
     ports:
       - "${SESSION_SERVICE_PORT}:${SESSION_SERVICE_PORT}"
     networks:
@@ -362,6 +369,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/feedback-service:/app
+      - ./api/shared:/app/api/shared
+      - /app/node_modules
     ports:
       - "${FEEDBACK_SERVICE_PORT}:${FEEDBACK_SERVICE_PORT}"
     networks:
@@ -405,6 +414,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/user-service:/app
+      - ./api/shared:/app/api/shared
+      - /app/node_modules
     ports:
       - "${USER_SERVICE_PORT}:${USER_SERVICE_PORT}"
     networks:
@@ -453,6 +464,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/report-service:/app
+      - ./api/shared:/app/api/shared
+      - /app/node_modules
     ports:
       - "${REPORT_SERVICE_PORT}:${REPORT_SERVICE_PORT}"
     networks:

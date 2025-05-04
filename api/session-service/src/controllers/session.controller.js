@@ -2,6 +2,7 @@ const httpStatus = require('http-status');
 const sessionService = require('../services/session.service');
 const timerService = require('../services/timer.service');
 const logger = require('../utils/logger');
+const { withMongoResilience, withRedisResilience } = require('../utils/serviceClient');
 
 /**
  * 세션 컨트롤러
@@ -19,17 +20,20 @@ const sessionController = {
             // JWT 인증 미들웨어에서 설정한 사용자 ID 가져오기
             const user_id = req.user.id;
 
-            // 세션 생성 서비스 호출
-            const session = await sessionService.createSession({
-                user_id,
-                title,
-                type,
-                custom_settings,
-                device_info,
-                location,
-                participants,
-                tags
-            });
+            // 세션 생성 서비스 호출 (회복성 패턴 적용)
+            const session = await withMongoResilience(
+                async () => sessionService.createSession({
+                    user_id,
+                    title,
+                    type,
+                    custom_settings,
+                    device_info,
+                    location,
+                    participants,
+                    tags
+                }),
+                { operationName: 'create_session' }
+            );
 
             res.status(httpStatus.CREATED).json({
                 success: true,
@@ -56,8 +60,14 @@ const sessionController = {
         try {
             const {id} = req.params;
 
-            // 세션 조회 서비스 호출
-            const session = await sessionService.getSession(id);
+            // 세션 조회 서비스 호출 (회복성 패턴 적용)
+            const session = await withMongoResilience(
+                async () => sessionService.getSession(id),
+                { 
+                    operationName: 'get_session',
+                    fallbackKey: 'getSession'
+                }
+            );
 
             // 사용자 권한 확인 (본인의 세션만 조회 가능)
             if (session.user_id !== req.user.id) {
@@ -86,15 +96,18 @@ const sessionController = {
             const {status, type, limit, offset, sort, order} = req.query;
             const user_id = req.user.id;
 
-            // 세션 목록 조회 서비스 호출
-            const {rows: sessions, count} = await sessionService.getUserSessions(user_id, {
-                status,
-                type,
-                limit: limit ? parseInt(limit, 10) : 10,
-                offset: offset ? parseInt(offset, 10) : 0,
-                sort: sort || 'created_at',
-                order: order || 'DESC'
-            });
+            // 세션 목록 조회 서비스 호출 (회복성 패턴 적용)
+            const {rows: sessions, count} = await withMongoResilience(
+                async () => sessionService.getUserSessions(user_id, {
+                    status,
+                    type,
+                    limit: limit ? parseInt(limit, 10) : 10,
+                    offset: offset ? parseInt(offset, 10) : 0,
+                    sort: sort || 'created_at',
+                    order: order || 'DESC'
+                }),
+                { operationName: 'get_user_sessions' }
+            );
 
             res.status(httpStatus.OK).json({
                 success: true,
@@ -120,8 +133,11 @@ const sessionController = {
             const {id} = req.params;
             const updateData = req.body;
 
-            // 먼저 세션 조회하여 사용자 권한 확인
-            const session = await sessionService.getSession(id);
+            // 먼저 세션 조회하여 사용자 권한 확인 (회복성 패턴 적용)
+            const session = await withMongoResilience(
+                async () => sessionService.getSession(id),
+                { operationName: 'get_session_for_update' }
+            );
 
             if (session.user_id !== req.user.id) {
                 return res.status(httpStatus.FORBIDDEN).json({
@@ -130,8 +146,11 @@ const sessionController = {
                 });
             }
 
-            // 세션 업데이트 서비스 호출
-            const updatedSession = await sessionService.updateSession(id, updateData);
+            // 세션 업데이트 서비스 호출 (회복성 패턴 적용)
+            const updatedSession = await withMongoResilience(
+                async () => sessionService.updateSession(id, updateData),
+                { operationName: 'update_session' }
+            );
 
             res.status(httpStatus.OK).json({
                 success: true,
@@ -153,8 +172,11 @@ const sessionController = {
             const {id} = req.params;
             const {summary} = req.body;
 
-            // 먼저 세션 조회하여 사용자 권한 확인
-            const session = await sessionService.getSession(id);
+            // 먼저 세션 조회하여 사용자 권한 확인 (회복성 패턴 적용)
+            const session = await withMongoResilience(
+                async () => sessionService.getSession(id),
+                { operationName: 'get_session_for_end' }
+            );
 
             if (session.user_id !== req.user.id) {
                 return res.status(httpStatus.FORBIDDEN).json({
@@ -163,8 +185,11 @@ const sessionController = {
                 });
             }
 
-            // 세션 종료 서비스 호출
-            const endedSession = await sessionService.endSession(id, summary);
+            // 세션 종료 서비스 호출 (회복성 패턴 적용)
+            const endedSession = await withMongoResilience(
+                async () => sessionService.endSession(id, summary),
+                { operationName: 'end_session' }
+            );
 
             res.status(httpStatus.OK).json({
                 success: true,
@@ -191,8 +216,11 @@ const sessionController = {
             const {id} = req.params;
             const {summary} = req.body;
 
-            // 먼저 세션 조회하여 사용자 권한 확인
-            const session = await sessionService.getSession(id);
+            // 먼저 세션 조회하여 사용자 권한 확인 (회복성 패턴 적용)
+            const session = await withMongoResilience(
+                async () => sessionService.getSession(id),
+                { operationName: 'get_session_for_summary' }
+            );
 
             if (session.user_id !== req.user.id) {
                 return res.status(httpStatus.FORBIDDEN).json({
@@ -201,8 +229,11 @@ const sessionController = {
                 });
             }
 
-            // 세션 요약 업데이트 서비스 호출
-            await sessionService.updateSessionSummary(id, summary);
+            // 세션 요약 업데이트 서비스 호출 (회복성 패턴 적용)
+            await withMongoResilience(
+                async () => sessionService.updateSessionSummary(id, summary),
+                { operationName: 'update_session_summary' }
+            );
 
             res.status(httpStatus.OK).json({
                 success: true,
@@ -223,8 +254,11 @@ const sessionController = {
             const {id} = req.params;
             const timerSettings = req.body;
 
-            // 먼저 세션 조회하여 사용자 권한 확인
-            const session = await sessionService.getSession(id);
+            // 먼저 세션 조회하여 사용자 권한 확인 (회복성 패턴 적용)
+            const session = await withMongoResilience(
+                async () => sessionService.getSession(id),
+                { operationName: 'get_session_for_timer' }
+            );
 
             if (session.user_id !== req.user.id) {
                 return res.status(httpStatus.FORBIDDEN).json({
@@ -233,8 +267,11 @@ const sessionController = {
                 });
             }
 
-            // 타이머 설정 서비스 호출
-            const timerData = await sessionService.setupPresentationTimer(id, timerSettings);
+            // 타이머 설정 서비스 호출 (회복성 패턴 적용)
+            const timerData = await withRedisResilience(
+                async () => sessionService.setupPresentationTimer(id, timerSettings),
+                { operationName: 'setup_timer' }
+            );
 
             res.status(httpStatus.OK).json({
                 success: true,
@@ -255,8 +292,11 @@ const sessionController = {
         try {
             const {id} = req.params;
 
-            // 먼저 세션 조회하여 사용자 권한 확인
-            const session = await sessionService.getSession(id);
+            // 먼저 세션 조회하여 사용자 권한 확인 (회복성 패턴 적용)
+            const session = await withMongoResilience(
+                async () => sessionService.getSession(id),
+                { operationName: 'get_session_for_timer_start' }
+            );
 
             if (session.user_id !== req.user.id) {
                 return res.status(httpStatus.FORBIDDEN).json({
@@ -265,8 +305,11 @@ const sessionController = {
                 });
             }
 
-            // 타이머 시작 서비스 호출
-            const timerData = await timerService.startTimer(id);
+            // 타이머 시작 서비스 호출 (회복성 패턴 적용)
+            const timerData = await withRedisResilience(
+                async () => timerService.startTimer(id),
+                { operationName: 'start_timer' }
+            );
 
             res.status(httpStatus.OK).json({
                 success: true,
@@ -287,8 +330,11 @@ const sessionController = {
         try {
             const {id} = req.params;
 
-            // 먼저 세션 조회하여 사용자 권한 확인
-            const session = await sessionService.getSession(id);
+            // 먼저 세션 조회하여 사용자 권한 확인 (회복성 패턴 적용)
+            const session = await withMongoResilience(
+                async () => sessionService.getSession(id),
+                { operationName: 'get_session_for_timer_pause' }
+            );
 
             if (session.user_id !== req.user.id) {
                 return res.status(httpStatus.FORBIDDEN).json({
@@ -297,8 +343,11 @@ const sessionController = {
                 });
             }
 
-            // 타이머 일시 중지 서비스 호출
-            const timerData = await timerService.pauseTimer(id);
+            // 타이머 일시 중지 서비스 호출 (회복성 패턴 적용)
+            const timerData = await withRedisResilience(
+                async () => timerService.pauseTimer(id),
+                { operationName: 'pause_timer' }
+            );
 
             res.status(httpStatus.OK).json({
                 success: true,
@@ -319,8 +368,11 @@ const sessionController = {
         try {
             const {id} = req.params;
 
-            // 먼저 세션 조회하여 사용자 권한 확인
-            const session = await sessionService.getSession(id);
+            // 먼저 세션 조회하여 사용자 권한 확인 (회복성 패턴 적용)
+            const session = await withMongoResilience(
+                async () => sessionService.getSession(id),
+                { operationName: 'get_session_for_timer_resume' }
+            );
 
             if (session.user_id !== req.user.id) {
                 return res.status(httpStatus.FORBIDDEN).json({
@@ -329,8 +381,11 @@ const sessionController = {
                 });
             }
 
-            // 타이머 재개 서비스 호출
-            const timerData = await timerService.resumeTimer(id);
+            // 타이머 재개 서비스 호출 (회복성 패턴 적용)
+            const timerData = await withRedisResilience(
+                async () => timerService.resumeTimer(id),
+                { operationName: 'resume_timer' }
+            );
 
             res.status(httpStatus.OK).json({
                 success: true,
@@ -351,8 +406,11 @@ const sessionController = {
         try {
             const {id} = req.params;
 
-            // 먼저 세션 조회하여 사용자 권한 확인
-            const session = await sessionService.getSession(id);
+            // 먼저 세션 조회하여 사용자 권한 확인 (회복성 패턴 적용)
+            const session = await withMongoResilience(
+                async () => sessionService.getSession(id),
+                { operationName: 'get_session_for_timer_reset' }
+            );
 
             if (session.user_id !== req.user.id) {
                 return res.status(httpStatus.FORBIDDEN).json({
@@ -361,8 +419,11 @@ const sessionController = {
                 });
             }
 
-            // 타이머 리셋 서비스 호출
-            const timerData = await timerService.resetTimer(id);
+            // 타이머 리셋 서비스 호출 (회복성 패턴 적용)
+            const timerData = await withRedisResilience(
+                async () => timerService.resetTimer(id),
+                { operationName: 'reset_timer' }
+            );
 
             res.status(httpStatus.OK).json({
                 success: true,
@@ -383,8 +444,11 @@ const sessionController = {
         try {
             const {id} = req.params;
 
-            // 먼저 세션 조회하여 사용자 권한 확인
-            const session = await sessionService.getSession(id);
+            // 먼저 세션 조회하여 사용자 권한 확인 (회복성 패턴 적용)
+            const session = await withMongoResilience(
+                async () => sessionService.getSession(id),
+                { operationName: 'get_session_for_timer_status' }
+            );
 
             if (session.user_id !== req.user.id) {
                 return res.status(httpStatus.FORBIDDEN).json({
@@ -393,8 +457,11 @@ const sessionController = {
                 });
             }
 
-            // 타이머 상태 조회 서비스 호출
-            const timerData = await timerService.getTimerStatus(id);
+            // 타이머 상태 조회 서비스 호출 (회복성 패턴 적용)
+            const timerData = await withRedisResilience(
+                async () => timerService.getTimerStatus(id),
+                { operationName: 'get_timer_status' }
+            );
 
             res.status(httpStatus.OK).json({
                 success: true,
@@ -421,9 +488,12 @@ const sessionController = {
                 });
             }
 
-            // 세션 조회
+            // 세션 조회 (회복성 패턴 적용)
             try {
-                const session = await sessionService.getSession(sessionId);
+                const session = await withMongoResilience(
+                    async () => sessionService.getSession(sessionId),
+                    { operationName: 'validate_session' }
+                );
                 
                 // 세션 상태 확인
                 if (session.status !== 'active') {
@@ -447,8 +517,11 @@ const sessionController = {
                     });
                 }
 
-                // 참가자 확인
-                const isParticipant = await sessionService.isSessionParticipant(sessionId, userId);
+                // 참가자 확인 (회복성 패턴 적용)
+                const isParticipant = await withMongoResilience(
+                    async () => sessionService.isSessionParticipant(sessionId, userId),
+                    { operationName: 'check_participant' }
+                );
                 
                 return res.status(httpStatus.OK).json({
                     success: true,
@@ -482,15 +555,24 @@ const sessionController = {
         try {
             const { id } = req.params;
 
-            // 세션 상세 정보 조회
+            // 세션 상세 정보 조회 (회복성 패턴 적용)
             try {
-                const session = await sessionService.getSession(id);
+                const session = await withMongoResilience(
+                    async () => sessionService.getSession(id),
+                    { operationName: 'get_session_status' }
+                );
                 
-                // 참가자 목록 조회
-                const participants = await sessionService.getSessionParticipants(id);
+                // 참가자 목록 조회 (회복성 패턴 적용)
+                const participants = await withMongoResilience(
+                    async () => sessionService.getSessionParticipants(id),
+                    { operationName: 'get_session_participants' }
+                );
                 
-                // 최신 분석 결과 조회
-                const latestAnalysis = await sessionService.getLatestAnalysis(id);
+                // 최신 분석 결과 조회 (회복성 패턴 적용)
+                const latestAnalysis = await withMongoResilience(
+                    async () => sessionService.getLatestAnalysis(id),
+                    { operationName: 'get_latest_analysis' }
+                );
                 
                 res.status(httpStatus.OK).json({
                     success: true,
