@@ -212,7 +212,7 @@ class ProfileScreen extends StatelessWidget {
                     height: 42,
                     child: ElevatedButton(
                       onPressed: () {
-                        // 구독 관리 기능
+                        NavigationService.navigateTo(AppRoutes.subscription);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryColor,

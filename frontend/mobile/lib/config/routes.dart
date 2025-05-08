@@ -10,7 +10,7 @@ import 'package:haptitalk/screens/analysis/realtime_analysis_screen.dart';
 import 'package:haptitalk/screens/history/history_screen.dart';
 // import 'package:haptitalk/screens/profile/profile_screen.dart';
 import 'package:haptitalk/screens/profile/settings_screen.dart';
-// import 'package:haptitalk/screens/profile/subscription_screen.dart';
+import 'package:haptitalk/screens/profile/subscription_screen.dart';
 
 class AppRoutes {
   // 라우트 이름 정의
@@ -47,7 +47,7 @@ class AppRoutes {
       sessionsHistory: (context) => const HistoryScreen(),
       // profile: (context) => const ProfileScreen(),
       settings: (context) => const SettingsScreen(),
-      // subscription: (context) => const SubscriptionScreen(),
+      subscription: (context) => const SubscriptionScreen(),
     };
   }
 }
