@@ -10,6 +10,7 @@ import SwiftUI
 struct MainScreenView: View {
     @EnvironmentObject var appState: AppState
     @State private var showSessionModeSelection = false
+    @State private var showConnectionStatus = false
     
     var body: some View {
         ZStack {
@@ -65,8 +66,8 @@ struct MainScreenView: View {
                 // 버튼 섹션
                 VStack(spacing: 15) {
                     Button(action: {
-                        // 세션 시작 액션
-                        showSessionModeSelection = true
+                        // 세션 시작 액션 - 임시로 연결 상태 화면으로 이동
+                        showConnectionStatus = true
                     }) {
                         Text("세션 시작")
                             .font(.system(size: 14, weight: .semibold))
@@ -81,15 +82,16 @@ struct MainScreenView: View {
                     
                     if !appState.recentSessions.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("최근 세션")
+                            Text("세션 모드")
                                 .font(.system(size: 11))
                                 .foregroundColor(Color(UIColor(red: 0.62, green: 0.62, blue: 0.62, alpha: 1.0))) // #9E9E9E
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             
                             Button(action: {
-                                // 최근 세션 열기
+                                // 세션 모드 선택 화면 열기
+                                showSessionModeSelection = true
                             }) {
-                                Text(appState.recentSessions.first?.name ?? "")
+                                Text(appState.recentSessions.first?.name ?? "소개팅 모드")
                                     .font(.system(size: 11))
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
@@ -108,6 +110,9 @@ struct MainScreenView: View {
         }
         .sheet(isPresented: $showSessionModeSelection) {
             SessionModeSelectionView()
+        }
+        .sheet(isPresented: $showConnectionStatus) {
+            ConnectionStatusView()
         }
     }
 }
