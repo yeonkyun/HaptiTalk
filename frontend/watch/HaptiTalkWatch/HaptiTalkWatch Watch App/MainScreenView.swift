@@ -11,6 +11,7 @@ struct MainScreenView: View {
     @EnvironmentObject var appState: AppState
     @State private var showSessionModeSelection = false
     @State private var showConnectionStatus = false
+    @State private var showSessionProgress = false
     
     var body: some View {
         ZStack {
@@ -66,8 +67,13 @@ struct MainScreenView: View {
                 // 버튼 섹션
                 VStack(spacing: 15) {
                     Button(action: {
-                        // 세션 시작 액션 - 임시로 연결 상태 화면으로 이동
-                        showConnectionStatus = true
+                        if appState.isConnected {
+                            // 세션 모드 선택 화면으로 이동
+                            showSessionModeSelection = true
+                        } else {
+                            // 연결되지 않은 경우 연결 상태 화면으로 이동
+                            showConnectionStatus = true
+                        }
                     }) {
                         Text("세션 시작")
                             .font(.system(size: 14, weight: .semibold))
@@ -109,10 +115,15 @@ struct MainScreenView: View {
             .padding(.vertical, 20)
         }
         .sheet(isPresented: $showSessionModeSelection) {
-            SessionModeSelectionView()
+            SessionModeSelectionView(onModeSelected: { mode in
+                showSessionProgress = true
+            })
         }
         .sheet(isPresented: $showConnectionStatus) {
             ConnectionStatusView()
+        }
+        .fullScreenCover(isPresented: $showSessionProgress) {
+            SessionProgressView()
         }
     }
 }

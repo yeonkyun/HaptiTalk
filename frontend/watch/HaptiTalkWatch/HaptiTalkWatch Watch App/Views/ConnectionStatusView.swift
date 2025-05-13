@@ -11,6 +11,9 @@ import WatchKit
 struct ConnectionStatusView: View {
     @EnvironmentObject var appState: AppState
     @State private var showDisconnectAlert = false
+    @State private var showSessionModeSelection = false
+    @State private var showSessionProgress = false
+    @Environment(\.presentationMode) var presentationMode
     
     var body: some View {
         ZStack {
@@ -51,6 +54,21 @@ struct ConnectionStatusView: View {
                 // 버튼 섹션
                 VStack(spacing: 10) {
                     Button(action: {
+                        // 세션 진행 화면으로 이동
+                        showSessionProgress = true
+                    }) {
+                        Text("세션 시작")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
+                            )
+                    }
+                    
+                    Button(action: {
                         // 햅틱 테스트 액션
                         WKInterfaceDevice.current().play(.success)
                     }) {
@@ -61,7 +79,7 @@ struct ConnectionStatusView: View {
                             .padding(.vertical, 10)
                             .background(
                                 RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
+                                    .fill(Color(UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0))) // #212121
                             )
                     }
                     
@@ -94,6 +112,9 @@ struct ConnectionStatusView: View {
                 },
                 secondaryButton: .cancel(Text("취소"))
             )
+        }
+        .fullScreenCover(isPresented: $showSessionProgress) {
+            SessionProgressView()
         }
     }
 }
