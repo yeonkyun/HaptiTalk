@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct HaptiTalkWatch_Watch_AppApp: App {
+    @StateObject private var appState = AppState()
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(appState)
         }
     }
 }
