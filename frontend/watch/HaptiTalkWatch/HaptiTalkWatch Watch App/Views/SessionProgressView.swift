@@ -19,6 +19,9 @@ struct SessionProgressView: View {
     @State private var speakingSpeed: Double = 0.75 // 0.0 ~ 1.0
     @State private var feedbackMessage: String = "말하기 속도가 빨라지고 있어요. 좀 더 천천히 말해보세요."
     @State private var showFeedback: Bool = true
+    @State private var showHapticNotification: Bool = false
+    @State private var hapticNotificationMessage: String = ""
+    @State private var currentTime: String = ""
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
@@ -150,6 +153,22 @@ struct SessionProgressView: View {
                 
                 Spacer()
                 
+                // 테스트 햅틱 피드백 버튼 (데모용)
+                Button(action: {
+                    showHapticNotification(message: "상대방의 호감도가 상\n승했습니다.\n현재 대화 주제를 이어\n가세요.")
+                }) {
+                    Text("햅틱 피드백 테스트")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.indigo)
+                        )
+                }
+                .padding(.bottom, 10)
+                
                 // 종료 버튼
                 Button(action: {
                     // 세션 종료
@@ -165,13 +184,32 @@ struct SessionProgressView: View {
                                 .fill(Color(UIColor(red: 0.96, green: 0.26, blue: 0.21, alpha: 1.0))) // #F44336
                         )
                 }
-                .padding(.top, 10)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
+            
+            // 햅틱 피드백 알림 오버레이
+            if showHapticNotification {
+                HapticFeedbackNotificationView(
+                    sessionType: sessionMode,
+                    elapsedTime: formattedTime,
+                    message: hapticNotificationMessage,
+                    currentTime: getCurrentTimeString()
+                )
+                .onDisappear {
+                    showHapticNotification = false
+                }
+            }
         }
         .onReceive(timer) { _ in
             updateTimer()
+            updateCurrentTime()
+        }
+        .onChange(of: appState.showHapticFeedback) { newValue in
+            if newValue {
+                showHapticNotification(message: appState.hapticFeedbackMessage)
+                appState.showHapticFeedback = false
+            }
         }
     }
     
@@ -183,6 +221,28 @@ struct SessionProgressView: View {
         let seconds = Int(sessionTimer) % 60
         
         formattedTime = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+    }
+    
+    private func updateCurrentTime() {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        currentTime = formatter.string(from: Date())
+    }
+    
+    private func getCurrentTimeString() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: Date())
+    }
+    
+    private func showHapticNotification(message: String) {
+        hapticNotificationMessage = message
+        showHapticNotification = true
+        
+        // 5초 후 자동으로 닫기
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            self.showHapticNotification = false
+        }
     }
 }
 
