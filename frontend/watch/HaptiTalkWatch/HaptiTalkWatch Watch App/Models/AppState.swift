@@ -23,6 +23,12 @@ class AppState: ObservableObject {
     // 세션 요약 관련 상태
     @Published var sessionSummaries: [SessionSummary] = []
     
+    // 설정 관련 상태
+    @Published var hapticIntensity: Double = 0.7  // 0.0 ~ 1.0 사이의 값 (3~5 사이를 표현)
+    @Published var notificationStyle: String = "전체"  // "없음", "아이콘", "전체"
+    @Published var isWatchfaceComplicationEnabled: Bool = true
+    @Published var isBatterySavingEnabled: Bool = false
+    
     // 더미 데이터 초기화
     init() {
         recentSessions = [
@@ -82,6 +88,12 @@ class AppState: ObservableObject {
     func saveSessionSummary(summary: SessionSummary) {
         sessionSummaries.insert(summary, at: 0)
         // 실제 구현에서는 여기에 데이터 저장 로직이 들어갈 수 있습니다
+    }
+    
+    // 설정 저장 함수
+    func saveSettings() {
+        // 실제 구현에서는 여기에 설정 저장 로직이 들어갈 수 있습니다
+        // UserDefaults 또는 다른 영구 저장소에 저장
     }
 }
 

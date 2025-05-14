@@ -12,6 +12,7 @@ struct MainScreenView: View {
     @State private var showSessionModeSelection = false
     @State private var showConnectionStatus = false
     @State private var showSessionProgress = false
+    @State private var showSettings = false
     
     var body: some View {
         ZStack {
@@ -19,20 +20,34 @@ struct MainScreenView: View {
             
             VStack(spacing: 20) {
                 // 앱 아이콘 및 상태
-                VStack(spacing: 8) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
-                            .frame(width: 40, height: 40)
+                HStack {
+                    VStack(spacing: 8) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
+                                .frame(width: 40, height: 40)
+                            
+                            Text("H")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.white)
+                        }
                         
-                        Text("H")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
+                        Text("준비됨")
+                            .font(.system(size: 10))
+                            .foregroundColor(Color(UIColor(red: 0.47, green: 0.53, blue: 0.8, alpha: 1.0))) // #7986CB
                     }
                     
-                    Text("준비됨")
-                        .font(.system(size: 10))
-                        .foregroundColor(Color(UIColor(red: 0.47, green: 0.53, blue: 0.8, alpha: 1.0))) // #7986CB
+                    Spacer()
+                    
+                    // 설정 버튼
+                    Button(action: {
+                        showSettings = true
+                    }) {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(Color(UIColor(red: 0.47, green: 0.53, blue: 0.8, alpha: 1.0))) // #7986CB
+                    }
+                    .frame(width: 40, height: 40)
                 }
                 
                 // 연결 상태
@@ -121,6 +136,9 @@ struct MainScreenView: View {
         }
         .sheet(isPresented: $showConnectionStatus) {
             ConnectionStatusView()
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
         }
         .fullScreenCover(isPresented: $showSessionProgress) {
             SessionProgressView()
