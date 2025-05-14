@@ -22,6 +22,9 @@ struct SessionProgressView: View {
     @State private var showHapticNotification: Bool = false
     @State private var hapticNotificationMessage: String = ""
     @State private var currentTime: String = ""
+    @State private var showSessionSummary: Bool = false
+    @State private var likeabilityPercent: String = "88%"
+    @State private var coreFeedback: String = "여행 주제에서 높은 호감도를 보였으며, 경청하는 자세가 매우 효과적이었습니다."
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
@@ -171,8 +174,11 @@ struct SessionProgressView: View {
                 
                 // 종료 버튼
                 Button(action: {
-                    // 세션 종료
-                    presentationMode.wrappedValue.dismiss()
+                    // 세션 요약 저장
+                    saveSessionSummary()
+                    
+                    // 세션 종료 및 세션 요약 화면으로 이동
+                    showSessionSummary = true
                 }) {
                     Text("세션 종료")
                         .font(.system(size: 14, weight: .medium))
@@ -200,6 +206,15 @@ struct SessionProgressView: View {
                     showHapticNotification = false
                 }
             }
+        }
+        .fullScreenCover(isPresented: $showSessionSummary) {
+            SessionSummaryView(
+                sessionMode: sessionMode + " 모드",
+                totalTime: formattedTime,
+                mainEmotion: emotionState,
+                likeabilityPercent: likeabilityPercent,
+                coreFeedback: coreFeedback
+            )
         }
         .onReceive(timer) { _ in
             updateTimer()
@@ -243,6 +258,22 @@ struct SessionProgressView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
             self.showHapticNotification = false
         }
+    }
+    
+    private func saveSessionSummary() {
+        // 세션 요약 정보 생성
+        let summary = SessionSummary(
+            id: UUID(),
+            sessionMode: sessionMode + " 모드",
+            totalTime: formattedTime,
+            mainEmotion: emotionState,
+            likeabilityPercent: likeabilityPercent,
+            coreFeedback: coreFeedback,
+            date: Date()
+        )
+        
+        // AppState에 세션 요약 저장
+        appState.saveSessionSummary(summary: summary)
     }
 }
 

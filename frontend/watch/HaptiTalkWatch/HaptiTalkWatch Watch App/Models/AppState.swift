@@ -20,10 +20,25 @@ class AppState: ObservableObject {
     @Published var sessionType: String = "소개팅"
     @Published var elapsedTime: String = "00:00:00"
     
+    // 세션 요약 관련 상태
+    @Published var sessionSummaries: [SessionSummary] = []
+    
     // 더미 데이터 초기화
     init() {
         recentSessions = [
             Session(id: UUID(), name: "소개팅 모드", date: Date().addingTimeInterval(-86400), duration: 1800)
+        ]
+        
+        sessionSummaries = [
+            SessionSummary(
+                id: UUID(),
+                sessionMode: "소개팅 모드",
+                totalTime: "1:32:05",
+                mainEmotion: "긍정적",
+                likeabilityPercent: "88%",
+                coreFeedback: "여행 주제에서 높은 호감도를 보였으며, 경청하는 자세가 매우 효과적이었습니다.",
+                date: Date().addingTimeInterval(-86400)
+            )
         ]
     }
     
@@ -62,6 +77,12 @@ class AppState: ObservableObject {
         // WKInterfaceDevice.current().play(.notification) 또는 다른 햅틱 패턴 사용
         // 실제 구현에서는 여기에 햅틱 피드백 패턴 구현이 들어갈 수 있습니다
     }
+    
+    // 세션 요약 저장 함수
+    func saveSessionSummary(summary: SessionSummary) {
+        sessionSummaries.insert(summary, at: 0)
+        // 실제 구현에서는 여기에 데이터 저장 로직이 들어갈 수 있습니다
+    }
 }
 
 struct Session: Identifiable {
@@ -69,4 +90,14 @@ struct Session: Identifiable {
     var name: String
     var date: Date
     var duration: TimeInterval // 초 단위
+}
+
+struct SessionSummary: Identifiable {
+    var id: UUID
+    var sessionMode: String
+    var totalTime: String
+    var mainEmotion: String
+    var likeabilityPercent: String
+    var coreFeedback: String
+    var date: Date
 } 
