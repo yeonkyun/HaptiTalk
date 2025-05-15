@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 STT 테스트</title>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .control-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .start-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .stop-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        .clear-btn {
+            background-color: #2196F3;
+            color: white;
+        }
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .status {
+            padding: 10px;
+            background-color: #e0f7fa;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .transcript-container {
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            background-color: white;
+        }
+        .interim {
+            color: #888;
+            font-style: italic;
+        }
+        .final {
+            color: #000;
+        }
+        .segment {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .segment.new {
+            background-color: #f1f8e9;
+            animation: fadeIn 1s;
+        }
+        @keyframes fadeIn {
+            from { background-color: #c8e6c9; }
+            to { background-color: #f1f8e9; }
+        }
+        .error {
+            color: #f44336;
+            font-weight: bold;
+        }
+        .settings {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .settings label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #888;
+            font-size: 0.9em;
+        }
+        .visualizer {
+            height: 60px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h1>실시간 음성 인식 테스트</h1>
+    
+    <div class="container">
+        <div class="settings">
+            <label for="server-url">서버 URL:</label>
+            <input type="text" id="server-url" value="ws://아이피:8000/api/v1/stt/stream" style="width: 300px;">
+            
+            <label for="language">언어:</label>
+            <select id="language">
+                <option value="ko" selected>한국어 (Korean)</option>
+                <option value="en">영어 (English)</option>
+                <option value="ja">일본어 (Japanese)</option>
+                <option value="zh">중국어 (Chinese)</option>
+                <option value="auto">자동 감지</option>
+            </select>
+        </div>
+
+        <div class="status" id="status">상태: 연결 대기중</div>
+        
+        <div class="visualizer">
+            <canvas id="audio-visualizer"></canvas>
+        </div>
+        
+        <div class="control-panel">
+            <button id="connect-btn" class="start-btn">서버 연결</button>
+            <button id="disconnect-btn" class="stop-btn" disabled>연결 해제</button>
+            <button id="start-btn" class="start-btn" disabled>녹음 시작</button>
+            <button id="stop-btn" class="stop-btn" disabled>녹음 중지</button>
+            <button id="clear-btn" class="clear-btn">결과 지우기</button>
+        </div>
+        
+        <div class="transcript-container" id="transcript">
+            <p>여기에 인식 결과가 표시됩니다.</p>
+        </div>
+    </div>
+
+    <footer>
+        <p>STT Service - WebSocket 테스트 페이지</p>
+    </footer>
+
+    <script>
+        // 구형 getUserMedia 지원
+        navigator.getUserMedia = (
+            navigator.getUserMedia ||
+            navigator.webkitGetUserMedia ||
+            navigator.mozGetUserMedia ||
+            navigator.msGetUserMedia
+        );
+
+        // 엘리먼트 참조
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const statusEl = document.getElementById('status');
+        const transcriptEl = document.getElementById('transcript');
+        const serverUrlInput = document.getElementById('server-url');
+        const languageSelect = document.getElementById('language');
+        const visualizer = document.getElementById('audio-visualizer');
+        const canvasCtx = visualizer.getContext('2d');
+        
+        // WebSocket 및 오디오 변수
+        let socket = null;
+        let mediaStream = null;
+        let audioContext = null;
+        let analyser = null;
+        let isRecording = false;
+        let processor = null;
+        let animationId = null;
+        
+        // 세그먼트 관리
+        const segments = new Map();
+        let lastSegmentId = -1;
+        
+        // 상태 업데이트 함수
+        function updateStatus(message, isError = false) {
+            statusEl.textContent = `상태: ${message}`;
+            
+            if (isError) {
+                statusEl.classList.add('error');
+            } else {
+                statusEl.classList.remove('error');
+            }
+        }
+        
+        // WebSocket 연결 함수
+        function connectWebSocket() {
+            const serverUrl = serverUrlInput.value;
+            const language = languageSelect.value;
+            
+            try {
+                // WebSocket URL에 언어 파라미터 추가
+                const url = new URL(serverUrl);
+                url.searchParams.set('language', language);
+                
+                // WebSocket 연결
+                socket = new WebSocket(url);
+                updateStatus('WebSocket 연결 시도 중...');
+                
+                // 연결 이벤트
+                socket.onopen = () => {
+                    updateStatus('서버에 연결되었습니다');
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    startBtn.disabled = false;
+                    languageSelect.disabled = true;
+                };
+                
+                // 메시지 수신 이벤트
+                socket.onmessage = (event) => {
+                    // JSON 메시지 처리
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleSocketMessage(data);
+                    } catch (e) {
+                        console.error('메시지 파싱 오류:', e);
+                    }
+                };
+                
+                // 오류 이벤트
+                socket.onerror = (error) => {
+                    console.error('WebSocket 오류:', error);
+                    updateStatus(`WebSocket 오류가 발생했습니다`, true);
+                    resetConnection();
+                };
+                
+                // 연결 종료 이벤트
+                socket.onclose = () => {
+                    updateStatus('서버 연결이 종료되었습니다');
+                    resetConnection();
+                };
+                
+            } catch (e) {
+                updateStatus(`연결 오류: ${e.message}`, true);
+                console.error('연결 오류:', e);
+            }
+        }
+        
+        // WebSocket 메시지 처리 함수
+        function handleSocketMessage(data) {
+            const type = data.type;
+            
+            switch (type) {
+                case 'connected':
+                    updateStatus(`서버 연결됨: ${data.message}`);
+                    break;
+                    
+                case 'status':
+                    updateStatus(data.message);
+                    break;
+                    
+                case 'transcription':
+                    // 텍스트 인식 결과 처리
+                    const segmentId = data.segment_id;
+                    const text = data.text;
+                    const isFinal = data.is_final;
+                    
+                    // 세그먼트 관리
+                    if (isFinal || segmentId > lastSegmentId) {
+                        addTranscriptSegment(segmentId, text, isFinal);
+                        lastSegmentId = Math.max(lastSegmentId, segmentId);
+                    }
+                    break;
+                    
+                case 'error':
+                    updateStatus(`오류: ${data.message}`, true);
+                    break;
+            }
+        }
+        
+        // 인식 결과 추가 함수
+        function addTranscriptSegment(segmentId, text, isFinal) {
+            // 기존 세그먼트 있는지 확인
+            let segmentEl = document.getElementById(`segment-${segmentId}`);
+            
+            if (!segmentEl) {
+                // 새 세그먼트 생성
+                segmentEl = document.createElement('div');
+                segmentEl.id = `segment-${segmentId}`;
+                segmentEl.className = 'segment new';
+                transcriptEl.appendChild(segmentEl);
+                
+                // 스크롤 보정
+                transcriptEl.scrollTop = transcriptEl.scrollHeight;
+            }
+            
+            // 세그먼트 텍스트 설정
+            segmentEl.innerHTML = `<span class="${isFinal ? 'final' : 'interim'}">${text}</span>`;
+            
+            // 애니메이션 클래스 재설정
+            segmentEl.classList.remove('new');
+            void segmentEl.offsetWidth; // 리플로우 강제
+            segmentEl.classList.add('new');
+            
+            // 세그먼트 저장
+            segments.set(segmentId, { text, isFinal });
+        }
+        
+        // 녹음 시작 함수
+        async function startRecording() {
+            try {
+                if (!socket || socket.readyState !== WebSocket.OPEN) {
+                    updateStatus('서버에 연결되어 있지 않습니다', true);
+                    return;
+                }
+                
+                // 마이크 지원 확인
+                if (!navigator.mediaDevices && !navigator.getUserMedia) {
+                    updateStatus('브라우저가 마이크 접근을 지원하지 않습니다', true);
+                    return;
+                }
+                
+                // 마이크 액세스 요청
+                let stream = null;
+                
+                // 최신 API 사용
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            channelCount: 1
+                        } 
+                    });
+                } 
+                // 구형 API 사용
+                else if (navigator.getUserMedia) {
+                    stream = await new Promise((resolve, reject) => {
+                        navigator.getUserMedia({ 
+                            audio: {
+                                echoCancellation: true,
+                                noiseSuppression: true
+                            } 
+                        }, resolve, reject);
+                    });
+                }
+                
+                if (!stream) {
+                    throw new Error('마이크를 사용할 수 없습니다');
+                }
+                
+                mediaStream = stream;
+                
+                // 오디오 컨텍스트 설정
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // 샘플레이트 확인
+                console.log('오디오 컨텍스트 샘플레이트:', audioContext.sampleRate);
+                
+                const source = audioContext.createMediaStreamSource(mediaStream);
+                
+                // 분석기 설정 (시각화용)
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+                source.connect(analyser);
+                
+                // 원하는 샘플레이트 (Whisper 모델은 16kHz 샘플레이트 사용)
+                const targetSampleRate = 16000;
+                let resampledAudio = null;
+                
+                // 스크립트 프로세서 생성
+                processor = audioContext.createScriptProcessor(4096, 1, 1);
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+                
+                // 오디오 처리 이벤트
+                processor.onaudioprocess = (e) => {
+                    if (!isRecording) return;
+                    
+                    // 오디오 데이터 가져오기
+                    const inputData = e.inputBuffer.getChannelData(0);
+                    
+                    // 오디오 다운샘플링 (브라우저 샘플레이트 -> 16kHz)
+                    const resampledData = downsampleAudio(inputData, audioContext.sampleRate, targetSampleRate);
+                    
+                    // 16비트 인티저로 변환
+                    const pcmData = convertFloatTo16BitPCM(resampledData);
+                    
+                    // WebSocket으로 데이터 전송
+                    if (socket && socket.readyState === WebSocket.OPEN) {
+                        socket.send(pcmData);
+                    }
+                };
+                
+                // 녹음 시작 명령 전송
+                socket.send('start');
+                
+                // 시각화 시작
+                startVisualization();
+                
+                // 녹음 상태 업데이트
+                isRecording = true;
+                updateStatus('녹음 중...');
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                
+            } catch (e) {
+                updateStatus(`녹음 시작 오류: ${e.message}`, true);
+                console.error('녹음 시작 오류:', e);
+            }
+        }
+        
+        // 오디오 다운샘플링 함수
+        function downsampleAudio(audioBuffer, sourceSampleRate, targetSampleRate) {
+            if (sourceSampleRate === targetSampleRate) {
+                return audioBuffer;
+            }
+            
+            const ratio = sourceSampleRate / targetSampleRate;
+            const newLength = Math.round(audioBuffer.length / ratio);
+            const result = new Float32Array(newLength);
+            
+            // 단순한 선형 보간을 사용한 다운샘플링
+            for (let i = 0; i < newLength; i++) {
+                const position = i * ratio;
+                const index = Math.floor(position);
+                const fraction = position - index;
+                
+                // 선형 보간
+                if (index + 1 < audioBuffer.length) {
+                    result[i] = audioBuffer[index] * (1 - fraction) + audioBuffer[index + 1] * fraction;
+                } else {
+                    result[i] = audioBuffer[index];
+                }
+            }
+            
+            return result;
+        }
+        
+        // 녹음 중지 함수
+        function stopRecording() {
+            if (isRecording) {
+                // 녹음 중지 명령 전송
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send('stop');
+                }
+                
+                // 오디오 스트림 정리
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(track => track.stop());
+                }
+                
+                // 오디오 컨텍스트 정리
+                if (processor) {
+                    processor.disconnect();
+                }
+                
+                if (analyser) {
+                    analyser.disconnect();
+                }
+                
+                // 시각화 중지
+                stopVisualization();
+                
+                // 상태 업데이트
+                isRecording = false;
+                updateStatus('녹음 중지됨');
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+        
+        // WebSocket 연결 해제 함수
+        function disconnectWebSocket() {
+            // 녹음 중이면 먼저 중지
+            if (isRecording) {
+                stopRecording();
+            }
+            
+            // 소켓 연결 종료
+            if (socket) {
+                socket.close();
+                socket = null;
+            }
+            
+            // 상태 업데이트
+            updateStatus('연결 해제됨');
+            resetConnection(true);
+        }
+        
+        // 연결 상태 초기화 함수
+        function resetConnection(fullReset = false) {
+            connectBtn.disabled = false;
+            disconnectBtn.disabled = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = true;
+            languageSelect.disabled = false;
+            
+            if (fullReset) {
+                // 결과 초기화는 선택적으로
+            }
+        }
+        
+        // 결과 초기화 함수
+        function clearTranscript() {
+            transcriptEl.innerHTML = '';
+            segments.clear();
+            lastSegmentId = -1;
+        }
+        
+        // Float32 오디오 데이터를 16비트 PCM으로 변환
+        function convertFloatTo16BitPCM(float32Array) {
+            const l = float32Array.length;
+            const pcm16bit = new Int16Array(l);
+            
+            for (let i = 0; i < l; i++) {
+                // 클리핑 방지
+                const s = Math.max(-1, Math.min(1, float32Array[i]));
+                // -32768 ~ 32767 범위로 변환
+                pcm16bit[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            
+            return pcm16bit.buffer;
+        }
+        
+        // 오디오 시각화 시작
+        function startVisualization() {
+            if (!analyser) return;
+            
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            canvasCtx.clearRect(0, 0, visualizer.width, visualizer.height);
+            
+            function draw() {
+                animationId = requestAnimationFrame(draw);
+                
+                // 캔버스 크기 업데이트
+                visualizer.width = visualizer.clientWidth;
+                visualizer.height = visualizer.clientHeight;
+                
+                analyser.getByteTimeDomainData(dataArray);
+                
+                canvasCtx.fillStyle = '#f5f5f5';
+                canvasCtx.fillRect(0, 0, visualizer.width, visualizer.height);
+                
+                canvasCtx.lineWidth = 2;
+                canvasCtx.strokeStyle = '#4CAF50';
+                canvasCtx.beginPath();
+                
+                const sliceWidth = visualizer.width / bufferLength;
+                let x = 0;
+                
+                for (let i = 0; i < bufferLength; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * visualizer.height / 2;
+                    
+                    if (i === 0) {
+                        canvasCtx.moveTo(x, y);
+                    } else {
+                        canvasCtx.lineTo(x, y);
+                    }
+                    
+                    x += sliceWidth;
+                }
+                
+                canvasCtx.lineTo(visualizer.width, visualizer.height / 2);
+                canvasCtx.stroke();
+            }
+            
+            draw();
+        }
+        
+        // 오디오 시각화 중지
+        function stopVisualization() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            
+            // 시각화 캔버스 초기화
+            canvasCtx.clearRect(0, 0, visualizer.width, visualizer.height);
+            canvasCtx.fillStyle = '#f5f5f5';
+            canvasCtx.fillRect(0, 0, visualizer.width, visualizer.height);
+        }
+        
+        // 언어 변경 핸들러
+        languageSelect.addEventListener('change', function() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(`language:${this.value}`);
+                updateStatus(`언어 변경됨: ${this.value}`);
+            }
+        });
+        
+        // 이벤트 리스너
+        connectBtn.addEventListener('click', connectWebSocket);
+        disconnectBtn.addEventListener('click', disconnectWebSocket);
+        startBtn.addEventListener('click', startRecording);
+        stopBtn.addEventListener('click', stopRecording);
+        clearBtn.addEventListener('click', clearTranscript);
+        
+        // 초기 상태 설정
+        updateStatus('연결 대기중');
+    </script>
+</body>
+</html> 

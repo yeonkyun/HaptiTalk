@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HaptiTalk 실시간 서비스 클라이언트 예제</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+    }
+    
+    h1 {
+      color: #333;
+      margin-top: 0;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    
+    .control-panel, .status-panel, .message-panel {
+      margin-bottom: 20px;
+      padding: 15px;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+    
+    button {
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+      font-size: 14px;
+    }
+    
+    button:hover {
+      background-color: #3367d6;
+    }
+    
+    input {
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      width: 200px;
+      margin-right: 10px;
+    }
+    
+    .status {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    
+    .status.connected {
+      background-color: #34a853;
+      color: white;
+    }
+    
+    .status.disconnected {
+      background-color: #ea4335;
+      color: white;
+    }
+    
+    .status.connecting {
+      background-color: #fbbc05;
+      color: white;
+    }
+    
+    #log {
+      height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 14px;
+      background-color: #1e1e1e;
+      color: #ddd;
+    }
+    
+    .log-entry {
+      margin-bottom: 5px;
+      line-height: 1.4;
+    }
+    
+    .log-entry.error {
+      color: #ff6b6b;
+    }
+    
+    .log-entry.success {
+      color: #69db7c;
+    }
+    
+    .log-entry.info {
+      color: #74c0fc;
+    }
+    
+    .stat-panel {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    
+    .stat-card {
+      flex-basis: 23%;
+      padding: 10px;
+      background-color: #f0f0f0;
+      border-radius: 5px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .stat-title {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    
+    .stat-value {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>HaptiTalk 실시간 서비스 클라이언트 예제</h1>
+    
+    <div class="control-panel">
+      <h3>연결 제어</h3>
+      <div>
+        <input type="text" id="token-input" placeholder="인증 토큰 입력">
+        <button id="connect-btn">연결</button>
+        <button id="disconnect-btn">연결 해제</button>
+      </div>
+    </div>
+    
+    <div class="status-panel">
+      <h3>연결 상태</h3>
+      <div class="stat-panel">
+        <div class="stat-card">
+          <div class="stat-title">상태</div>
+          <div class="stat-value" id="connection-status">
+            <span class="status disconnected">연결 안됨</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">지연 시간</div>
+          <div class="stat-value" id="latency">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">재연결 시도</div>
+          <div class="stat-value" id="reconnect-attempts">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title">전송 방식</div>
+          <div class="stat-value" id="transport-type">-</div>
+        </div>
+      </div>
+      <div style="margin-top: 10px;">
+        <button id="ping-btn">지연 시간 측정</button>
+        <button id="force-reconnect-btn">강제 재연결</button>
+        <button id="join-session-btn">세션 참가</button>
+      </div>
+    </div>
+    
+    <div class="message-panel">
+      <h3>메시지 로그</h3>
+      <div id="log"></div>
+    </div>
+  </div>
+  
+  <!-- WebSocket 클라이언트 라이브러리 -->
+  <script>
+    /**
+     * WebSocket 클라이언트
+     * 자동 재연결 및 메시지 큐 기능을 갖춘 클라이언트 라이브러리
+     */
+    class WebSocketClient {
+      constructor(url, options = {}) {
+        this.url = url;
+        this.options = {
+          reconnectInterval: options.reconnectInterval || 1000,
+          maxReconnectInterval: options.maxReconnectInterval || 30000,
+          reconnectDecay: options.reconnectDecay || 1.5,
+          maxReconnectAttempts: options.maxReconnectAttempts || 0, // 0 = unlimited
+          autoConnect: options.autoConnect !== false,
+          debug: options.debug || false,
+          ...options
+        };
+        
+        this.socket = null;
+        this.reconnectAttempts = 0;
+        this.reconnectTimer = null;
+        this.currentReconnectInterval = this.options.reconnectInterval;
+        this.listeners = new Map();
+        this.messageQueue = [];
+        this.connected = false;
+        this.intentionallyClosed = false;
+        
+        if (this.options.autoConnect) {
+          this.connect();
+        }
+      }
+      
+      /**
+       * WebSocket 연결
+       */
+      connect() {
+        if (this.socket && (this.socket.readyState === WebSocket.CONNECTING || this.socket.readyState === WebSocket.OPEN)) {
+          this._debug('WebSocket 이미 연결되어 있거나 연결 중입니다.');
+          return;
+        }
+        
+        this._debug(`WebSocket 연결 시도: ${this.url}`);
+        this.intentionallyClosed = false;
+        
+        try {
+          this.socket = new WebSocket(this.url);
+          
+          this.socket.onopen = (event) => {
+            this._debug('WebSocket 연결됨');
+            this.connected = true;
+            this.reconnectAttempts = 0;
+            this.currentReconnectInterval = this.options.reconnectInterval;
+            
+            // 연결 이벤트 발생
+            this._emit('open', event);
+            
+            // 연결 이후 큐에 쌓인 메시지 전송
+            this._processQueue();
+          };
+          
+          this.socket.onmessage = (event) => {
+            let data = event.data;
+            
+            try {
+              if (typeof data === 'string') {
+                data = JSON.parse(data);
+              }
+            } catch (error) {
+              // 파싱 실패 시 원본 데이터 사용
+            }
+            
+            this._emit('message', data);
+          };
+          
+          this.socket.onclose = (event) => {
+            this._debug(`WebSocket 연결 종료: 코드=${event.code}, 이유=${event.reason}`);
+            this.connected = false;
+            
+            // 의도적으로 종료한 경우가 아니면 재연결 시도
+            if (!this.intentionallyClosed) {
+              this._reconnect();
+            }
+            
+            this._emit('close', event);
+          };
+          
+          this.socket.onerror = (error) => {
+            this._debug('WebSocket 오류:', error);
+            this._emit('error', error);
+          };
+        } catch (error) {
+          this._debug('WebSocket 생성 오류:', error);
+          this._reconnect();
+        }
+      }
+      
+      /**
+       * WebSocket 연결 종료
+       */
+      disconnect() {
+        this._debug('WebSocket 연결 종료 요청');
+        this.intentionallyClosed = true;
+        
+        if (this.reconnectTimer) {
+          clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = null;
+        }
+        
+        if (this.socket) {
+          if (this.socket.readyState === WebSocket.OPEN) {
+            this.socket.close(1000, 'Closed by client');
+          }
+          this.socket = null;
+        }
+        
+        this.connected = false;
+      }
+      
+      /**
+       * 이벤트 핸들러 등록
+       * @param {string} event 이벤트 이름
+       * @param {Function} callback 콜백 함수
+       */
+      on(event, callback) {
+        if (!this.listeners.has(event)) {
+          this.listeners.set(event, []);
+        }
+        
+        this.listeners.get(event).push(callback);
+        return this;
+      }
+      
+      /**
+       * 이벤트 핸들러 제거
+       * @param {string} event 이벤트 이름
+       * @param {Function} callback 콜백 함수
+       */
+      off(event, callback) {
+        if (!this.listeners.has(event)) {
+          return this;
+        }
+        
+        if (!callback) {
+          // 이벤트의 모든 리스너 제거
+          this.listeners.delete(event);
+        } else {
+          // 특정 콜백만 제거
+          const callbacks = this.listeners.get(event).filter(cb => cb !== callback);
+          if (callbacks.length === 0) {
+            this.listeners.delete(event);
+          } else {
+            this.listeners.set(event, callbacks);
+          }
+        }
+        
+        return this;
+      }
+      
+      /**
+       * 메시지 전송
+       * @param {string} event 이벤트 이름
+       * @param {any} data 전송할 데이터
+       * @param {boolean} queue 연결이 없는 경우 큐에 저장할지 여부
+       * @returns {boolean} 전송 성공 여부
+       */
+      send(event, data, queue = true) {
+        const payload = {
+          event,
+          data,
+          timestamp: Date.now()
+        };
+        
+        if (this.connected && this.socket && this.socket.readyState === WebSocket.OPEN) {
+          try {
+            this.socket.send(JSON.stringify(payload));
+            return true;
+          } catch (error) {
+            this._debug(`메시지 전송 오류: ${error.message}`);
+            
+            if (queue) {
+              this._queueMessage(payload);
+            }
+            
+            return false;
+          }
+        } else if (queue) {
+          this._debug('연결이 없어 메시지를 큐에 저장합니다.');
+          this._queueMessage(payload);
+          return false;
+        }
+        
+        return false;
+      }
+      
+      /**
+       * 연결 상태 확인
+       * @returns {boolean} 연결 상태
+       */
+      isConnected() {
+        return this.connected && this.socket && this.socket.readyState === WebSocket.OPEN;
+      }
+      
+      /**
+       * 연결 상태 코드 반환
+       * @returns {number} 연결 상태 코드 (0: CONNECTING, 1: OPEN, 2: CLOSING, 3: CLOSED, -1: 소켓 없음)
+       */
+      getState() {
+        return this.socket ? this.socket.readyState : -1;
+      }
+      
+      /**
+       * 전송 방식 반환
+       * @returns {string} 전송 방식
+       */
+      getTransport() {
+        return this.socket ? 'websocket' : 'none';
+      }
+      
+      /**
+       * 지연 시간 측정
+       * @returns {Promise<number>} 지연 시간 (밀리초)
+       */
+      async ping() {
+        return new Promise((resolve, reject) => {
+          if (!this.isConnected()) {
+            reject(new Error('WebSocket이 연결되어 있지 않습니다.'));
+            return;
+          }
+          
+          const start = Date.now();
+          const messageId = `ping_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+          
+          const onPong = (data) => {
+            if (data && data.event === 'pong' && data.data && data.data.in_reply_to === messageId) {
+              const latency = Date.now() - start;
+              this.off('message', onPong);
+              resolve(latency);
+            }
+          };
+          
+          this.on('message', onPong);
+          
+          // 5초 후 타임아웃
+          setTimeout(() => {
+            this.off('message', onPong);
+            reject(new Error('Ping 타임아웃'));
+          }, 5000);
+          
+          this.send('ping', { message_id: messageId }, false);
+        });
+      }
+      
+      /**
+       * 재연결 시도
+       * @private
+       */
+      _reconnect() {
+        if (this.intentionallyClosed) {
+          return;
+        }
+        
+        if (this.reconnectTimer) {
+          clearTimeout(this.reconnectTimer);
+        }
+        
+        this.reconnectAttempts++;
+        
+        // 최대 재연결 시도 횟수 확인
+        if (this.options.maxReconnectAttempts > 0 && this.reconnectAttempts > this.options.maxReconnectAttempts) {
+          this._debug(`최대 재연결 시도 횟수(${this.options.maxReconnectAttempts})에 도달했습니다.`);
+          this._emit('reconnect_failed', null);
+          return;
+        }
+        
+        // 지수 백오프를 적용한 재연결 간격 계산
+        this.currentReconnectInterval = Math.min(
+          this.currentReconnectInterval * this.options.reconnectDecay,
+          this.options.maxReconnectInterval
+        );
+        
+        this._debug(`${this.currentReconnectInterval}ms 후 재연결 시도 (${this.reconnectAttempts}번째)`);
+        this._emit('reconnect_attempt', this.reconnectAttempts);
+        
+        this.reconnectTimer = setTimeout(() => {
+          this._debug(`재연결 시도 중... (${this.reconnectAttempts}번째)`);
+          this.connect();
+        }, this.currentReconnectInterval);
+      }
+      
+      /**
+       * 메시지 큐에 추가
+       * @param {object} payload 전송할 페이로드
+       * @private
+       */
+      _queueMessage(payload) {
+        // 큐 최대 크기 제한 (100개)
+        if (this.messageQueue.length >= 100) {
+          this.messageQueue.shift(); // 가장 오래된 메시지 제거
+        }
+        
+        this.messageQueue.push(payload);
+        this._debug(`메시지 큐 크기: ${this.messageQueue.length}`);
+      }
+      
+      /**
+       * 큐에 있는 메시지 처리
+       * @private
+       */
+      _processQueue() {
+        if (this.messageQueue.length === 0) {
+          return;
+        }
+        
+        this._debug(`${this.messageQueue.length}개의 메시지를 큐에서 처리합니다.`);
+        
+        // 큐에 있는 메시지 복사 후 초기화
+        const queuedMessages = [...this.messageQueue];
+        this.messageQueue = [];
+        
+        // 메시지 전송
+        for (const payload of queuedMessages) {
+          try {
+            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+              this.socket.send(JSON.stringify(payload));
+            } else {
+              // 연결이 끊어진 경우 다시 큐에 추가
+              this._queueMessage(payload);
+              break;
+            }
+          } catch (error) {
+            this._debug(`큐 메시지 전송 오류: ${error.message}`);
+            this._queueMessage(payload);
+            break;
+          }
+        }
+      }
+      
+      /**
+       * 이벤트 발생
+       * @param {string} event 이벤트 이름
+       * @param {any} data 이벤트 데이터
+       * @private
+       */
+      _emit(event, data) {
+        if (!this.listeners.has(event)) {
+          return;
+        }
+        
+        for (const callback of this.listeners.get(event)) {
+          try {
+            callback(data);
+          } catch (error) {
+            this._debug(`이벤트 핸들러 오류 (${event}): ${error.message}`);
+          }
+        }
+      }
+      
+      /**
+       * 디버그 로깅
+       * @private
+       */
+      _debug(...args) {
+        if (this.options.debug) {
+          console.log('[WebSocketClient]', ...args);
+        }
+      }
+    }
+    
+    // 브라우저 환경에서 사용할 경우
+    if (typeof window !== 'undefined') {
+      window.WebSocketClient = WebSocketClient;
+    }
+  </script>
+  
+  <!-- 애플리케이션 코드 -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // DOM 요소 참조
+      const tokenInput = document.getElementById('token-input');
+      const connectBtn = document.getElementById('connect-btn');
+      const disconnectBtn = document.getElementById('disconnect-btn');
+      const pingBtn = document.getElementById('ping-btn');
+      const forceReconnectBtn = document.getElementById('force-reconnect-btn');
+      const joinSessionBtn = document.getElementById('join-session-btn');
+      const connectionStatus = document.getElementById('connection-status');
+      const latencyDisplay = document.getElementById('latency');
+      const reconnectAttemptsDisplay = document.getElementById('reconnect-attempts');
+      const transportTypeDisplay = document.getElementById('transport-type');
+      const logContainer = document.getElementById('log');
+      
+      // 웹소켓 클라이언트
+      let wsClient = null;
+      let latencyValue = 0;
+      let statsReportInterval = null;
+      
+      // 로그 메시지 추가
+      function addLogMessage(message, type = 'info') {
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${type}`;
+        entry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+        logContainer.appendChild(entry);
+        logContainer.scrollTop = logContainer.scrollHeight;
+      }
+      
+      // 연결 상태 업데이트
+      function updateConnectionStatus() {
+        if (!wsClient) {
+          connectionStatus.innerHTML = '<span class="status disconnected">연결 안됨</span>';
+          return;
+        }
+        
+        const state = wsClient.getState();
+        let statusHTML = '';
+        
+        switch (state) {
+          case 0:
+            statusHTML = '<span class="status connecting">연결 중...</span>';
+            break;
+          case 1:
+            statusHTML = '<span class="status connected">연결됨</span>';
+            break;
+          case 2:
+            statusHTML = '<span class="status connecting">종료 중...</span>';
+            break;
+          case 3:
+          default:
+            statusHTML = '<span class="status disconnected">연결 안됨</span>';
+            break;
+        }
+        
+        connectionStatus.innerHTML = statusHTML;
+        reconnectAttemptsDisplay.textContent = wsClient ? wsClient.reconnectAttempts : 0;
+        transportTypeDisplay.textContent = wsClient && wsClient.isConnected() ? wsClient.getTransport() : '-';
+      }
+      
+      // 통계 보고
+      function reportStats() {
+        if (wsClient && wsClient.isConnected()) {
+          wsClient.send('connection_stats', {
+            reconnectAttempts: wsClient.reconnectAttempts,
+            latency: latencyValue,
+            transport: wsClient.getTransport()
+          });
+        }
+      }
+      
+      // 연결 버튼 클릭
+      connectBtn.addEventListener('click', () => {
+        if (wsClient && wsClient.isConnected()) {
+          addLogMessage('이미 연결되어 있습니다.', 'info');
+          return;
+        }
+        
+        const token = tokenInput.value.trim();
+        if (!token) {
+          addLogMessage('인증 토큰을 입력해주세요.', 'error');
+          return;
+        }
+        
+        // WebSocket 연결 생성
+        const socketUrl = `ws://localhost:3001/socket.io?auth=${encodeURIComponent(token)}`;
+        wsClient = new WebSocketClient(socketUrl, {
+          reconnectInterval: 1000,
+          maxReconnectInterval: 30000,
+          reconnectDecay: 1.5,
+          maxReconnectAttempts: 10,
+          debug: true,
+          autoConnect: false
+        });
+        
+        // 이벤트 리스너 등록
+        wsClient.on('open', () => {
+          addLogMessage('WebSocket 연결됨', 'success');
+          updateConnectionStatus();
+          
+          // 인증 토큰 전송
+          wsClient.send('auth', { token });
+          
+          // 주기적인 상태 보고 시작
+          if (statsReportInterval) {
+            clearInterval(statsReportInterval);
+          }
+          statsReportInterval = setInterval(reportStats, 30000);
+          
+          // 연결 후 지연 시간 측정
+          measureLatency();
+        });
+        
+        wsClient.on('message', (data) => {
+          if (data.event === 'error') {
+            addLogMessage(`서버 오류: ${data.data.message}`, 'error');
+          } else if (data.event === 'feedback') {
+            addLogMessage(`피드백 수신: ${JSON.stringify(data.data)}`, 'info');
+          } else if (data.event === 'analysis_update') {
+            addLogMessage(`분석 업데이트: ${JSON.stringify(data.data)}`, 'info');
+          } else if (data.event === 'session_joined') {
+            addLogMessage(`세션 참가 성공: ${data.data.sessionId}`, 'success');
+          } else if (data.event === 'participant_joined') {
+            addLogMessage(`참가자 입장: ${data.data.userId}`, 'info');
+          } else if (data.event === 'participant_left') {
+            addLogMessage(`참가자 퇴장: ${data.data.userId}`, 'info');
+          } else {
+            addLogMessage(`메시지 수신: ${JSON.stringify(data)}`, 'info');
+          }
+        });
+        
+        wsClient.on('close', () => {
+          addLogMessage('WebSocket 연결 종료됨', 'error');
+          updateConnectionStatus();
+          
+          if (statsReportInterval) {
+            clearInterval(statsReportInterval);
+            statsReportInterval = null;
+          }
+        });
+        
+        wsClient.on('error', (error) => {
+          addLogMessage(`WebSocket 오류: ${error.message}`, 'error');
+        });
+        
+        wsClient.on('reconnect_attempt', (attempt) => {
+          addLogMessage(`재연결 시도 중 (${attempt}번째)...`, 'info');
+          updateConnectionStatus();
+        });
+        
+        wsClient.on('reconnect_failed', () => {
+          addLogMessage('최대 재연결 시도 횟수에 도달했습니다.', 'error');
+        });
+        
+        // 연결 시작
+        wsClient.connect();
+        addLogMessage('WebSocket 연결 시도 중...', 'info');
+        updateConnectionStatus();
+      });
+      
+      // 연결 해제 버튼 클릭
+      disconnectBtn.addEventListener('click', () => {
+        if (!wsClient || !wsClient.isConnected()) {
+          addLogMessage('연결되어 있지 않습니다.', 'info');
+          return;
+        }
+        
+        wsClient.disconnect();
+        addLogMessage('WebSocket 연결 종료됨', 'info');
+        updateConnectionStatus();
+        
+        if (statsReportInterval) {
+          clearInterval(statsReportInterval);
+          statsReportInterval = null;
+        }
+      });
+      
+      // 지연 시간 측정 함수
+      async function measureLatency() {
+        if (!wsClient || !wsClient.isConnected()) {
+          addLogMessage('지연 시간을 측정하려면 먼저 연결해야 합니다.', 'error');
+          return;
+        }
+        
+        try {
+          const latency = await wsClient.ping();
+          latencyValue = latency;
+          latencyDisplay.textContent = `${latency}ms`;
+          addLogMessage(`지연 시간 측정: ${latency}ms`, 'success');
+        } catch (error) {
+          addLogMessage(`지연 시간 측정 실패: ${error.message}`, 'error');
+        }
+      }
+      
+      // 지연 시간 측정 버튼 클릭
+      pingBtn.addEventListener('click', measureLatency);
+      
+      // 강제 재연결 버튼 클릭
+      forceReconnectBtn.addEventListener('click', () => {
+        if (!wsClient) {
+          addLogMessage('먼저 연결해야 합니다.', 'error');
+          return;
+        }
+        
+        addLogMessage('강제 재연결 시도 중...', 'info');
+        wsClient.disconnect();
+        
+        setTimeout(() => {
+          wsClient.connect();
+        }, 1000);
+      });
+      
+      // 세션 참가 버튼 클릭
+      joinSessionBtn.addEventListener('click', () => {
+        if (!wsClient || !wsClient.isConnected()) {
+          addLogMessage('세션에 참가하려면 먼저 연결해야 합니다.', 'error');
+          return;
+        }
+        
+        // 임의의 세션 ID (실제로는 서버에서 생성된 세션 ID를 사용해야 함)
+        const sessionId = `session_${Date.now()}`;
+        
+        wsClient.send('join_session', { sessionId });
+        addLogMessage(`세션 참가 요청: ${sessionId}`, 'info');
+      });
+      
+      // 초기 상태 업데이트
+      updateConnectionStatus();
+    });
+  </script>
+</body>
+</html> 

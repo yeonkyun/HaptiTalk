@@ -72,6 +72,87 @@ services:
       timeout: 5s
       retries: 5
 
+  # Zookeeper - Kafka 클러스터 관리
+  zookeeper:
+    image: bitnami/zookeeper:3.8
+    container_name: haptitalk-zookeeper
+    restart: unless-stopped
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    ports:
+      - "${ZOOKEEPER_PORT:-2181}:2181"
+    networks:
+      - haptitalk_network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - zookeeper_data:/bitnami/zookeeper
+
+  # Kafka - 메시징 시스템
+  kafka:
+    image: bitnami/kafka:3.4
+    container_name: haptitalk-kafka
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+    environment:
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_CFG_DELETE_TOPIC_ENABLE=true
+      - KAFKA_HEAP_OPTS=-Xmx512m -Xms256m
+    networks:
+      - haptitalk_network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    volumes:
+      - kafka_data:/bitnami/kafka
+
+  # Kafka UI - Kafka 관리 웹 인터페이스
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: haptitalk-kafka-ui
+    restart: unless-stopped
+    depends_on:
+      - kafka
+    ports:
+      - "${KAFKA_UI_PORT:-8080}:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: haptitalk
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - haptitalk_network
+
+  # Kafka 초기화 서비스
+  kafka-init:
+    image: bitnami/kafka:3.4
+    container_name: haptitalk-kafka-init
+    depends_on:
+      - kafka
+    volumes:
+      - ./infrastructure/messaging/kafka/init:/scripts
+    environment:
+      KAFKA_TOPIC_SESSION_EVENTS: ${KAFKA_TOPIC_SESSION_EVENTS}
+      KAFKA_TOPIC_ANALYSIS_RESULTS: ${KAFKA_TOPIC_ANALYSIS_RESULTS}
+      KAFKA_TOPIC_FEEDBACK_COMMANDS: ${KAFKA_TOPIC_FEEDBACK_COMMANDS}
+      KAFKA_TOPIC_USER_ACTIVITY: ${KAFKA_TOPIC_USER_ACTIVITY}
+    command: ["bash", "-c", "chmod +x /scripts/kafka-init.sh && /scripts/kafka-init.sh"]
+    networks:
+      - haptitalk_network
+    restart: on-failure
+
   # Kong API 게이트웨이 (DB-less 모드)
   kong:
     image: kong:3.0
@@ -100,34 +181,13 @@ services:
       timeout: 5s
       retries: 5
 
-  # NGINX 리버스 프록시
-  nginx:
-    image: nginx:1.23-alpine
-    container_name: haptitalk-nginx
-    restart: unless-stopped
-    volumes:
-      - ./infrastructure/reverse-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./infrastructure/reverse-proxy/html:/usr/share/nginx/html:ro
-    ports:
-      - "${NGINX_HTTP_PORT}:80"
-      - "${NGINX_HTTPS_PORT}:443"
-    networks:
-      - haptitalk_network
-    depends_on:
-      - kong
-    healthcheck:
-      test: ["CMD", "nginx", "-t"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # 정적 웹 서버 (관리자 페이지)
   static-web:
     image: nginx:1.23-alpine
     container_name: haptitalk-static-web
     restart: unless-stopped
     volumes:
-      - ./infrastructure/reverse-proxy/html:/usr/share/nginx/html:ro
+      - ./infrastructure/static-web/html:/usr/share/nginx/html:ro
     networks:
       - haptitalk_network
     healthcheck:
@@ -163,8 +223,15 @@ services:
       - EMAIL_FROM=${EMAIL_FROM}
       - FRONTEND_URL=${FRONTEND_URL}
       - LOG_LEVEL=${LOG_LEVEL}
+      # Kafka 설정
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_TOPIC_USER_ACTIVITY=${KAFKA_TOPIC_USER_ACTIVITY}
+      # OpenTelemetry 트레이싱 설정
+      - SERVICE_NAME=auth-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/auth-service:/app
+      - ./api/shared:/app/api/shared
       - /app/node_modules
     ports:
       - "${AUTH_SERVICE_PORT}:${AUTH_SERVICE_PORT}"
@@ -173,6 +240,7 @@ services:
     depends_on:
       - postgres
       - redis
+      - kafka
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:${AUTH_SERVICE_PORT}/health"]
       interval: 10s
@@ -186,6 +254,10 @@ services:
       dockerfile: Dockerfile
     container_name: haptitalk-realtime-service
     restart: unless-stopped
+    volumes:
+      - ./api/realtime-service:/app
+      - ./api/shared:/app/api/shared
+      - /app/node_modules
     environment:
       - NODE_ENV=development
       - PORT=${REALTIME_SERVICE_PORT}
@@ -194,16 +266,25 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - JWT_SESSION_SECRET=${JWT_SESSION_SECRET}
+      - SESSION_SERVICE_URL=http://session-service:${SESSION_SERVICE_PORT}
+      - FEEDBACK_SERVICE_URL=http://feedback-service:${FEEDBACK_SERVICE_PORT}
+      - INTER_SERVICE_TOKEN=${JWT_SERVICE_SECRET:-service-token-for-inter-service-communication}
       - LOG_LEVEL=${LOG_LEVEL}
-    volumes:
-      - ./api/realtime-service:/app
-      - /app/node_modules
+      # Kafka 설정
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_TOPIC_SESSION_EVENTS=${KAFKA_TOPIC_SESSION_EVENTS}
+      - KAFKA_TOPIC_ANALYSIS_RESULTS=${KAFKA_TOPIC_ANALYSIS_RESULTS}
+      - KAFKA_TOPIC_FEEDBACK_COMMANDS=${KAFKA_TOPIC_FEEDBACK_COMMANDS}
+      # OpenTelemetry 트레이싱 설정
+      - SERVICE_NAME=realtime-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     ports:
       - "${REALTIME_SERVICE_PORT}:${REALTIME_SERVICE_PORT}"
     networks:
       - haptitalk_network
     depends_on:
       - redis
+      - kafka
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:${REALTIME_SERVICE_PORT}/health"]
       interval: 10s
@@ -228,11 +309,17 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - JWT_SESSION_SECRET=${JWT_SESSION_SECRET}
       - LOG_LEVEL=${LOG_LEVEL}
+      # Kafka 설정
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_TOPIC_SESSION_EVENTS=${KAFKA_TOPIC_SESSION_EVENTS}
+      # OpenTelemetry 트레이싱 설정
+      - SERVICE_NAME=session-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/session-service:/app
+      - ./api/shared:/app/api/shared
       - /app/node_modules
     ports:
       - "${SESSION_SERVICE_PORT}:${SESSION_SERVICE_PORT}"
@@ -241,6 +328,7 @@ services:
     depends_on:
       - postgres
       - redis
+      - kafka
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:${SESSION_SERVICE_PORT}/health"]
       interval: 10s
@@ -272,8 +360,16 @@ services:
       - MONGO_PORT=27017
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - LOG_LEVEL=${LOG_LEVEL}
+      # Kafka 설정
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_TOPIC_FEEDBACK_COMMANDS=${KAFKA_TOPIC_FEEDBACK_COMMANDS}
+      - KAFKA_TOPIC_ANALYSIS_RESULTS=${KAFKA_TOPIC_ANALYSIS_RESULTS}
+      # OpenTelemetry 트레이싱 설정
+      - SERVICE_NAME=feedback-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/feedback-service:/app
+      - ./api/shared:/app/api/shared
       - /app/node_modules
     ports:
       - "${FEEDBACK_SERVICE_PORT}:${FEEDBACK_SERVICE_PORT}"
@@ -283,6 +379,7 @@ services:
       - postgres
       - redis
       - mongodb
+      - kafka
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:${FEEDBACK_SERVICE_PORT}/health"]
       interval: 10s
@@ -309,8 +406,15 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - LOG_LEVEL=${LOG_LEVEL}
+      # Kafka 설정
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_TOPIC_USER_ACTIVITY=${KAFKA_TOPIC_USER_ACTIVITY}
+      # OpenTelemetry 트레이싱 설정
+      - SERVICE_NAME=user-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/user-service:/app
+      - ./api/shared:/app/api/shared
       - /app/node_modules
     ports:
       - "${USER_SERVICE_PORT}:${USER_SERVICE_PORT}"
@@ -319,6 +423,7 @@ services:
     depends_on:
       - postgres
       - redis
+      - kafka
     healthcheck:
       test: [ "CMD", "wget", "-qO-", "http://localhost:${USER_SERVICE_PORT}/health" ]
       interval: 10s
@@ -350,8 +455,16 @@ services:
       - MONGO_PORT=27017
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - LOG_LEVEL=${LOG_LEVEL}
+      # Kafka 설정
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_TOPIC_SESSION_EVENTS=${KAFKA_TOPIC_SESSION_EVENTS}
+      - KAFKA_TOPIC_ANALYSIS_RESULTS=${KAFKA_TOPIC_ANALYSIS_RESULTS}
+      # OpenTelemetry 트레이싱 설정
+      - SERVICE_NAME=report-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
     volumes:
       - ./api/report-service:/app
+      - ./api/shared:/app/api/shared
       - /app/node_modules
     ports:
       - "${REPORT_SERVICE_PORT}:${REPORT_SERVICE_PORT}"
@@ -361,6 +474,7 @@ services:
       - postgres
       - redis
       - mongodb
+      - kafka
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:${REPORT_SERVICE_PORT}/health"]
       interval: 10s
@@ -370,6 +484,8 @@ services:
 networks:
   haptitalk_network:
     driver: bridge
+    name: haptitalk_network
+    external: true
 
 volumes:
   postgres_data:
@@ -380,3 +496,10 @@ volumes:
     name: ${REDIS_VOLUME_NAME}
   kong_data:
     name: ${KONG_VOLUME_NAME}
+  zookeeper_data:
+    name: ${ZOOKEEPER_VOLUME_NAME:-zookeeper_data}
+  zookeeper_log:
+    name: ${ZOOKEEPER_LOG_VOLUME_NAME:-zookeeper_log}
+  kafka_data:
+    name: ${KAFKA_VOLUME_NAME:-kafka_data}
+    

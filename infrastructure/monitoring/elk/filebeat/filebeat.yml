@@ -1,0 +1,115 @@
+filebeat.inputs:
+- type: container
+  paths:
+    - /var/lib/docker/containers/*/*.log
+  processors:
+    - add_docker_metadata:
+        host: "unix:///var/run/docker.sock"
+    - decode_json_fields:
+        fields: ["message"]
+        target: ""
+        overwrite_keys: true
+        process_array: false
+        max_depth: 2
+
+# 특정 서비스들의 로그 파일 직접 지정
+- type: log
+  enabled: true
+  paths:
+    - /var/log/api/auth-service/*.log
+  fields:
+    service: auth-service
+  fields_under_root: true
+  multiline:
+    pattern: '^[[:space:]]+(at|\.{3})[[:space:]]+\b|^Caused by:'
+    negate: false
+    match: after
+
+- type: log
+  enabled: true
+  paths:
+    - /var/log/api/user-service/*.log
+  fields:
+    service: user-service
+  fields_under_root: true
+  multiline:
+    pattern: '^[[:space:]]+(at|\.{3})[[:space:]]+\b|^Caused by:'
+    negate: false
+    match: after
+
+- type: log
+  enabled: true
+  paths:
+    - /var/log/api/realtime-service/*.log
+  fields:
+    service: realtime-service
+  fields_under_root: true
+  multiline:
+    pattern: '^[[:space:]]+(at|\.{3})[[:space:]]+\b|^Caused by:'
+    negate: false
+    match: after
+
+- type: log
+  enabled: true
+  paths:
+    - /var/log/api/session-service/*.log
+  fields:
+    service: session-service
+  fields_under_root: true
+  multiline:
+    pattern: '^[[:space:]]+(at|\.{3})[[:space:]]+\b|^Caused by:'
+    negate: false
+    match: after
+
+- type: log
+  enabled: true
+  paths:
+    - /var/log/api/feedback-service/*.log
+  fields:
+    service: feedback-service
+  fields_under_root: true
+  multiline:
+    pattern: '^[[:space:]]+(at|\.{3})[[:space:]]+\b|^Caused by:'
+    negate: false
+    match: after
+
+processors:
+  - add_host_metadata: ~
+  - add_cloud_metadata: ~
+  - add_fields:
+      target: ''
+      fields:
+        service: '${SERVICE_NAME:unknown}'
+  - drop_event:
+      when:
+        regexp:
+          message: '^\s*$'
+
+# Logstash로 출력 설정
+output.logstash:
+  hosts: ["logstash:5044"]
+  loadbalance: true
+  ssl.enabled: false
+  timeout: 30s
+
+# 로깅 설정
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
+
+# 자동 재시작 및 실패 처리
+queue.mem:
+  events: 4096
+  flush.min_events: 512
+  flush.timeout: 5s
+
+max_procs: 1
+
+# 초기 설정 - Kibana 의존성 비활성화
+setup.dashboards.enabled: false
+setup.kibana.enabled: false
+setup.template.enabled: false 

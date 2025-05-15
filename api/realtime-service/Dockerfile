@@ -12,6 +12,9 @@ RUN npm install
 # 앱 소스 복사
 COPY . .
 
+# shared 디렉토리 생성 (볼륨 마운트용)
+RUN mkdir -p /app/api/shared
+
 # 포트 설정
 EXPOSE ${PORT}
 

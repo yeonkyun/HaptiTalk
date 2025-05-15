@@ -61,3 +61,6 @@ DerivedData/
 timeline.xctimeline
 playground.xcworkspace
 .build/
+
+# 임시 스크립트
+scripts/

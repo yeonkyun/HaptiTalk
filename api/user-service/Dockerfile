@@ -6,7 +6,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # 종속성 설치
-RUN npm install --only=production
+RUN npm install && \
+    npm install morgan prom-client
 
 # 소스 코드 복사
 COPY . .

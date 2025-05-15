@@ -12,10 +12,14 @@ RUN apk update && \
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --production
+RUN npm ci --production && \
+    npm install morgan prom-client
 
 # Copy source code
 COPY . .
+
+# Create shared directory structure if it doesn't exist
+RUN mkdir -p /app/api/shared
 
 # Create logs directory
 RUN mkdir -p logs

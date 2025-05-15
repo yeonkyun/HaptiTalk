@@ -2,6 +2,7 @@ const {Session, SESSION_TYPES, SESSION_STATUS, getDefaultSettings} = require('..
 const {redisUtils, CHANNELS} = require('../config/redis');
 const logger = require('../utils/logger');
 const {Op} = require('sequelize');
+const {Participant} = require('../models/participant.model');
 
 /**
  * 세션 서비스 클래스
@@ -466,6 +467,85 @@ class SessionService {
 
         recursiveMerge(mergedSettings, customSettings);
         return mergedSettings;
+    }
+
+    /**
+     * 사용자가 세션 참가자인지 확인
+     * @param {string} sessionId - 세션 ID
+     * @param {string} userId - 사용자 ID
+     * @returns {Promise<boolean>} - 참가자 여부
+     */
+    async isSessionParticipant(sessionId, userId) {
+        try {
+            // 세션 참가자 테이블에서 조회
+            const participant = await Participant.findOne({
+                where: {
+                    session_id: sessionId,
+                    user_id: userId
+                }
+            });
+
+            return !!participant; // 참가자 존재 여부 반환
+        } catch (error) {
+            logger.error(`Session participant check error for session ${sessionId}, user ${userId}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * 세션 참가자 목록 조회
+     * @param {string} sessionId - 세션 ID
+     * @returns {Promise<Array>} - 참가자 목록
+     */
+    async getSessionParticipants(sessionId) {
+        try {
+            // 세션 참가자 테이블에서 모든 참가자 조회
+            const participants = await Participant.findAll({
+                where: {
+                    session_id: sessionId
+                },
+                attributes: ['user_id', 'joined_at', 'status']
+            });
+
+            // Redis에서 현재 접속 중인 참가자 정보 조회
+            const redisClient = redisUtils.getClient();
+            const connectedParticipantsKey = `session:participants:${sessionId}`;
+            const connectedParticipantIds = await redisClient.smembers(connectedParticipantsKey);
+
+            return participants.map(p => ({
+                userId: p.user_id,
+                joinedAt: p.joined_at,
+                status: p.status,
+                connected: connectedParticipantIds.includes(p.user_id)
+            }));
+        } catch (error) {
+            logger.error(`Session participants retrieval error for session ${sessionId}:`, error);
+            return [];
+        }
+    }
+
+    /**
+     * 세션 최신 분석 결과 조회
+     * @param {string} sessionId - 세션 ID
+     * @returns {Promise<Object|null>} - 최신 분석 결과
+     */
+    async getLatestAnalysis(sessionId) {
+        try {
+            // Redis에서 최신 분석 결과 조회
+            const redisClient = redisUtils.getClient();
+            const analysisKey = `analysis:latest:${sessionId}`;
+            const analysisData = await redisClient.get(analysisKey);
+            
+            if (analysisData) {
+                return JSON.parse(analysisData);
+            }
+            
+            // Redis에 없는 경우 분석 서비스에서 조회 (미구현)
+            return null;
+        } catch (error) {
+            logger.error(`Latest analysis retrieval error for session ${sessionId}:`, error);
+            return null;
+        }
     }
 }
 
