@@ -1,0 +1,964 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		72529D762DD2F962008B4E16 /* HaptiTalkWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 72529D752DD2F962008B4E16 /* HaptiTalkWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		72529D602DD2F962008B4E16 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72529D4A2DD2F961008B4E16 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72529D512DD2F961008B4E16;
+			remoteInfo = HaptiTalkWatch;
+		};
+		72529D6A2DD2F962008B4E16 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72529D4A2DD2F961008B4E16 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72529D512DD2F961008B4E16;
+			remoteInfo = HaptiTalkWatch;
+		};
+		72529D772DD2F962008B4E16 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72529D4A2DD2F961008B4E16 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72529D742DD2F962008B4E16;
+			remoteInfo = "HaptiTalkWatch Watch App";
+		};
+		72529D852DD2F963008B4E16 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72529D4A2DD2F961008B4E16 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72529D742DD2F962008B4E16;
+			remoteInfo = "HaptiTalkWatch Watch App";
+		};
+		72529D8F2DD2F963008B4E16 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 72529D4A2DD2F961008B4E16 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 72529D742DD2F962008B4E16;
+			remoteInfo = "HaptiTalkWatch Watch App";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		72529D9B2DD2F963008B4E16 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				72529D762DD2F962008B4E16 /* HaptiTalkWatch Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		72529D522DD2F961008B4E16 /* HaptiTalkWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HaptiTalkWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		72529D5F2DD2F962008B4E16 /* HaptiTalkWatchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HaptiTalkWatchTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		72529D692DD2F962008B4E16 /* HaptiTalkWatchUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HaptiTalkWatchUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		72529D752DD2F962008B4E16 /* HaptiTalkWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "HaptiTalkWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		72529D842DD2F963008B4E16 /* HaptiTalkWatch Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "HaptiTalkWatch Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		72529D8E2DD2F963008B4E16 /* HaptiTalkWatch Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "HaptiTalkWatch Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		72529D542DD2F961008B4E16 /* HaptiTalkWatch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = HaptiTalkWatch;
+			sourceTree = "<group>";
+		};
+		72529D622DD2F962008B4E16 /* HaptiTalkWatchTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = HaptiTalkWatchTests;
+			sourceTree = "<group>";
+		};
+		72529D6C2DD2F962008B4E16 /* HaptiTalkWatchUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = HaptiTalkWatchUITests;
+			sourceTree = "<group>";
+		};
+		72529D792DD2F962008B4E16 /* HaptiTalkWatch Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "HaptiTalkWatch Watch App";
+			sourceTree = "<group>";
+		};
+		72529D872DD2F963008B4E16 /* HaptiTalkWatch Watch AppTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "HaptiTalkWatch Watch AppTests";
+			sourceTree = "<group>";
+		};
+		72529D912DD2F963008B4E16 /* HaptiTalkWatch Watch AppUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "HaptiTalkWatch Watch AppUITests";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		72529D4F2DD2F961008B4E16 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72529D5C2DD2F962008B4E16 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72529D662DD2F962008B4E16 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72529D722DD2F962008B4E16 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72529D812DD2F963008B4E16 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72529D8B2DD2F963008B4E16 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		72529D492DD2F961008B4E16 = {
+			isa = PBXGroup;
+			children = (
+				72529D542DD2F961008B4E16 /* HaptiTalkWatch */,
+				72529D622DD2F962008B4E16 /* HaptiTalkWatchTests */,
+				72529D6C2DD2F962008B4E16 /* HaptiTalkWatchUITests */,
+				72529D792DD2F962008B4E16 /* HaptiTalkWatch Watch App */,
+				72529D872DD2F963008B4E16 /* HaptiTalkWatch Watch AppTests */,
+				72529D912DD2F963008B4E16 /* HaptiTalkWatch Watch AppUITests */,
+				72529D532DD2F961008B4E16 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		72529D532DD2F961008B4E16 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				72529D522DD2F961008B4E16 /* HaptiTalkWatch.app */,
+				72529D5F2DD2F962008B4E16 /* HaptiTalkWatchTests.xctest */,
+				72529D692DD2F962008B4E16 /* HaptiTalkWatchUITests.xctest */,
+				72529D752DD2F962008B4E16 /* HaptiTalkWatch Watch App.app */,
+				72529D842DD2F963008B4E16 /* HaptiTalkWatch Watch AppTests.xctest */,
+				72529D8E2DD2F963008B4E16 /* HaptiTalkWatch Watch AppUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		72529D512DD2F961008B4E16 /* HaptiTalkWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 72529D9C2DD2F963008B4E16 /* Build configuration list for PBXNativeTarget "HaptiTalkWatch" */;
+			buildPhases = (
+				72529D4E2DD2F961008B4E16 /* Sources */,
+				72529D4F2DD2F961008B4E16 /* Frameworks */,
+				72529D502DD2F961008B4E16 /* Resources */,
+				72529D9B2DD2F963008B4E16 /* Embed Watch Content */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				72529D782DD2F962008B4E16 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				72529D542DD2F961008B4E16 /* HaptiTalkWatch */,
+			);
+			name = HaptiTalkWatch;
+			packageProductDependencies = (
+			);
+			productName = HaptiTalkWatch;
+			productReference = 72529D522DD2F961008B4E16 /* HaptiTalkWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
+		72529D5E2DD2F962008B4E16 /* HaptiTalkWatchTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 72529D9F2DD2F963008B4E16 /* Build configuration list for PBXNativeTarget "HaptiTalkWatchTests" */;
+			buildPhases = (
+				72529D5B2DD2F962008B4E16 /* Sources */,
+				72529D5C2DD2F962008B4E16 /* Frameworks */,
+				72529D5D2DD2F962008B4E16 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				72529D612DD2F962008B4E16 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				72529D622DD2F962008B4E16 /* HaptiTalkWatchTests */,
+			);
+			name = HaptiTalkWatchTests;
+			packageProductDependencies = (
+			);
+			productName = HaptiTalkWatchTests;
+			productReference = 72529D5F2DD2F962008B4E16 /* HaptiTalkWatchTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		72529D682DD2F962008B4E16 /* HaptiTalkWatchUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 72529DA22DD2F963008B4E16 /* Build configuration list for PBXNativeTarget "HaptiTalkWatchUITests" */;
+			buildPhases = (
+				72529D652DD2F962008B4E16 /* Sources */,
+				72529D662DD2F962008B4E16 /* Frameworks */,
+				72529D672DD2F962008B4E16 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				72529D6B2DD2F962008B4E16 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				72529D6C2DD2F962008B4E16 /* HaptiTalkWatchUITests */,
+			);
+			name = HaptiTalkWatchUITests;
+			packageProductDependencies = (
+			);
+			productName = HaptiTalkWatchUITests;
+			productReference = 72529D692DD2F962008B4E16 /* HaptiTalkWatchUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		72529D742DD2F962008B4E16 /* HaptiTalkWatch Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 72529D982DD2F963008B4E16 /* Build configuration list for PBXNativeTarget "HaptiTalkWatch Watch App" */;
+			buildPhases = (
+				72529D712DD2F962008B4E16 /* Sources */,
+				72529D722DD2F962008B4E16 /* Frameworks */,
+				72529D732DD2F962008B4E16 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				72529D792DD2F962008B4E16 /* HaptiTalkWatch Watch App */,
+			);
+			name = "HaptiTalkWatch Watch App";
+			packageProductDependencies = (
+			);
+			productName = "HaptiTalkWatch Watch App";
+			productReference = 72529D752DD2F962008B4E16 /* HaptiTalkWatch Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
+		72529D832DD2F963008B4E16 /* HaptiTalkWatch Watch AppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 72529DA52DD2F963008B4E16 /* Build configuration list for PBXNativeTarget "HaptiTalkWatch Watch AppTests" */;
+			buildPhases = (
+				72529D802DD2F963008B4E16 /* Sources */,
+				72529D812DD2F963008B4E16 /* Frameworks */,
+				72529D822DD2F963008B4E16 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				72529D862DD2F963008B4E16 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				72529D872DD2F963008B4E16 /* HaptiTalkWatch Watch AppTests */,
+			);
+			name = "HaptiTalkWatch Watch AppTests";
+			packageProductDependencies = (
+			);
+			productName = "HaptiTalkWatch Watch AppTests";
+			productReference = 72529D842DD2F963008B4E16 /* HaptiTalkWatch Watch AppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		72529D8D2DD2F963008B4E16 /* HaptiTalkWatch Watch AppUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 72529DA82DD2F963008B4E16 /* Build configuration list for PBXNativeTarget "HaptiTalkWatch Watch AppUITests" */;
+			buildPhases = (
+				72529D8A2DD2F963008B4E16 /* Sources */,
+				72529D8B2DD2F963008B4E16 /* Frameworks */,
+				72529D8C2DD2F963008B4E16 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				72529D902DD2F963008B4E16 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				72529D912DD2F963008B4E16 /* HaptiTalkWatch Watch AppUITests */,
+			);
+			name = "HaptiTalkWatch Watch AppUITests";
+			packageProductDependencies = (
+			);
+			productName = "HaptiTalkWatch Watch AppUITests";
+			productReference = 72529D8E2DD2F963008B4E16 /* HaptiTalkWatch Watch AppUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		72529D4A2DD2F961008B4E16 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1630;
+				LastUpgradeCheck = 1630;
+				TargetAttributes = {
+					72529D512DD2F961008B4E16 = {
+						CreatedOnToolsVersion = 16.3;
+					};
+					72529D5E2DD2F962008B4E16 = {
+						CreatedOnToolsVersion = 16.3;
+						TestTargetID = 72529D512DD2F961008B4E16;
+					};
+					72529D682DD2F962008B4E16 = {
+						CreatedOnToolsVersion = 16.3;
+						TestTargetID = 72529D512DD2F961008B4E16;
+					};
+					72529D742DD2F962008B4E16 = {
+						CreatedOnToolsVersion = 16.3;
+					};
+					72529D832DD2F963008B4E16 = {
+						CreatedOnToolsVersion = 16.3;
+						TestTargetID = 72529D742DD2F962008B4E16;
+					};
+					72529D8D2DD2F963008B4E16 = {
+						CreatedOnToolsVersion = 16.3;
+						TestTargetID = 72529D742DD2F962008B4E16;
+					};
+				};
+			};
+			buildConfigurationList = 72529D4D2DD2F961008B4E16 /* Build configuration list for PBXProject "HaptiTalkWatch" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 72529D492DD2F961008B4E16;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 72529D532DD2F961008B4E16 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				72529D512DD2F961008B4E16 /* HaptiTalkWatch */,
+				72529D5E2DD2F962008B4E16 /* HaptiTalkWatchTests */,
+				72529D682DD2F962008B4E16 /* HaptiTalkWatchUITests */,
+				72529D742DD2F962008B4E16 /* HaptiTalkWatch Watch App */,
+				72529D832DD2F963008B4E16 /* HaptiTalkWatch Watch AppTests */,
+				72529D8D2DD2F963008B4E16 /* HaptiTalkWatch Watch AppUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		72529D502DD2F961008B4E16 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72529D5D2DD2F962008B4E16 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72529D672DD2F962008B4E16 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72529D732DD2F962008B4E16 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72529D822DD2F963008B4E16 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72529D8C2DD2F963008B4E16 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		72529D4E2DD2F961008B4E16 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72529D5B2DD2F962008B4E16 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72529D652DD2F962008B4E16 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72529D712DD2F962008B4E16 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72529D802DD2F963008B4E16 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72529D8A2DD2F963008B4E16 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		72529D612DD2F962008B4E16 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72529D512DD2F961008B4E16 /* HaptiTalkWatch */;
+			targetProxy = 72529D602DD2F962008B4E16 /* PBXContainerItemProxy */;
+		};
+		72529D6B2DD2F962008B4E16 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72529D512DD2F961008B4E16 /* HaptiTalkWatch */;
+			targetProxy = 72529D6A2DD2F962008B4E16 /* PBXContainerItemProxy */;
+		};
+		72529D782DD2F962008B4E16 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72529D742DD2F962008B4E16 /* HaptiTalkWatch Watch App */;
+			targetProxy = 72529D772DD2F962008B4E16 /* PBXContainerItemProxy */;
+		};
+		72529D862DD2F963008B4E16 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72529D742DD2F962008B4E16 /* HaptiTalkWatch Watch App */;
+			targetProxy = 72529D852DD2F963008B4E16 /* PBXContainerItemProxy */;
+		};
+		72529D902DD2F963008B4E16 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 72529D742DD2F962008B4E16 /* HaptiTalkWatch Watch App */;
+			targetProxy = 72529D8F2DD2F963008B4E16 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		72529D962DD2F963008B4E16 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = PSHSHC77L6;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		72529D972DD2F963008B4E16 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = PSHSHC77L6;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		72529D992DD2F963008B4E16 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PSHSHC77L6;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = HaptiTalkWatch;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = eumgyeol.HaptiTalkWatch;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = eumgyeol.HaptiTalkWatch.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.4;
+			};
+			name = Debug;
+		};
+		72529D9A2DD2F963008B4E16 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PSHSHC77L6;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = HaptiTalkWatch;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = eumgyeol.HaptiTalkWatch;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = eumgyeol.HaptiTalkWatch.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 11.4;
+			};
+			name = Release;
+		};
+		72529D9D2DD2F963008B4E16 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PSHSHC77L6;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = HaptiTalkWatch;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = eumgyeol.HaptiTalkWatch;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		72529D9E2DD2F963008B4E16 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PSHSHC77L6;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = HaptiTalkWatch;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = eumgyeol.HaptiTalkWatch;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		72529DA02DD2F963008B4E16 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PSHSHC77L6;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = eumgyeol.HaptiTalkWatchTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HaptiTalkWatch.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HaptiTalkWatch";
+			};
+			name = Debug;
+		};
+		72529DA12DD2F963008B4E16 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PSHSHC77L6;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = eumgyeol.HaptiTalkWatchTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HaptiTalkWatch.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HaptiTalkWatch";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		72529DA32DD2F963008B4E16 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PSHSHC77L6;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = eumgyeol.HaptiTalkWatchUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = HaptiTalkWatch;
+			};
+			name = Debug;
+		};
+		72529DA42DD2F963008B4E16 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PSHSHC77L6;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = eumgyeol.HaptiTalkWatchUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = HaptiTalkWatch;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		72529DA62DD2F963008B4E16 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PSHSHC77L6;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "eumgyeol.HaptiTalkWatch-Watch-AppTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HaptiTalkWatch Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HaptiTalkWatch Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 11.4;
+			};
+			name = Debug;
+		};
+		72529DA72DD2F963008B4E16 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PSHSHC77L6;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "eumgyeol.HaptiTalkWatch-Watch-AppTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HaptiTalkWatch Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HaptiTalkWatch Watch App";
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 11.4;
+			};
+			name = Release;
+		};
+		72529DA92DD2F963008B4E16 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PSHSHC77L6;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "eumgyeol.HaptiTalkWatch-Watch-AppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "HaptiTalkWatch Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 11.4;
+			};
+			name = Debug;
+		};
+		72529DAA2DD2F963008B4E16 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PSHSHC77L6;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "eumgyeol.HaptiTalkWatch-Watch-AppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "HaptiTalkWatch Watch App";
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 11.4;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		72529D4D2DD2F961008B4E16 /* Build configuration list for PBXProject "HaptiTalkWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				72529D962DD2F963008B4E16 /* Debug */,
+				72529D972DD2F963008B4E16 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		72529D982DD2F963008B4E16 /* Build configuration list for PBXNativeTarget "HaptiTalkWatch Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				72529D992DD2F963008B4E16 /* Debug */,
+				72529D9A2DD2F963008B4E16 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		72529D9C2DD2F963008B4E16 /* Build configuration list for PBXNativeTarget "HaptiTalkWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				72529D9D2DD2F963008B4E16 /* Debug */,
+				72529D9E2DD2F963008B4E16 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		72529D9F2DD2F963008B4E16 /* Build configuration list for PBXNativeTarget "HaptiTalkWatchTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				72529DA02DD2F963008B4E16 /* Debug */,
+				72529DA12DD2F963008B4E16 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		72529DA22DD2F963008B4E16 /* Build configuration list for PBXNativeTarget "HaptiTalkWatchUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				72529DA32DD2F963008B4E16 /* Debug */,
+				72529DA42DD2F963008B4E16 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		72529DA52DD2F963008B4E16 /* Build configuration list for PBXNativeTarget "HaptiTalkWatch Watch AppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				72529DA62DD2F963008B4E16 /* Debug */,
+				72529DA72DD2F963008B4E16 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		72529DA82DD2F963008B4E16 /* Build configuration list for PBXNativeTarget "HaptiTalkWatch Watch AppUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				72529DA92DD2F963008B4E16 /* Debug */,
+				72529DAA2DD2F963008B4E16 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 72529D4A2DD2F961008B4E16 /* Project object */;
+}

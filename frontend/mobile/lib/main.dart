@@ -1,15 +1,57 @@
 import 'package:flutter/material.dart';
-import 'package:hapti_talk/constants/colors.dart';
-import 'package:hapti_talk/screens/auth/login_screen.dart';
-import 'package:hapti_talk/screens/auth/signup_screen.dart';
-import 'package:hapti_talk/screens/main_tab.dart';
-import 'package:hapti_talk/services/service_locator.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
+import 'package:haptitalk/config/app_config.dart';
+import 'package:haptitalk/config/routes.dart';
+import 'package:haptitalk/config/theme.dart';
+import 'package:haptitalk/constants/colors.dart';
+import 'package:haptitalk/constants/strings.dart';
+import 'package:haptitalk/providers/analysis_provider.dart';
+import 'package:haptitalk/providers/session_provider.dart';
+import 'package:haptitalk/repositories/analysis_repository.dart';
+import 'package:haptitalk/repositories/session_repository.dart';
+import 'package:haptitalk/screens/auth/login_screen.dart';
+import 'package:haptitalk/screens/auth/signup_screen.dart';
+import 'package:haptitalk/screens/main/main_tab_screen.dart';
+import 'package:haptitalk/services/api_service.dart';
+import 'package:haptitalk/services/local_storage_service.dart';
+import 'package:haptitalk/services/navigation_service.dart';
+import 'package:haptitalk/widgets/common/buttons/primary_button.dart';
+import 'package:haptitalk/widgets/common/buttons/secondary_button.dart';
 
-void main() {
-  // 서비스 로케이터 초기화
-  serviceLocator.setup();
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // LocalStorageService 초기화
+  await LocalStorageService.init();
+
+  // 세로 방향만 지원
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  // 서비스 및 Repository 생성
+  final apiService = ApiService.create();
+  final localStorageService = LocalStorageService();
+
+  final sessionRepository = SessionRepository(apiService, localStorageService);
+  final analysisRepository =
+      AnalysisRepository(apiService, localStorageService);
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+            create: (_) => SessionProvider(sessionRepository)),
+        ChangeNotifierProvider(
+            create: (_) =>
+                AnalysisProvider(analysisRepository: analysisRepository)),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -18,13 +60,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'HaptiTalk',
+      title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primaryColor),
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-      ),
+      theme: AppTheme.lightTheme,
+      navigatorKey: NavigationService.navigatorKey,
+      initialRoute: AppRoutes.splash,
+      routes: AppRoutes.getRoutes(),
       home: const StartScreen(),
     );
   }
@@ -67,7 +108,7 @@ class StartScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     const Text(
-                      "HaptiTalk",
+                      AppStrings.appName,
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -80,15 +121,7 @@ class StartScreen extends StatelessWidget {
               const SizedBox(height: 20),
               // 서브 텍스트
               const Text(
-                "실시간 대화 분석과 피드백으로",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: AppColors.secondaryTextColor,
-                ),
-              ),
-              const Text(
-                "더 나은 커뮤니케이션",
+                AppStrings.appSlogan,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -97,61 +130,21 @@ class StartScreen extends StatelessWidget {
               ),
               const Spacer(),
               // 로그인 버튼
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const LoginScreen()),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    '로그인',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+              PrimaryButton(
+                text: AppStrings.login,
+                onPressed: () {
+                  // 실제 로그인 화면으로 이동하도록 변경
+                  NavigationService.navigateTo(AppRoutes.login);
+                },
               ),
               const SizedBox(height: 15),
               // 회원가입 버튼
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const SignUpScreen()),
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.primaryColor),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    '회원가입',
-                    style: TextStyle(
-                      color: AppColors.primaryColor,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+              SecondaryButton(
+                text: AppStrings.signup,
+                onPressed: () {
+                  // 실제 회원가입 화면으로 이동하도록 변경
+                  NavigationService.navigateTo(AppRoutes.signup);
+                },
               ),
               const SizedBox(height: 20),
               // 소셜 로그인 구분선
@@ -166,7 +159,7 @@ class StartScreen extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
-                      '또는',
+                      AppStrings.orLoginWith,
                       style: TextStyle(
                         color: AppColors.hintTextColor,
                         fontSize: 14,

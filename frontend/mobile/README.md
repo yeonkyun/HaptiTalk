@@ -1,4 +1,4 @@
-# hapti_talk
+# haptitalk
 
 A new Flutter project.
 
