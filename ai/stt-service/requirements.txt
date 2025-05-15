@@ -1,0 +1,23 @@
+# 웹 프레임워크
+fastapi==0.110.0
+uvicorn[standard]==0.29.0  # WebSocket 지원 포함
+python-multipart==0.0.9    # 파일 업로드 처리
+websockets==12.0            # WebSocket 지원
+
+# WhisperX - 음성 인식 라이브러리 및 의존성
+whisperx==3.1.1  # numpy 1.26.4와 호환되는 버전
+pyannote.audio==3.1.1
+transformers
+setuptools>=65
+faster-whisper==1.1.1
+
+# 유틸리티
+pydantic==2.6.4
+pydantic-settings==2.2.1  # 설정 관리
+python-dotenv==1.0.1      # 환경 변수 로드
+numpy==1.26.4             # 오디오 처리
+
+# PyTorch는 미리 설치된 버전 사용
+# torch==2.7.0
+# torchaudio==2.7.0
+# torchvision==0.22.0 
