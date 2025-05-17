@@ -17,6 +17,7 @@ const HybridMessaging = require('./utils/hybrid-messaging'); // 하이브리드 
 const ConnectionManager = require('./utils/connection-manager');
 const SocketMonitor = require('./utils/socket-monitor');
 const { v4: uuidv4 } = require('uuid');
+const { swaggerUi, specs } = require('./utils/swagger');
 
 // 기본 설정
 const PORT = process.env.PORT || 3001;
@@ -164,6 +165,9 @@ app.get('/api/v1/realtime/socket/:socketId', authMiddleware.validateServiceToken
         data: socketInfo
     });
 });
+
+// Swagger UI 설정
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, { explorer: true }));
 
 // 에러 미들웨어 추가
 app.use(logger.errorMiddleware);

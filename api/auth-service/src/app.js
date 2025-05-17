@@ -14,6 +14,7 @@ const authRoutes = require('./routes/auth.routes');
 const deviceRoutes = require('./routes/device.routes');
 const errorHandler = require('./middleware/errorHandler.middleware');
 const { v4: uuidv4 } = require('uuid');
+const { swaggerUi, specs } = require('./utils/swagger');
 
 // 회복성 관련 임포트
 const { userServiceClient, sessionServiceClient, dbResilience } = require('./utils/serviceClient');
@@ -88,6 +89,8 @@ app.get('/resilience/status', (req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/devices', deviceRoutes);
 
+// Swagger UI 설정
+app.use('/api/v1/auth/api-docs', swaggerUi.serve, swaggerUi.setup(specs, { explorer: true }));
 
 app.get('/token/status', (req, res) => {
     const authHeader = req.headers.authorization;

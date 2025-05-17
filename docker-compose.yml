@@ -160,14 +160,24 @@ services:
     restart: unless-stopped
     environment:
       KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
+      KONG_DECLARATIVE_CONFIG: /tmp/kong.yml
       KONG_PROXY_ACCESS_LOG: /dev/stdout
       KONG_ADMIN_ACCESS_LOG: /dev/stdout
       KONG_PROXY_ERROR_LOG: /dev/stderr
       KONG_ADMIN_ERROR_LOG: /dev/stderr
       KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
+      # API 문서 접근 인증 설정
+      API_DOCS_USERNAME: ${API_DOCS_USERNAME:-apidocs}
+      API_DOCS_PASSWORD: ${API_DOCS_PASSWORD:-haptitalk-docs}
+      # JWT 서비스 키 설정
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_APP_KEY_ID: ${JWT_APP_KEY_ID:-haptitalk-app-key}
+      JWT_ADMIN_KEY_ID: ${JWT_ADMIN_KEY_ID:-haptitalk-admin-key}
     volumes:
-      - ./infrastructure/api-gateway/kong.yml:/etc/kong/kong.yml
+      # 템플릿 파일을 컨테이너의 /tmp 디렉토리에 마운트
+      - ./infrastructure/api-gateway/kong.yml.template:/tmp/kong.yml.template
+      - ./infrastructure/api-gateway/entrypoint.sh:/usr/local/bin/custom-entrypoint.sh
+    command: ["/usr/local/bin/custom-entrypoint.sh"]
     ports:
       - "${KONG_PROXY_PORT}:8000"
       - "${KONG_HTTPS_PORT}:8443"
