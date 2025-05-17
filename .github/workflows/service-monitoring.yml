@@ -1,0 +1,116 @@
+name: Service Monitoring
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # 30분마다 실행
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  health_check:
+    name: Service Health Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [development, production]
+        include:
+          - environment: development
+            base_url: ${{ secrets.DEV_API_URL }}
+          - environment: production
+            base_url: ${{ secrets.PROD_API_URL }}
+    
+    steps:
+      - name: Check Auth Service
+        id: auth_health
+        uses: jtalk/url-health-check-action@v3
+        with:
+          url: ${{ matrix.base_url }}/api/health/auth
+          max-attempts: 3
+          retry-delay: 5s
+          retry-all: true
+        continue-on-error: true
+      
+      - name: Check Realtime Service
+        id: realtime_health
+        uses: jtalk/url-health-check-action@v3
+        with:
+          url: ${{ matrix.base_url }}/api/health/realtime
+          max-attempts: 3
+          retry-delay: 5s
+          retry-all: true
+        continue-on-error: true
+      
+      - name: Check Session Service
+        id: session_health
+        uses: jtalk/url-health-check-action@v3
+        with:
+          url: ${{ matrix.base_url }}/api/health/sessions
+          max-attempts: 3
+          retry-delay: 5s
+          retry-all: true
+        continue-on-error: true
+      
+      - name: Check Feedback Service
+        id: feedback_health
+        uses: jtalk/url-health-check-action@v3
+        with:
+          url: ${{ matrix.base_url }}/api/health/feedback
+          max-attempts: 3
+          retry-delay: 5s
+          retry-all: true
+        continue-on-error: true
+      
+      - name: Check User Service
+        id: user_health
+        uses: jtalk/url-health-check-action@v3
+        with:
+          url: ${{ matrix.base_url }}/api/health/users
+          max-attempts: 3
+          retry-delay: 5s
+          retry-all: true
+        continue-on-error: true
+      
+      - name: Check Report Service
+        id: report_health
+        uses: jtalk/url-health-check-action@v3
+        with:
+          url: ${{ matrix.base_url }}/api/health/reports
+          max-attempts: 3
+          retry-delay: 5s
+          retry-all: true
+        continue-on-error: true
+      
+      - name: Determine overall status
+        id: overall_status
+        run: |
+          AUTH_STATUS="${{ steps.auth_health.outcome }}"
+          REALTIME_STATUS="${{ steps.realtime_health.outcome }}"
+          SESSION_STATUS="${{ steps.session_health.outcome }}"
+          FEEDBACK_STATUS="${{ steps.feedback_health.outcome }}"
+          USER_STATUS="${{ steps.user_health.outcome }}"
+          REPORT_STATUS="${{ steps.report_health.outcome }}"
+          
+          if [[ "$AUTH_STATUS" == "success" && "$REALTIME_STATUS" == "success" && "$SESSION_STATUS" == "success" && "$FEEDBACK_STATUS" == "success" && "$USER_STATUS" == "success" && "$REPORT_STATUS" == "success" ]]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "message=All services are up and running" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "message=Some services are down" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Send status to Slack
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL || 'monitoring' }}
+          SLACK_COLOR: ${{ steps.overall_status.outputs.status == 'success' && 'good' || 'danger' }}
+          SLACK_TITLE: Service Health Check - ${{ matrix.environment }}
+          SLACK_MESSAGE: |
+            *${{ steps.overall_status.outputs.message }} in ${{ matrix.environment }} environment*
+            
+            Auth Service: ${{ steps.auth_health.outcome == 'success' && '✅' || '❌' }}
+            Realtime Service: ${{ steps.realtime_health.outcome == 'success' && '✅' || '❌' }}
+            Session Service: ${{ steps.session_health.outcome == 'success' && '✅' || '❌' }}
+            Feedback Service: ${{ steps.feedback_health.outcome == 'success' && '✅' || '❌' }}
+            User Service: ${{ steps.user_health.outcome == 'success' && '✅' || '❌' }}
+            Report Service: ${{ steps.report_health.outcome == 'success' && '✅' || '❌' }}
+          SLACK_FOOTER: 'Haptitalk Service Monitoring'
