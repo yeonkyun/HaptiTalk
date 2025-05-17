@@ -1,0 +1,202 @@
+name: Raspberry Pi Monitoring
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # 30분마다 실행
+  workflow_dispatch:  # 수동 실행 가능
+
+env:
+  # 모니터링 임계값 설정
+  DISK_THRESHOLD: 85  # 디스크 사용량 경고 임계값 (%)
+  MEMORY_THRESHOLD: 85  # 메모리 사용량 경고 임계값 (%)
+  MIN_EXPECTED_SERVICES: 5  # 최소 실행 필요 서비스 수
+
+jobs:
+  check_services:
+    name: Check Service Status
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.RASPBERRY_PI_SSH_KEY }}
+      
+      - name: Count Expected Services
+        id: service_count
+        run: |
+          # docker-compose.yml 파일에서 서비스 수를 동적으로 계산
+          # 기본값은 환경 변수에 정의된 값 사용
+          if [ -f "docker-compose.yml" ]; then
+            EXPECTED_SERVICES=$(grep -c "^  [a-zA-Z0-9_-]*:" docker-compose.yml)
+            # 최소 기준값과 비교하여 더 큰 값 사용
+            if [ "$EXPECTED_SERVICES" -gt "$MIN_EXPECTED_SERVICES" ]; then
+              echo "expected_services=$EXPECTED_SERVICES" >> $GITHUB_OUTPUT
+            else
+              echo "expected_services=$MIN_EXPECTED_SERVICES" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "expected_services=$MIN_EXPECTED_SERVICES" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Check Docker Services
+        id: docker_check
+        run: |
+          # SSH로 라즈베리파이에 접속하여 서비스 상태 확인
+          STATUS=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
+            docker-compose ps -q | wc -l
+          ')
+
+          # 필수 인프라 서비스 확인 (postgres, mongodb, redis, kafka, kong)
+          INFRA_SERVICES=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
+            docker-compose ps postgres mongodb redis kafka kong | grep -c "Up"
+          ')
+          
+          # 컨테이너 상태 및 로그 정보 수집
+          CONTAINER_INFO=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
+            echo "---- Container Status ----"
+            docker-compose ps
+            echo "---- Recent Errors ----"
+            docker-compose logs --tail=50 | grep -i "error\|exception\|fatal" || echo "No recent errors found"
+          ')
+          
+          echo "container_info<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONTAINER_INFO" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # 결과 판단 (기대 서비스 수와 실제 실행 중인 서비스 수 비교)
+          EXPECTED_SERVICES=${{ steps.service_count.outputs.expected_services }}
+          EXPECTED_INFRA=5  # 필수 인프라 서비스 수
+          
+          echo "total_services=$STATUS" >> $GITHUB_OUTPUT
+          echo "infra_services=$INFRA_SERVICES" >> $GITHUB_OUTPUT
+          echo "expected_services=$EXPECTED_SERVICES" >> $GITHUB_OUTPUT
+          
+          if [ "$STATUS" -lt "$EXPECTED_SERVICES" ]; then
+            echo "services_down=true" >> $GITHUB_OUTPUT
+          else
+            echo "services_down=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ "$INFRA_SERVICES" -lt "$EXPECTED_INFRA" ]; then
+            echo "infra_down=true" >> $GITHUB_OUTPUT
+          else
+            echo "infra_down=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Check System Resources
+        id: resource_check
+        run: |
+          # SSH로 라즈베리파이에 접속하여 시스템 리소스 확인
+          RESOURCES=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            echo "---- Memory Usage ----"
+            free -h
+            echo "---- Disk Usage ----"
+            df -h | grep -E "Filesystem|/$"
+            echo "---- CPU Usage ----"
+            top -bn1 | grep "Cpu(s)"
+            echo "---- Temperature ----"
+            vcgencmd measure_temp 2>/dev/null || echo "온도 측정 기능을 사용할 수 없습니다"
+            echo "---- System Uptime ----"
+            uptime
+            echo "---- Docker Stats ----"
+            docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"
+          ')
+          
+          echo "resources<<EOF" >> $GITHUB_OUTPUT
+          echo "$RESOURCES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # 디스크 사용량이 임계값 이상인지 확인
+          DISK_USAGE=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            df -h | grep -E "/$" | awk "{print \$5}" | sed "s/%//"
+          ')
+          
+          if [ "$DISK_USAGE" -gt "$DISK_THRESHOLD" ]; then
+            echo "disk_warning=true" >> $GITHUB_OUTPUT
+            echo "disk_usage=$DISK_USAGE" >> $GITHUB_OUTPUT
+          else
+            echo "disk_warning=false" >> $GITHUB_OUTPUT
+            echo "disk_usage=$DISK_USAGE" >> $GITHUB_OUTPUT
+          fi
+          
+          # 메모리 사용량이 임계값 이상인지 확인
+          MEM_USAGE=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            free | grep Mem | awk "{print \$3/\$2 * 100.0}" | cut -d. -f1
+          ')
+          
+          if [ "$MEM_USAGE" -gt "$MEMORY_THRESHOLD" ]; then
+            echo "memory_warning=true" >> $GITHUB_OUTPUT
+            echo "memory_usage=$MEM_USAGE" >> $GITHUB_OUTPUT
+          else
+            echo "memory_warning=false" >> $GITHUB_OUTPUT
+            echo "memory_usage=$MEM_USAGE" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Restart Services if Down
+        if: steps.docker_check.outputs.services_down == 'true' || steps.docker_check.outputs.infra_down == 'true'
+        run: |
+          # 서비스 재시작 전 로그 백업
+          ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
+            mkdir -p logs/backup
+            docker-compose logs > logs/backup/before_restart_$(date +%Y%m%d_%H%M%S).log
+            
+            # 서비스 다운 정보 수집 후 재시작
+            echo "서비스 재시작 시작: $(date)"
+            docker-compose down --remove-orphans
+            docker system prune -f  # 불필요한 리소스 정리
+            docker-compose up -d
+            echo "서비스 재시작 완료: $(date)"
+            
+            # 재시작 후 상태 확인
+            echo "---- 재시작 후 서비스 상태 ----"
+            docker-compose ps
+            echo "---- 재시작 후 리소스 사용량 ----"
+            free -h
+            df -h | grep -E "Filesystem|/$"
+          '
+          echo "서비스가 다운되어 재시작되었습니다."
+      
+      - name: Clean Up Old Logs and Images
+        run: |
+          # 30일 이상된 로그 파일 및 사용하지 않는 도커 이미지 정리
+          ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            # 오래된 로그 파일 삭제
+            find /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/logs/backup -type f -name "*.log" -mtime +30 -delete
+            
+            # 사용하지 않는 도커 이미지, 볼륨 정리
+            docker image prune -a --force --filter "until=720h"
+          '
+      
+      - name: Send Status Notification
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL || 'monitoring' }}
+          SLACK_COLOR: ${{ steps.docker_check.outputs.services_down == 'true' || steps.docker_check.outputs.infra_down == 'true' || steps.resource_check.outputs.disk_warning == 'true' || steps.resource_check.outputs.memory_warning == 'true' ? 'danger' : 'good' }}
+          SLACK_TITLE: Raspberry Pi Status
+          SLACK_MESSAGE: |
+            *라즈베리파이 상태 보고서*
+            
+            *실행 중인 서비스:* ${{ steps.docker_check.outputs.total_services }}/${{ steps.docker_check.outputs.expected_services }} 개
+            
+            *서비스 상태:* ${{ steps.docker_check.outputs.services_down == 'true' ? '⚠️ 일부 서비스가 다운되어 재시작되었습니다' : '✅ 모든 서비스 정상 실행 중' }}
+            
+            *인프라 서비스:* ${{ steps.docker_check.outputs.infra_down == 'true' ? '⚠️ 일부 인프라 서비스가 다운되었습니다' : '✅ 모든 인프라 서비스 정상 실행 중' }}
+            
+            *디스크 상태:* ${{ steps.resource_check.outputs.disk_warning == 'true' ? '⚠️ 디스크 공간 부족 (' : '✅ 디스크 공간 충분 (' }}${{ steps.resource_check.outputs.disk_usage }}% 사용)
+            
+            *메모리 상태:* ${{ steps.resource_check.outputs.memory_warning == 'true' ? '⚠️ 메모리 부족 (' : '✅ 메모리 충분 (' }}${{ steps.resource_check.outputs.memory_usage }}% 사용)
+            
+            ${{ steps.docker_check.outputs.services_down == 'true' || steps.docker_check.outputs.infra_down == 'true' ? '*컨테이너 상태 및 오류 정보:*\n```\n' : '' }}${{ steps.docker_check.outputs.services_down == 'true' || steps.docker_check.outputs.infra_down == 'true' ? steps.docker_check.outputs.container_info : '' }}${{ steps.docker_check.outputs.services_down == 'true' || steps.docker_check.outputs.infra_down == 'true' ? '\n```' : '' }}
+            
+            *시스템 리소스 세부 정보:*
+            ```
+            ${{ steps.resource_check.outputs.resources }}
+            ```
+          SLACK_FOOTER: 'Haptitalk Raspberry Pi 모니터링'
