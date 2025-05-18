@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: Check Auth Service
         id: auth_health
-        uses: jtalk/url-health-check-action@v3
+        uses: jtalk/url-health-check-action@v4
         with:
           url: ${{ matrix.base_url }}/api/health/auth
           max-attempts: 3
@@ -31,7 +31,7 @@ jobs:
       
       - name: Check Realtime Service
         id: realtime_health
-        uses: jtalk/url-health-check-action@v3
+        uses: jtalk/url-health-check-action@v4
         with:
           url: ${{ matrix.base_url }}/api/health/realtime
           max-attempts: 3
@@ -41,7 +41,7 @@ jobs:
       
       - name: Check Session Service
         id: session_health
-        uses: jtalk/url-health-check-action@v3
+        uses: jtalk/url-health-check-action@v4
         with:
           url: ${{ matrix.base_url }}/api/health/sessions
           max-attempts: 3
@@ -51,7 +51,7 @@ jobs:
       
       - name: Check Feedback Service
         id: feedback_health
-        uses: jtalk/url-health-check-action@v3
+        uses: jtalk/url-health-check-action@v4
         with:
           url: ${{ matrix.base_url }}/api/health/feedback
           max-attempts: 3
@@ -61,7 +61,7 @@ jobs:
       
       - name: Check User Service
         id: user_health
-        uses: jtalk/url-health-check-action@v3
+        uses: jtalk/url-health-check-action@v4
         with:
           url: ${{ matrix.base_url }}/api/health/users
           max-attempts: 3
@@ -71,7 +71,7 @@ jobs:
       
       - name: Check Report Service
         id: report_health
-        uses: jtalk/url-health-check-action@v3
+        uses: jtalk/url-health-check-action@v4
         with:
           url: ${{ matrix.base_url }}/api/health/reports
           max-attempts: 3

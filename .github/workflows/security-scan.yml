@@ -23,7 +23,7 @@ jobs:
         directory: ['api/auth-service', 'api/realtime-service', 'api/session-service', 'api/feedback-service', 'api/user-service', 'api/report-service', 'api/shared']
         
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Check if package.json exists
         id: check_package
@@ -36,7 +36,7 @@ jobs:
       
       - name: Set up Node.js
         if: steps.check_package.outputs.package_exists == 'true'
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
       
@@ -55,7 +55,7 @@ jobs:
         directory: ['ai/emotion-analysis-service', 'ai/speaker-diarization-service', 'ai/stt-service']
         
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Check if requirements.txt exists
         id: check_requirements
@@ -91,7 +91,7 @@ jobs:
         dockerfile: ['api/auth-service/Dockerfile', 'api/realtime-service/Dockerfile', 'api/session-service/Dockerfile', 'api/feedback-service/Dockerfile', 'api/user-service/Dockerfile', 'api/report-service/Dockerfile']
         
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Check if Dockerfile exists
         id: check_dockerfile
@@ -132,7 +132,7 @@ jobs:
       security-events: write
       
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2

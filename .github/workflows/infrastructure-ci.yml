@@ -19,7 +19,7 @@ jobs:
     name: Validate Infrastructure Configuration
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Validate docker-compose.yml
         run: |
@@ -63,7 +63,7 @@ jobs:
     needs: validate
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Set up Docker Buildx
         if: hashFiles('infrastructure/api-gateway/Dockerfile') != ''
