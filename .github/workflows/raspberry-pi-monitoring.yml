@@ -173,12 +173,25 @@ jobs:
             docker image prune -a --force --filter "until=720h"
           '
       
+      - name: Check Alert Status
+        id: alert_status
+        run: |
+          # 알림 상태 계산 (서비스 다운, 디스크 경고, 메모리 경고 중 하나라도 있으면 경고)
+          if [[ "${{ steps.docker_check.outputs.services_down }}" == "true" || 
+                "${{ steps.docker_check.outputs.infra_down }}" == "true" || 
+                "${{ steps.resource_check.outputs.disk_warning }}" == "true" || 
+                "${{ steps.resource_check.outputs.memory_warning }}" == "true" ]]; then
+            echo "has_warning=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_warning=false" >> $GITHUB_OUTPUT
+          fi
+      
       - name: Send Status Notification
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL || 'monitoring' }}
-          SLACK_COLOR: ${{ steps.docker_check.outputs.services_down == 'true' || steps.docker_check.outputs.infra_down == 'true' || steps.resource_check.outputs.disk_warning == 'true' || steps.resource_check.outputs.memory_warning == 'true' ? 'danger' : 'good' }}
+          SLACK_COLOR: ${{ steps.alert_status.outputs.has_warning == 'true' && 'danger' || 'good' }}
           SLACK_TITLE: Raspberry Pi Status
           SLACK_MESSAGE: |
             *라즈베리파이 상태 보고서*
