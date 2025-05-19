@@ -21,24 +21,31 @@ on:
       force_restart:
         description: '전체 서비스 강제 재시작'
         required: false
-        default: 'false'
+        default: false
         type: boolean
       backup_before_deploy:
         description: '배포 전 데이터 백업'
         required: false
-        default: 'true'
+        default: true
+        type: boolean
+      skip_verification:
+        description: '배포 후 검증 단계 건너뛰기'
+        required: false
+        default: false
         type: boolean
 
 jobs:
   prepare_deployment:
     name: Prepare Deployment
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    # 수정: 수동 실행 시 항상 성공, 자동 실행 시 선행 워크플로우가 성공한 경우에만 실행
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     outputs:
       environment: ${{ steps.set_env.outputs.environment }}
       specific_services: ${{ steps.set_env.outputs.specific_services }}
       force_restart: ${{ steps.set_env.outputs.force_restart }}
       backup_before_deploy: ${{ steps.set_env.outputs.backup_before_deploy }}
+      skip_verification: ${{ steps.set_env.outputs.skip_verification }}
     steps:
       - id: set_env
         run: |
@@ -51,12 +58,41 @@ jobs:
           # 수동 실행 시 입력 파라미터 처리
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "specific_services=${{ github.event.inputs.deploy_specific_services }}" >> $GITHUB_OUTPUT
-            echo "force_restart=${{ github.event.inputs.force_restart }}" >> $GITHUB_OUTPUT
-            echo "backup_before_deploy=${{ github.event.inputs.backup_before_deploy }}" >> $GITHUB_OUTPUT
+            
+            # 불리언 값을 문자열로 변환하여 저장
+            if [[ "${{ github.event.inputs.force_restart }}" == "true" ]]; then
+              echo "force_restart=true" >> $GITHUB_OUTPUT
+            else
+              echo "force_restart=false" >> $GITHUB_OUTPUT
+            fi
+            
+            if [[ "${{ github.event.inputs.backup_before_deploy }}" == "true" ]]; then
+              echo "backup_before_deploy=true" >> $GITHUB_OUTPUT
+            else
+              echo "backup_before_deploy=false" >> $GITHUB_OUTPUT
+            fi
+            
+            if [[ "${{ github.event.inputs.skip_verification }}" == "true" ]]; then
+              echo "skip_verification=true" >> $GITHUB_OUTPUT
+            else
+              echo "skip_verification=false" >> $GITHUB_OUTPUT
+            fi
           else
             echo "specific_services=" >> $GITHUB_OUTPUT
             echo "force_restart=false" >> $GITHUB_OUTPUT
             echo "backup_before_deploy=true" >> $GITHUB_OUTPUT
+            echo "skip_verification=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # 실행 정보 출력
+          echo "배포 환경: ${{ github.event.workflow_run.head_branch || github.ref_name }}"
+          echo "실행 방식: ${{ github.event_name }}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "수동 배포 옵션:"
+            echo " - 특정 서비스: ${{ github.event.inputs.deploy_specific_services || '없음 (전체 배포)' }}"
+            echo " - 강제 재시작: ${{ github.event.inputs.force_restart }}"
+            echo " - 데이터 백업: ${{ github.event.inputs.backup_before_deploy }}"
+            echo " - 검증 건너뛰기: ${{ github.event.inputs.skip_verification }}"
           fi
 
   check_raspberry_pi:

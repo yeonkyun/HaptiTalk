@@ -14,16 +14,40 @@ jobs:
         environment: [development, production]
         include:
           - environment: development
-            base_url: ${{ secrets.DEV_API_URL }}
+            base_url: http://localhost:3000
           - environment: production
-            base_url: ${{ secrets.PROD_API_URL }}
+            base_url: http://localhost:8000
     
     steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set API URLs from secrets (if available)
+        run: |
+          if [[ -n "$DEV_API_URL" ]]; then
+            echo "DEV_BASE_URL=$DEV_API_URL" >> $GITHUB_ENV
+          else
+            echo "DEV_BASE_URL=http://localhost:3000" >> $GITHUB_ENV
+          fi
+          
+          if [[ -n "$PROD_API_URL" ]]; then
+            echo "PROD_BASE_URL=$PROD_API_URL" >> $GITHUB_ENV
+          else
+            echo "PROD_BASE_URL=http://localhost:8000" >> $GITHUB_ENV
+          fi
+      
+      - name: Set current base URL
+        run: |
+          if [[ "${{ matrix.environment }}" == "development" ]]; then
+            echo "CURRENT_BASE_URL=$DEV_BASE_URL" >> $GITHUB_ENV
+          else
+            echo "CURRENT_BASE_URL=$PROD_BASE_URL" >> $GITHUB_ENV
+          fi
+
       - name: Check Auth Service
         id: auth_health
         uses: jtalk/url-health-check-action@v4
         with:
-          url: ${{ matrix.base_url }}/api/health/auth
+          url: ${{ env.CURRENT_BASE_URL }}/api/health/auth
           max-attempts: 3
           retry-delay: 5s
           retry-all: true
@@ -33,7 +57,7 @@ jobs:
         id: realtime_health
         uses: jtalk/url-health-check-action@v4
         with:
-          url: ${{ matrix.base_url }}/api/health/realtime
+          url: ${{ env.CURRENT_BASE_URL }}/api/health/realtime
           max-attempts: 3
           retry-delay: 5s
           retry-all: true
@@ -43,7 +67,7 @@ jobs:
         id: session_health
         uses: jtalk/url-health-check-action@v4
         with:
-          url: ${{ matrix.base_url }}/api/health/sessions
+          url: ${{ env.CURRENT_BASE_URL }}/api/health/sessions
           max-attempts: 3
           retry-delay: 5s
           retry-all: true
@@ -53,7 +77,7 @@ jobs:
         id: feedback_health
         uses: jtalk/url-health-check-action@v4
         with:
-          url: ${{ matrix.base_url }}/api/health/feedback
+          url: ${{ env.CURRENT_BASE_URL }}/api/health/feedback
           max-attempts: 3
           retry-delay: 5s
           retry-all: true
@@ -63,7 +87,7 @@ jobs:
         id: user_health
         uses: jtalk/url-health-check-action@v4
         with:
-          url: ${{ matrix.base_url }}/api/health/users
+          url: ${{ env.CURRENT_BASE_URL }}/api/health/users
           max-attempts: 3
           retry-delay: 5s
           retry-all: true
@@ -73,7 +97,7 @@ jobs:
         id: report_health
         uses: jtalk/url-health-check-action@v4
         with:
-          url: ${{ matrix.base_url }}/api/health/reports
+          url: ${{ env.CURRENT_BASE_URL }}/api/health/reports
           max-attempts: 3
           retry-delay: 5s
           retry-all: true
@@ -97,20 +121,85 @@ jobs:
             echo "message=Some services are down" >> $GITHUB_OUTPUT
           fi
       
+      - name: Set slack channel
+        id: set_slack_channel
+        run: |
+          if [[ -n "$SLACK_CHANNEL" ]]; then
+            echo "channel=$SLACK_CHANNEL" >> $GITHUB_OUTPUT
+          else
+            echo "channel=monitoring" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set slack color
+        id: set_slack_color
+        run: |
+          if [[ "${{ steps.overall_status.outputs.status }}" == "success" ]]; then
+            echo "color=good" >> $GITHUB_OUTPUT
+          else
+            echo "color=danger" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Format service status
+        id: format_status
+        run: |
+          # 각 서비스 상태를 이모지로 변환
+          AUTH_EMOJI="❌"
+          if [[ "${{ steps.auth_health.outcome }}" == "success" ]]; then
+            AUTH_EMOJI="✅"
+          fi
+
+          REALTIME_EMOJI="❌"
+          if [[ "${{ steps.realtime_health.outcome }}" == "success" ]]; then
+            REALTIME_EMOJI="✅"
+          fi
+
+          SESSION_EMOJI="❌"
+          if [[ "${{ steps.session_health.outcome }}" == "success" ]]; then
+            SESSION_EMOJI="✅"
+          fi
+
+          FEEDBACK_EMOJI="❌"
+          if [[ "${{ steps.feedback_health.outcome }}" == "success" ]]; then
+            FEEDBACK_EMOJI="✅"
+          fi
+
+          USER_EMOJI="❌"
+          if [[ "${{ steps.user_health.outcome }}" == "success" ]]; then
+            USER_EMOJI="✅"
+          fi
+
+          REPORT_EMOJI="❌"
+          if [[ "${{ steps.report_health.outcome }}" == "success" ]]; then
+            REPORT_EMOJI="✅"
+          fi
+
+          MESSAGE="*${{ steps.overall_status.outputs.message }} in ${{ matrix.environment }} environment*"
+          MESSAGE="${MESSAGE}"$'\n'$'\n'"Auth Service: ${AUTH_EMOJI}"
+          MESSAGE="${MESSAGE}"$'\n'"Realtime Service: ${REALTIME_EMOJI}"
+          MESSAGE="${MESSAGE}"$'\n'"Session Service: ${SESSION_EMOJI}"
+          MESSAGE="${MESSAGE}"$'\n'"Feedback Service: ${FEEDBACK_EMOJI}"
+          MESSAGE="${MESSAGE}"$'\n'"User Service: ${USER_EMOJI}"
+          MESSAGE="${MESSAGE}"$'\n'"Report Service: ${REPORT_EMOJI}"
+          
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo "$MESSAGE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Set webhook URL
+        id: set_webhook
+        run: |
+          if [[ -n "$SLACK_WEBHOOK" ]]; then
+            echo "webhook=$SLACK_WEBHOOK" >> $GITHUB_OUTPUT
+          else
+            echo "webhook=https://hooks.slack.com/services/dummy/dummy/dummy" >> $GITHUB_OUTPUT
+          fi
+      
       - name: Send status to Slack
         uses: rtCamp/action-slack-notify@v2
         env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL || 'monitoring' }}
-          SLACK_COLOR: ${{ steps.overall_status.outputs.status == 'success' && 'good' || 'danger' }}
+          SLACK_WEBHOOK: ${{ steps.set_webhook.outputs.webhook }}
+          SLACK_CHANNEL: ${{ steps.set_slack_channel.outputs.channel }}
+          SLACK_COLOR: ${{ steps.set_slack_color.outputs.color }}
           SLACK_TITLE: Service Health Check - ${{ matrix.environment }}
-          SLACK_MESSAGE: |
-            *${{ steps.overall_status.outputs.message }} in ${{ matrix.environment }} environment*
-            
-            Auth Service: ${{ steps.auth_health.outcome == 'success' && '✅' || '❌' }}
-            Realtime Service: ${{ steps.realtime_health.outcome == 'success' && '✅' || '❌' }}
-            Session Service: ${{ steps.session_health.outcome == 'success' && '✅' || '❌' }}
-            Feedback Service: ${{ steps.feedback_health.outcome == 'success' && '✅' || '❌' }}
-            User Service: ${{ steps.user_health.outcome == 'success' && '✅' || '❌' }}
-            Report Service: ${{ steps.report_health.outcome == 'success' && '✅' || '❌' }}
+          SLACK_MESSAGE: ${{ steps.format_status.outputs.message }}
           SLACK_FOOTER: 'Haptitalk Service Monitoring'
