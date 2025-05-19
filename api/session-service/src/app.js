@@ -14,6 +14,7 @@ const errorHandler = require('./middleware/errorHandler.middleware');
 const logger = require('./utils/logger');
 const metrics = require('./utils/metrics');
 const { v4: uuidv4 } = require('uuid');
+const { swaggerUi, specs } = require('./utils/swagger');
 
 // 환경변수 로드
 dotenv.config();
@@ -71,6 +72,9 @@ app.use(express.urlencoded({extended: true})); // URL 인코딩 파싱
 
 // 라우트 설정
 app.use('/api/v1/sessions', sessionRoutes);
+
+// Swagger UI 설정
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, { explorer: true }));
 
 // 상태 확인 라우트
 app.get('/health', (req, res) => {

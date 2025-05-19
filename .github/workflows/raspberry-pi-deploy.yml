@@ -1,0 +1,455 @@
+name: Deploy to Raspberry Pi
+
+on:
+  workflow_run:
+    workflows:
+      - Backend CI
+      - Infrastructure CI
+    types:
+      - completed
+    branches:
+      - main
+      - develop
+  # 수동 실행도 지원
+  workflow_dispatch:
+    inputs:
+      deploy_specific_services:
+        description: '특정 서비스만 배포 (쉼표로 구분)'
+        required: false
+        default: ''
+        type: string
+      force_restart:
+        description: '전체 서비스 강제 재시작'
+        required: false
+        default: false
+        type: boolean
+      backup_before_deploy:
+        description: '배포 전 데이터 백업'
+        required: false
+        default: true
+        type: boolean
+      skip_verification:
+        description: '배포 후 검증 단계 건너뛰기'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  prepare_deployment:
+    name: Prepare Deployment
+    runs-on: ubuntu-latest
+    # 수정: 수동 실행 시 항상 성공, 자동 실행 시 선행 워크플로우가 성공한 경우에만 실행
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      environment: ${{ steps.set_env.outputs.environment }}
+      specific_services: ${{ steps.set_env.outputs.specific_services }}
+      force_restart: ${{ steps.set_env.outputs.force_restart }}
+      backup_before_deploy: ${{ steps.set_env.outputs.backup_before_deploy }}
+      skip_verification: ${{ steps.set_env.outputs.skip_verification }}
+    steps:
+      - id: set_env
+        run: |
+          if [[ "${{ github.event.workflow_run.head_branch || github.ref_name }}" == "main" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=development" >> $GITHUB_OUTPUT
+          fi
+          
+          # 수동 실행 시 입력 파라미터 처리
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "specific_services=${{ github.event.inputs.deploy_specific_services }}" >> $GITHUB_OUTPUT
+            
+            # 불리언 값을 문자열로 변환하여 저장
+            if [[ "${{ github.event.inputs.force_restart }}" == "true" ]]; then
+              echo "force_restart=true" >> $GITHUB_OUTPUT
+            else
+              echo "force_restart=false" >> $GITHUB_OUTPUT
+            fi
+            
+            if [[ "${{ github.event.inputs.backup_before_deploy }}" == "true" ]]; then
+              echo "backup_before_deploy=true" >> $GITHUB_OUTPUT
+            else
+              echo "backup_before_deploy=false" >> $GITHUB_OUTPUT
+            fi
+            
+            if [[ "${{ github.event.inputs.skip_verification }}" == "true" ]]; then
+              echo "skip_verification=true" >> $GITHUB_OUTPUT
+            else
+              echo "skip_verification=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "specific_services=" >> $GITHUB_OUTPUT
+            echo "force_restart=false" >> $GITHUB_OUTPUT
+            echo "backup_before_deploy=true" >> $GITHUB_OUTPUT
+            echo "skip_verification=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # 실행 정보 출력
+          echo "배포 환경: ${{ github.event.workflow_run.head_branch || github.ref_name }}"
+          echo "실행 방식: ${{ github.event_name }}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "수동 배포 옵션:"
+            echo " - 특정 서비스: ${{ github.event.inputs.deploy_specific_services || '없음 (전체 배포)' }}"
+            echo " - 강제 재시작: ${{ github.event.inputs.force_restart }}"
+            echo " - 데이터 백업: ${{ github.event.inputs.backup_before_deploy }}"
+            echo " - 검증 건너뛰기: ${{ github.event.inputs.skip_verification }}"
+          fi
+
+  check_raspberry_pi:
+    name: Check Raspberry Pi Health
+    needs: prepare_deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.RASPBERRY_PI_SSH_KEY }}
+      
+      - name: Check Disk Space
+        id: disk_check
+        run: |
+          # 디스크 공간 확인
+          DISK_INFO=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            df -h | grep -E "/$"
+          ')
+          
+          # 디스크 사용량 추출 (% 제거)
+          DISK_USAGE=$(echo "$DISK_INFO" | awk '{print $5}' | sed 's/%//')
+          echo "disk_usage=$DISK_USAGE" >> $GITHUB_OUTPUT
+          
+          # 사용 가능한 공간 확인 (MB 단위)
+          AVAILABLE_SPACE=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            df -m | grep -E "/$" | awk "{print \$4}"
+          ')
+          echo "available_space=${AVAILABLE_SPACE}MB" >> $GITHUB_OUTPUT
+          
+          # 최소 필요 공간: 500MB
+          if [ "$AVAILABLE_SPACE" -lt 500 ]; then
+            echo "disk_warning=true" >> $GITHUB_OUTPUT
+          else
+            echo "disk_warning=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Check RAM
+        id: ram_check
+        run: |
+          # 메모리 정보 확인
+          RAM_INFO=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            free -m | grep "Mem:"
+          ')
+          
+          # 사용 가능한 메모리 추출 (MB)
+          AVAILABLE_RAM=$(echo "$RAM_INFO" | awk '{print $7}')
+          echo "available_ram=${AVAILABLE_RAM}MB" >> $GITHUB_OUTPUT
+          
+          # 최소 필요 메모리: 200MB
+          if [ "$AVAILABLE_RAM" -lt 200 ]; then
+            echo "ram_warning=true" >> $GITHUB_OUTPUT
+          else
+            echo "ram_warning=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Display Resource Info
+        run: |
+          echo "디스크 사용량: ${{ steps.disk_check.outputs.disk_usage }}%"
+          echo "사용 가능한 디스크 공간: ${{ steps.disk_check.outputs.available_space }}"
+          echo "사용 가능한 메모리: ${{ steps.ram_check.outputs.available_ram }}"
+      
+      - name: Clean Up if Necessary
+        if: steps.disk_check.outputs.disk_warning == 'true'
+        run: |
+          echo "디스크 공간 부족, 정리 작업 수행 중..."
+          ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            # 미사용 도커 리소스 정리
+            docker system prune -af --volumes
+            
+            # 로그 파일 정리
+            find /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk -name "*.log" -type f -exec rm -f {} \;
+            
+            # 임시 파일 삭제
+            sudo find /tmp -type f -atime +5 -delete
+          '
+          
+          # 정리 후 디스크 공간 다시 확인
+          DISK_USAGE_AFTER=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            df -h | grep -E "/$" | awk "{print \$5}" | sed "s/%//"
+          ')
+          
+          echo "정리 후 디스크 사용량: ${DISK_USAGE_AFTER}%"
+
+  backup_data:
+    name: Backup Data
+    needs: [prepare_deployment, check_raspberry_pi]
+    runs-on: ubuntu-latest
+    if: needs.prepare_deployment.outputs.backup_before_deploy == 'true'
+    steps:
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.RASPBERRY_PI_SSH_KEY }}
+      
+      - name: Create Backup
+        run: |
+          # 배포 전 데이터 백업 (볼륨, 환경 변수 등)
+          BACKUP_DATE=$(date +%Y%m%d_%H%M%S)
+          ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
+            
+            # 백업 디렉토리 생성
+            mkdir -p backups
+            
+            # 환경 변수 파일 백업
+            if [ -f ".env" ]; then
+              cp .env backups/.env.backup_$BACKUP_DATE
+            fi
+            
+            # 중요 볼륨 데이터 백업 (예: PostgreSQL)
+            # 주의: 대용량 데이터의 경우 별도 스크립트를 통해 선택적으로 백업하는 것이 좋음
+            if docker volume ls | grep -q "postgres_data"; then
+              docker run --rm -v postgres_data:/data -v /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/backups:/backup alpine \
+                tar czf /backup/postgres_data_$BACKUP_DATE.tar.gz /data
+            fi
+            
+            echo "백업 완료: backups/ 디렉토리에 저장됨"
+          '
+
+  deploy_to_raspberry_pi:
+    name: Deploy to Raspberry Pi
+    needs: [prepare_deployment, check_raspberry_pi, backup_data]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.prepare_deployment.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.RASPBERRY_PI_SSH_KEY }}
+      
+      - name: Transfer Docker Compose Files
+        run: |
+          # Docker Compose 파일 전송
+          scp -o StrictHostKeyChecking=no docker-compose.yml ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }}:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+          
+          # .env 파일 생성 및 전송 (필요한 환경 변수 포함)
+          cat > .env << EOL
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          POSTGRES_VOLUME_NAME=postgres_data
+          POSTGRES_PORT=5432
+          
+          MONGO_USER=${{ secrets.MONGO_USER }}
+          MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }}
+          MONGO_DB=${{ secrets.MONGO_DB }}
+          MONGODB_VOLUME_NAME=mongodb_data
+          MONGO_PORT=27017
+          
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+          REDIS_VOLUME_NAME=redis_data
+          REDIS_PORT=6379
+          
+          ZOOKEEPER_PORT=2181
+          KAFKA_PORT=9092
+          KAFKA_UI_PORT=8080
+          
+          KONG_PROXY_PORT=8000
+          KONG_HTTPS_PORT=8443
+          KONG_ADMIN_PORT=8001
+          KONG_VOLUME_NAME=kong_data
+          
+          JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
+          JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+          JWT_SESSION_SECRET=${{ secrets.JWT_SESSION_SECRET }}
+          JWT_ACCESS_EXPIRES_IN=15m
+          JWT_REFRESH_EXPIRES_IN=7d
+          JWT_SESSION_EXPIRES_IN=30d
+          
+          KAFKA_TOPIC_SESSION_EVENTS=session-events
+          KAFKA_TOPIC_ANALYSIS_RESULTS=analysis-results
+          KAFKA_TOPIC_FEEDBACK_COMMANDS=feedback-commands
+          KAFKA_TOPIC_USER_ACTIVITY=user-activity
+          
+          AUTH_SERVICE_PORT=3000
+          REALTIME_SERVICE_PORT=3001
+          SESSION_SERVICE_PORT=3002
+          FEEDBACK_SERVICE_PORT=3003
+          USER_SERVICE_PORT=3004
+          REPORT_SERVICE_PORT=3005
+          
+          LOG_LEVEL=info
+          FRONTEND_URL=http://${{ secrets.RASPBERRY_PI_IP }}:8080
+          EMAIL_FROM=no-reply@haptitalk.com
+          
+          # 라즈베리파이 배포 관련 추가 설정
+          DEPLOY_VERSION=$(date +%Y%m%d%H%M%S)
+          DEPLOY_ENVIRONMENT=${{ needs.prepare_deployment.outputs.environment }}
+          EOL
+          
+          scp -o StrictHostKeyChecking=no .env ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }}:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+          
+          # 인프라스트럭처 디렉토리 전송
+          scp -o StrictHostKeyChecking=no -r infrastructure ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }}:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+          
+          # 배포 스크립트 생성 및 전송
+          cat > deploy.sh << 'EOL'
+          #!/bin/bash
+          set -e
+          
+          # 배포 로그 시작
+          DEPLOY_LOG="/home/${USER}/haptitalk/logs/deploy_$(date +%Y%m%d_%H%M%S).log"
+          mkdir -p /home/${USER}/haptitalk/logs
+          
+          echo "===== 배포 시작: $(date) =====" | tee -a $DEPLOY_LOG
+          cd /home/${USER}/haptitalk
+          
+          # 디렉토리 구조 확인
+          mkdir -p infrastructure/database/postgres/init
+          mkdir -p infrastructure/database/mongodb/init
+          mkdir -p infrastructure/database/redis/init
+          mkdir -p infrastructure/api-gateway
+          mkdir -p infrastructure/messaging/kafka/init
+          mkdir -p infrastructure/static-web/html
+          
+          # 이미지 가져오기
+          echo "도커 이미지 업데이트 중..." | tee -a $DEPLOY_LOG
+          docker-compose pull
+          
+          # 기존 컨테이너 상태 저장 (롤백용)
+          echo "현재 컨테이너 상태 백업 중..." | tee -a $DEPLOY_LOG
+          docker-compose ps > /home/${USER}/haptitalk/container_state_before_deploy.txt
+          
+          # 특정 서비스만 재시작 여부 확인
+          SPECIFIC_SERVICES="$1"
+          FORCE_RESTART="$2"
+          
+          if [ "$FORCE_RESTART" == "true" ]; then
+            echo "강제 재시작 모드: 모든 컨테이너를 중지하고 재시작합니다." | tee -a $DEPLOY_LOG
+            docker-compose down --remove-orphans
+            docker-compose up -d
+          elif [ -n "$SPECIFIC_SERVICES" ]; then
+            echo "특정 서비스만 재시작: $SPECIFIC_SERVICES" | tee -a $DEPLOY_LOG
+            IFS=',' read -ra SERVICES <<< "$SPECIFIC_SERVICES"
+            for service in "${SERVICES[@]}"; do
+              echo "서비스 재시작: $service" | tee -a $DEPLOY_LOG
+              docker-compose stop $service
+              docker-compose rm -f $service
+              docker-compose up -d $service
+            done
+          else
+            echo "인프라 서비스 배포 중..." | tee -a $DEPLOY_LOG
+            docker-compose up -d postgres mongodb redis zookeeper kafka kafka-ui kafka-init kong static-web
+          fi
+          
+          # 배포 완료 확인
+          echo "컨테이너 상태:" | tee -a $DEPLOY_LOG
+          docker-compose ps | tee -a $DEPLOY_LOG
+          
+          echo "===== 배포 완료: $(date) =====" | tee -a $DEPLOY_LOG
+          EOL
+          
+          chmod +x deploy.sh
+          scp -o StrictHostKeyChecking=no deploy.sh ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }}:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+      
+      - name: Create Docker Network
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            docker network create haptitalk_network || echo "Network already exists"
+          '
+      
+      - name: Deploy Services
+        id: deploy
+        run: |
+          # 배포 실행
+          SPECIFIC_SERVICES="${{ needs.prepare_deployment.outputs.specific_services }}"
+          FORCE_RESTART="${{ needs.prepare_deployment.outputs.force_restart }}"
+          
+          ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} "
+            cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
+            ./deploy.sh \"$SPECIFIC_SERVICES\" \"$FORCE_RESTART\"
+          "
+      
+      - name: Verify Deployment
+        id: verify
+        run: |
+          # 배포 검증
+          VERIFICATION=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
+            
+            # 주요 서비스 상태 확인
+            echo "===== 서비스 상태 ====="
+            docker-compose ps
+            
+            # 서비스별 Health Check
+            echo "===== 헬스 체크 ====="
+            POSTGRES_HEALTH=$(docker-compose exec -T postgres pg_isready 2>/dev/null && echo "OK" || echo "FAIL")
+            echo "PostgreSQL: $POSTGRES_HEALTH"
+            
+            REDIS_HEALTH=$(docker-compose exec -T redis redis-cli -a "$REDIS_PASSWORD" ping 2>/dev/null && echo "OK" || echo "FAIL")
+            echo "Redis: $REDIS_HEALTH"
+            
+            KONG_HEALTH=$(docker-compose exec -T kong kong health 2>/dev/null && echo "OK" || echo "FAIL")
+            echo "Kong: $KONG_HEALTH"
+            
+            # 최근 로그 확인 (오류 여부)
+            echo "===== 최근 오류 로그 ====="
+            docker-compose logs --tail=50 | grep -i "error\|exception\|fatal" || echo "최근 오류 없음"
+          ')
+          
+          echo "$VERIFICATION"
+          
+          # 주요 서비스가 정상적으로 실행 중인지 확인
+          if echo "$VERIFICATION" | grep -q "FAIL"; then
+            echo "deploy_success=false" >> $GITHUB_OUTPUT
+            echo "verification_result=일부 서비스가 정상 작동하지 않습니다." >> $GITHUB_OUTPUT
+          else
+            echo "deploy_success=true" >> $GITHUB_OUTPUT
+            echo "verification_result=모든 서비스가 정상 작동합니다." >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Rollback if Necessary
+        if: steps.verify.outputs.deploy_success == 'false'
+        run: |
+          echo "배포 검증 실패, 롤백을 진행합니다..."
+          
+          ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+            cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
+            
+            # 이전 상태로 롤백
+            echo "===== 롤백 시작 ====="
+            docker-compose down --remove-orphans
+            
+            # 이전 이미지로 롤백 (가장 최근 태그가 아닌 이전 태그 사용)
+            DEPLOY_VERSION=$(date +%Y%m%d)
+            if [ -f ".env.prev" ]; then
+              cp .env.prev .env
+            fi
+            
+            # 서비스 재시작
+            docker-compose up -d
+            
+            echo "===== 롤백 완료 ====="
+            docker-compose ps
+          '
+      
+      - name: Send Notification
+        if: always()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL || 'deployments' }}
+          SLACK_COLOR: ${{ (steps.verify.outputs.deploy_success == 'false' && 'danger') || job.status }}
+          SLACK_TITLE: Raspberry Pi Deployment - ${{ needs.prepare_deployment.outputs.environment }}
+          SLACK_MESSAGE: |
+            *라즈베리파이 배포 결과*
+            
+            *환경:* ${{ needs.prepare_deployment.outputs.environment }}
+            *상태:* ${{ steps.verify.outputs.deploy_success == 'false' && '❌ 배포 실패 (롤백 완료)' || '✅ 배포 성공' }}
+            *배포 서비스:* ${{ needs.prepare_deployment.outputs.specific_services || '전체 서비스' }}
+            *강제 재시작:* ${{ needs.prepare_deployment.outputs.force_restart }}
+            
+            *검증 결과:* ${{ steps.verify.outputs.verification_result || '검증 정보 없음' }}
+            
+            *디스크 공간:* ${{ steps.disk_check.outputs.disk_usage }}% 사용 (가용: ${{ steps.disk_check.outputs.available_space }})
+            *메모리:* 가용 ${{ steps.ram_check.outputs.available_ram }}
+          SLACK_FOOTER: 'Haptitalk CI/CD - $(date +%Y-%m-%d %H:%M:%S)'

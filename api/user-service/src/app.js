@@ -11,6 +11,7 @@ const routes = require('./routes');
 const logger = require('./utils/logger');
 const metrics = require('./utils/metrics');
 const { v4: uuidv4 } = require('uuid');
+const { swaggerUi, specs } = require('./utils/swagger');
 
 // Express 앱 초기화
 const app = express();
@@ -57,6 +58,9 @@ app.get('/health', (req, res) => {
 
 // API 라우트 설정
 app.use('/api/v1/users', routes);
+
+// Swagger UI 설정
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, { explorer: true }));
 
 // 로깅 에러 미들웨어 추가
 app.use(logger.errorMiddleware);

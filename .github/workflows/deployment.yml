@@ -1,0 +1,124 @@
+name: Continuous Deployment
+
+on:
+  workflow_run:
+    workflows:
+      - Backend CI
+      - Mobile App CI
+      - WatchOS CI
+      - AI Services CI
+      - Infrastructure CI
+    types:
+      - completed
+    branches:
+      - main
+      - develop
+
+jobs:
+  prepare_deployment:
+    name: Prepare Deployment
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      environment: ${{ steps.set_env.outputs.environment }}
+    steps:
+      - id: set_env
+        run: |
+          if [[ "${{ github.event.workflow_run.head_branch }}" == "main" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=development" >> $GITHUB_OUTPUT
+          fi
+
+  deploy:
+    name: Deploy to Environment
+    needs: prepare_deployment
+    runs-on: ubuntu-latest
+    environment: ${{ needs.prepare_deployment.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      
+      - name: Deploy to environment
+        run: |
+          ENVIRONMENT=${{ needs.prepare_deployment.outputs.environment }}
+          echo "Deploying to $ENVIRONMENT environment"
+          
+          if [[ "$ENVIRONMENT" == "development" ]]; then
+            scp -o StrictHostKeyChecking=no docker-compose.yml ${{ secrets.SSH_USER }}@${{ secrets.DEV_SERVER_IP }}:/home/${{ secrets.SSH_USER }}/haptitalk/
+            ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.DEV_SERVER_IP }} '
+              cd /home/${{ secrets.SSH_USER }}/haptitalk
+              docker-compose pull
+              docker-compose down --remove-orphans
+              docker-compose up -d
+            '
+          elif [[ "$ENVIRONMENT" == "production" ]]; then
+            # 프로덕션 환경에서는 Kubernetes를 사용하는 경우
+            if [[ "${{ secrets.USE_K8S }}" == "true" ]]; then
+              echo "Deploying to Kubernetes"
+              # kubectl 설정
+              aws eks --region ${{ secrets.AWS_REGION }} update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }}
+              
+              # Helm 사용하여 배포
+              helm upgrade --install haptitalk ./kubernetes/helm/haptitalk \
+                --namespace ${{ secrets.K8S_NAMESPACE }} \
+                --set global.environment=production \
+                --set global.imageTag=latest \
+                --wait
+            else
+              # 단일 서버에 배포하는 경우
+              scp -o StrictHostKeyChecking=no docker-compose.yml ${{ secrets.SSH_USER }}@${{ secrets.PROD_SERVER_IP }}:/home/${{ secrets.SSH_USER }}/haptitalk/
+              ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.PROD_SERVER_IP }} '
+                cd /home/${{ secrets.SSH_USER }}/haptitalk
+                docker-compose pull
+                docker-compose down --remove-orphans
+                docker-compose up -d
+              '
+            fi
+          fi
+      
+      - name: Verify Deployment
+        run: |
+          ENVIRONMENT=${{ needs.prepare_deployment.outputs.environment }}
+          
+          if [[ "$ENVIRONMENT" == "development" ]]; then
+            # 개발 환경 서비스 확인
+            ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.DEV_SERVER_IP }} '
+              docker-compose ps
+              docker-compose logs --tail=50
+            '
+          elif [[ "$ENVIRONMENT" == "production" ]]; then
+            if [[ "${{ secrets.USE_K8S }}" == "true" ]]; then
+              # Kubernetes 상태 확인
+              kubectl get pods -n ${{ secrets.K8S_NAMESPACE }}
+              kubectl get services -n ${{ secrets.K8S_NAMESPACE }}
+            else
+              # 프로덕션 서버 상태 확인
+              ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.PROD_SERVER_IP }} '
+                docker-compose ps
+                docker-compose logs --tail=50
+              '
+            fi
+          fi
+      
+      - name: Send Notification
+        if: always()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL || 'deployments' }}
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_TITLE: Deployment to ${{ needs.prepare_deployment.outputs.environment }}
+          SLACK_MESSAGE: Deployment to ${{ needs.prepare_deployment.outputs.environment }} ${{ job.status == 'success' && 'succeeded' || 'failed' }}
+          SLACK_FOOTER: 'Haptitalk CI/CD'

@@ -12,6 +12,7 @@ const routes = require('./routes');
 const appConfig = require('./config/app');
 const {connectToMongoDB} = require('./config/mongodb');
 const { v4: uuidv4 } = require('uuid');
+const { swaggerUi, specs } = require('./utils/swagger');
 
 // Express 앱 초기화
 const app = express();
@@ -52,6 +53,9 @@ app.use(express.urlencoded({extended: true}));
 
 // API 라우트 설정
 app.use('/api/v1/feedback', routes);
+
+// Swagger UI 설정
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, { explorer: true }));
 
 // 헬스체크 엔드포인트
 app.get('/health', (req, res) => {
