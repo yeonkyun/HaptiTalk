@@ -15,7 +15,7 @@ on:
       - '.github/workflows/infrastructure-ci.yml'
 
 jobs:
-  validate:
+  infra_validate:
     name: Validate Infrastructure Configuration
     runs-on: ubuntu-latest
     steps:
@@ -57,10 +57,10 @@ jobs:
             done
           fi
 
-  build_kong_config:
+  infra_build_kong:
     name: Build Kong Config
     runs-on: ubuntu-latest
-    needs: validate
+    needs: infra_validate
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     steps:
       - uses: actions/checkout@v4
