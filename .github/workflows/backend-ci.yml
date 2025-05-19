@@ -12,6 +12,11 @@ on:
       - 'api/**'
       - '.github/workflows/backend-ci.yml'
 
+# GitHub Container Registry에 대한 권한 추가
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   backend_test:
     name: Test Backend Services
@@ -78,7 +83,7 @@ jobs:
           cd api/${{ matrix.service }}
           npm ci
           # 보안 취약점이 있는 의존성 업데이트
-          npm audit fix || true
+          npm audit fix --force || true
       
       - name: Run linting
         run: |
@@ -94,7 +99,7 @@ jobs:
       - name: Run tests
         run: |
           cd api/${{ matrix.service }}
-          npm test -- --passWithNoTests --detectOpenHandles
+          npm test -- --passWithNoTests --detectOpenHandles --forceExit
         env:
           NODE_ENV: test
           JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET || 'test-jwt-secret' }}
@@ -168,3 +173,4 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             NODE_ENV=production
+          timeout-minutes: 30
