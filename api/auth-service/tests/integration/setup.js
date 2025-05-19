@@ -7,14 +7,15 @@ const testDbConfig = {
     password: process.env.POSTGRES_PASSWORD || 'postgres',
     host: process.env.POSTGRES_HOST || 'localhost',
     port: process.env.POSTGRES_PORT || 5432,
-    database: process.env.POSTGRES_DB || 'haptitalk_test'
+    database: process.env.POSTGRES_DB || 'haptitalk_test',
+    connectionTimeoutMillis: 5000
 };
 
 // 테스트용 Redis 설정
 const testRedisConfig = {
     host: process.env.REDIS_HOST || 'localhost',
     port: process.env.REDIS_PORT || 6379,
-    password: process.env.REDIS_PASSWORD || '',
+    password: process.env.REDIS_PASSWORD || 'redis',
     username: process.env.REDIS_USERNAME || '',
     socket: {
       connectTimeout: 10000, // 10초
@@ -98,10 +99,18 @@ async function cleanupTestDatabase() {
         } catch (truncateError) {
             console.warn('Tables might not exist, skipping truncate:', truncateError.message);
         }
+        
+        // pool.end()를 확실히 실행하고 대기
         await pool.end();
+        console.log('Database pool closed successfully');
     } catch (error) {
         console.error('Error cleaning up test database:', error);
-        // 에러를 무시하고 계속 진행
+        // 에러가 발생해도 pool을 강제 종료
+        try {
+            pool.end();
+        } catch (endError) {
+            console.error('Failed to forcefully close pool:', endError);
+        }
     }
 }
 
@@ -132,17 +141,32 @@ async function setupRedis() {
 async function cleanupRedis() {
     try {
         // Redis 클라이언트가 연결되어 있으면 정리 작업 수행
-        if (redisClient.isOpen) {
-            await redisClient.flushAll().catch(err => {
+        if (redisClient && redisClient.isOpen) {
+            try {
+                await redisClient.flushAll();
+            } catch (err) {
                 console.warn('Redis flushAll failed during cleanup:', err.message);
-            });
-            await redisClient.quit().catch(err => {
+            }
+            
+            try {
+                await redisClient.quit();
+                console.log('Redis client closed successfully');
+            } catch (err) {
                 console.warn('Redis quit failed:', err.message);
-            });
+                // 강제 종료 시도
+                redisClient.disconnect();
+            }
         }
     } catch (error) {
         console.error('Error cleaning up Redis:', error);
-        // 에러를 무시하고 계속 진행
+        // 강제 종료
+        if (redisClient) {
+            try {
+                redisClient.disconnect();
+            } catch (disconnectError) {
+                console.error('Failed to forcefully disconnect Redis:', disconnectError);
+            }
+        }
     }
 }
 

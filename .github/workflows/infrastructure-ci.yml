@@ -18,11 +18,66 @@ jobs:
   infra_validate:
     name: Validate Infrastructure Configuration
     runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: haptitalk_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
     steps:
       - uses: actions/checkout@v4
       
       - name: Validate docker-compose.yml
         run: |
+          # 기본 환경 변수 설정
+          export POSTGRES_USER=${{ secrets.POSTGRES_USER || 'postgres' }}
+          export POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD || 'postgres' }}
+          export POSTGRES_DB=${{ secrets.POSTGRES_DB || 'haptitalk' }}
+          export POSTGRES_VOLUME_NAME=postgres_data
+          export MONGO_USER=${{ secrets.MONGO_USER || 'mongo' }}
+          export MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD || 'mongo' }}
+          export MONGO_DB=${{ secrets.MONGO_DB || 'haptitalk' }}
+          export MONGODB_VOLUME_NAME=mongodb_data
+          export REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD || 'redis' }}
+          export REDIS_VOLUME_NAME=redis_data
+          export KONG_VOLUME_NAME=kong_data
+          export REDIS_PORT=6379
+          export AUTH_SERVICE_PORT=3000
+          export REALTIME_SERVICE_PORT=3001
+          export SESSION_SERVICE_PORT=3002
+          export FEEDBACK_SERVICE_PORT=3003
+          export USER_SERVICE_PORT=3004
+          export REPORT_SERVICE_PORT=3005
+          export JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET || 'test_jwt_access_secret' }}
+          export JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET || 'test_jwt_refresh_secret' }}
+          export JWT_SESSION_SECRET=${{ secrets.JWT_SESSION_SECRET || 'test_jwt_session_secret' }}
+          export LOG_LEVEL=info
+          export KAFKA_TOPIC_SESSION_EVENTS=session-events
+          export KAFKA_TOPIC_ANALYSIS_RESULTS=analysis-results
+          export KAFKA_TOPIC_FEEDBACK_COMMANDS=feedback-commands
+          export KAFKA_TOPIC_USER_ACTIVITY=user-activity
+          
+          # Docker Compose 설정 검증
           docker compose -f docker-compose.yml config
       
       - name: Lint Kong configuration

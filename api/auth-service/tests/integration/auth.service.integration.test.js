@@ -6,12 +6,12 @@ describe('AuthService Integration Tests', () => {
     beforeAll(async () => {
         await setupTestDatabase();
         await setupRedis();
-    });
+    }, 30000);
 
     afterAll(async () => {
         await cleanupTestDatabase();
         await cleanupRedis();
-    });
+    }, 30000);
 
     describe('register', () => {
         it('should register a new user and store in database', async () => {

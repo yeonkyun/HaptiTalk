@@ -10,5 +10,6 @@ module.exports = {
     ],
     verbose: true,
     detectOpenHandles: true,
-    testTimeout: 10000
+    forceExit: true,
+    testTimeout: 30000
 }; 
