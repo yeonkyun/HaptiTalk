@@ -1,17 +1,24 @@
 import SwiftUI
+import WatchKit
 
 struct SettingsView: View {
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var appState: AppState
-    @State private var currentTime: String = ""
     
     // 설정 상태들
     @State private var hapticIntensity: Double = 0.7  // 0.0 ~ 1.0 사이의 값 (3~5 사이를 표현)
+    @State private var hapticCount: Int = 2          // 햅틱 피드백 횟수 (1~5회)
     @State private var notificationStyle: NotificationStyle = .full
     @State private var isWatchfaceComplicationEnabled: Bool = true
     @State private var isBatterySavingEnabled: Bool = false
     
-    let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+    // 햅틱 테스트 관련 상태
+    @State private var isTestingHaptic: Bool = false
+    @State private var hapticFeedbackMessage: String = ""
+    @State private var showHapticFeedbackMessage: Bool = false
+    
+    // 화면 너비 계산
+    private let screenWidth = WKInterfaceDevice.current().screenBounds.width
     
     enum NotificationStyle: String, CaseIterable {
         case none = "없음"
@@ -20,217 +27,268 @@ struct SettingsView: View {
     }
     
     var body: some View {
-        ZStack {
-            Color.black.edgesIgnoringSafeArea(.all)
-            
-            VStack(spacing: 0) {
-                // 상단 시간 표시
-                HStack {
-                    Spacer()
-                    Text(currentTime)
-                        .font(.system(size: 10, weight: .bold))
+        VStack(spacing: 0) {
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(spacing: 16) {
+                    // 제목
+                    Text("설정")
+                        .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(.white)
+                        .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 8)
-                        .padding(.trailing, 15)
-                }
-                
-                // 헤더
-                Text("설정")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.top, 15)
-                
-                ScrollView {
-                    VStack(spacing: 10) {
+                    
+                    VStack(spacing: 14) {
                         // 햅틱 강도 설정
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.white.opacity(0.1))
-                                .frame(height: 53)
-                            
-                            VStack(spacing: 8) {
+                        settingCard {
+                            VStack(spacing: 10) {
                                 HStack {
                                     Text("햅틱 강도")
-                                        .font(.system(size: 11, weight: .semibold))
+                                        .font(.system(size: 15, weight: .semibold))
                                         .foregroundColor(.white)
                                     Spacer()
                                 }
                                 
                                 HStack {
                                     Text("3")
-                                        .font(.system(size: 10))
-                                        .foregroundColor(Color(UIColor.lightGray))
+                                        .font(.system(size: 13))
+                                        .foregroundColor(.gray)
+                                    
+                                    // 슬라이더 컴포넌트
+                                    let sliderWidth = screenWidth * 0.6
                                     
                                     ZStack(alignment: .leading) {
                                         Rectangle()
-                                            .fill(Color(UIColor(red: 0.26, green: 0.26, blue: 0.26, alpha: 1.0))) // #424242
-                                            .frame(height: 3)
-                                            .cornerRadius(1.5)
+                                            .fill(Color.gray.opacity(0.5))
+                                            .frame(height: 5)
+                                            .cornerRadius(2.5)
                                         
                                         Rectangle()
-                                            .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
-                                            .frame(width: 104 * hapticIntensity, height: 3)
-                                            .cornerRadius(1.5)
+                                            .fill(Color.blue)
+                                            .frame(width: sliderWidth * hapticIntensity, height: 5)
+                                            .cornerRadius(2.5)
                                         
                                         Circle()
-                                            .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
-                                            .frame(width: 10, height: 10)
-                                            .offset(x: 104 * hapticIntensity - 5)
+                                            .fill(Color.blue)
+                                            .frame(width: 18, height: 18)
+                                            .offset(x: sliderWidth * hapticIntensity - 9)
                                     }
-                                    .frame(width: 104, height: 10)
+                                    .frame(width: sliderWidth, height: 18)
                                     .gesture(
                                         DragGesture(minimumDistance: 0)
                                             .onChanged { value in
-                                                let width: CGFloat = 104
-                                                let xPos = min(max(0, value.location.x), width)
-                                                hapticIntensity = xPos / width
+                                                let xPos = min(max(0, value.location.x), sliderWidth)
+                                                hapticIntensity = xPos / sliderWidth
                                             }
                                     )
                                     
                                     Text("5")
-                                        .font(.system(size: 10))
-                                        .foregroundColor(Color(UIColor.lightGray))
+                                        .font(.system(size: 13))
+                                        .foregroundColor(.gray)
                                 }
                             }
-                            .padding(.horizontal, 10)
                         }
                         
-                        // 알림 표시 방식
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.white.opacity(0.1))
-                                .frame(height: 67)
-                            
-                            VStack(spacing: 8) {
+                        // 햅틱 횟수 설정
+                        settingCard {
+                            VStack(spacing: 10) {
                                 HStack {
-                                    Text("알림 표시 방식")
-                                        .font(.system(size: 11, weight: .semibold))
+                                    Text("햅틱 횟수")
+                                        .font(.system(size: 15, weight: .semibold))
                                         .foregroundColor(.white)
                                     Spacer()
                                 }
                                 
-                                HStack(spacing: 0) {
+                                HStack {
+                                    ForEach(1...5, id: \.self) { count in
+                                        Button(action: {
+                                            hapticCount = count
+                                        }) {
+                                            Text("\(count)")
+                                                .font(.system(size: 14, weight: hapticCount == count ? .semibold : .regular))
+                                                .foregroundColor(hapticCount == count ? .white : .gray)
+                                                .frame(width: 32, height: 32)
+                                                .background(
+                                                    Circle()
+                                                        .fill(hapticCount == count ? Color.blue : Color.clear)
+                                                )
+                                                .overlay(
+                                                    Circle()
+                                                        .stroke(hapticCount == count ? Color.blue : Color.gray, lineWidth: 1)
+                                                )
+                                        }
+                                        
+                                        if count < 5 {
+                                            Spacer()
+                                        }
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                        }
+                        
+                        // 알림 표시 방식
+                        settingCard {
+                            VStack(spacing: 10) {
+                                HStack {
+                                    Text("알림 표시 방식")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                }
+                                
+                                HStack(spacing: 6) {
                                     ForEach(NotificationStyle.allCases, id: \.self) { style in
                                         Button(action: {
                                             notificationStyle = style
                                         }) {
                                             Text(style.rawValue)
-                                                .font(.system(size: 10))
-                                                .foregroundColor(notificationStyle == style ? .white : Color(UIColor.lightGray))
-                                                .frame(width: 49.33, height: 25)
+                                                .font(.system(size: 12))
+                                                .foregroundColor(notificationStyle == style ? .white : .gray)
+                                                .frame(maxWidth: .infinity)
+                                                .frame(height: 32)
                                                 .background(
                                                     notificationStyle == style ?
-                                                    Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0)) : // #3F51B5
+                                                    Color.blue :
                                                     Color.clear
                                                 )
                                                 .overlay(
-                                                    RoundedRectangle(cornerRadius: 0)
-                                                        .stroke(notificationStyle == style ? 
-                                                                Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0)) : // #3F51B5
-                                                                Color(UIColor(red: 0.26, green: 0.26, blue: 0.26, alpha: 1.0)), // #424242
+                                                    RoundedRectangle(cornerRadius: 8)
+                                                        .stroke(notificationStyle == style ?
+                                                                Color.blue :
+                                                                Color.gray,
                                                                 lineWidth: 1)
                                                 )
+                                                .cornerRadius(8)
                                         }
                                     }
                                 }
                             }
-                            .padding(.horizontal, 10)
                         }
                         
                         // 워치페이스 컴플리케이션
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.white.opacity(0.1))
-                                .frame(height: 58)
-                            
+                        settingCard {
                             HStack {
-                                VStack(alignment: .leading) {
-                                    Text("워치페이스 컴플리케이")
-                                        .font(.system(size: 11, weight: .semibold))
-                                        .foregroundColor(.white)
-                                    
-                                    Text("션")
-                                        .font(.system(size: 11, weight: .semibold))
-                                        .foregroundColor(.white)
-                                }
-                                
+                                Text("워치페이스 컴플리케이션")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundColor(.white)
                                 Spacer()
-                                
                                 Toggle("", isOn: $isWatchfaceComplicationEnabled)
                                     .labelsHidden()
-                                    .toggleStyle(SwitchToggleStyle(tint: Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0)))) // #3F51B5
+                                    .toggleStyle(SwitchToggleStyle(tint: Color.blue))
+                                    .scaleEffect(0.8)
                             }
-                            .padding(.horizontal, 10)
                         }
                         
                         // 배터리 절약 모드
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.white.opacity(0.1))
-                                .frame(height: 42)
-                            
+                        settingCard {
                             HStack {
                                 Text("배터리 절약 모드")
-                                    .font(.system(size: 11, weight: .semibold))
+                                    .font(.system(size: 15, weight: .semibold))
                                     .foregroundColor(.white)
-                                
                                 Spacer()
-                                
                                 Toggle("", isOn: $isBatterySavingEnabled)
                                     .labelsHidden()
-                                    .toggleStyle(SwitchToggleStyle(tint: Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0)))) // #3F51B5
+                                    .toggleStyle(SwitchToggleStyle(tint: Color.blue))
+                                    .scaleEffect(0.8)
                             }
-                            .padding(.horizontal, 10)
+                        }
+                        
+                        // 햅틱 피드백 테스트 버튼
+                        Button(action: {
+                            // 햅틱 강도 및 횟수를 AppState에 업데이트
+                            appState.hapticIntensity = hapticIntensity
+                            appState.hapticCount = hapticCount
+                            
+                            // 햅틱 피드백 테스트 실행
+                            appState.testHaptic()
+                            
+                            // 햅틱 피드백 메시지 표시
+                            displayHapticFeedbackMessage()
+                        }) {
+                            Text("햅틱 피드백 테스트")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(Color.indigo)
+                                )
+                        }
+                        
+                        // 햅틱 피드백 메시지 (테스트 후 표시)
+                        if showHapticFeedbackMessage {
+                            Text(hapticFeedbackMessage)
+                                .font(.system(size: 12))
+                                .foregroundColor(Color.green)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
                         }
                     }
-                    .padding(.top, 10)
-                    .padding(.horizontal, 10)
-                }
-                
-                Spacer()
-                
-                // 저장 버튼
-                Button(action: {
-                    // 설정 저장
-                    saveSettings()
                     
-                    // 화면 닫기
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Text("저장")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.white.opacity(0.15))
-                        )
+                    Spacer(minLength: 20)
+                    
+                    // 저장 버튼
+                    Button(action: {
+                        saveSettings()
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        Text("저장")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 18)
+                                    .fill(Color.blue)
+                            )
+                    }
+                    .padding(.bottom, 10)
                 }
-                .padding(.horizontal, 10)
-                .padding(.bottom, 20)
+                .padding(.horizontal, 16)
             }
-            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity)
+            // 가로 스크롤 제스처 비활성화
+            .contentShape(Rectangle())
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 5, coordinateSpace: .global)
+                    .onChanged { value in
+                        // 수직 방향 제스처만 허용, 수평 제스처는 무시
+                        let horizontalAmount = abs(value.translation.width)
+                        let verticalAmount = abs(value.translation.height)
+                        
+                        if horizontalAmount > verticalAmount {
+                            // 수평 제스처 무시
+                        }
+                        // 수직 제스처는 기본 스크롤 동작에 위임
+                    }
+            )
         }
+        .edgesIgnoringSafeArea(.bottom)
+        .background(Color.black.edgesIgnoringSafeArea(.all))
         .onAppear {
             // 앱 스테이트에서 현재 설정값 로드
             loadCurrentSettings()
-            updateCurrentTime()
-        }
-        .onReceive(timer) { _ in
-            updateCurrentTime()
         }
     }
     
-    private func updateCurrentTime() {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        currentTime = formatter.string(from: Date())
+    @ViewBuilder
+    private func settingCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.1))
+            
+            content()
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+        }
     }
     
     private func loadCurrentSettings() {
         // AppState에서 설정 값을 로드
         hapticIntensity = appState.hapticIntensity
+        hapticCount = appState.hapticCount
         
         switch appState.notificationStyle {
         case "없음":
@@ -250,9 +308,36 @@ struct SettingsView: View {
     private func saveSettings() {
         // AppState에 설정 값을 저장
         appState.hapticIntensity = hapticIntensity
+        appState.hapticCount = hapticCount
         appState.notificationStyle = notificationStyle.rawValue
         appState.isWatchfaceComplicationEnabled = isWatchfaceComplicationEnabled
         appState.isBatterySavingEnabled = isBatterySavingEnabled
+    }
+    
+    private func displayHapticFeedbackMessage() {
+        // 햅틱 강도 및 횟수에 따른 메시지 설정
+        var intensityText = ""
+        if hapticIntensity < 0.3 {
+            intensityText = "약한 강도 (3)"
+        } else if hapticIntensity < 0.6 {
+            intensityText = "중간 강도 (4)"
+        } else if hapticIntensity < 0.9 {
+            intensityText = "강한 강도 (4.5)"
+        } else {
+            intensityText = "최대 강도 (5)"
+        }
+        
+        hapticFeedbackMessage = "\(intensityText), \(hapticCount)회 햅틱 피드백이 전달되었습니다."
+        
+        // 메시지 표시
+        showHapticFeedbackMessage = true
+        
+        // 3초 후 메시지 숨기기
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            withAnimation {
+                showHapticFeedbackMessage = false
+            }
+        }
     }
 }
 

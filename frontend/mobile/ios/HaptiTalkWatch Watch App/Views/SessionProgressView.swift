@@ -34,177 +34,150 @@ struct SessionProgressView: View {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
             
-            VStack(spacing: 0) {
-                // 상단 시간 및 모드 표시
-                HStack {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color(UIColor(red: 0.91, green: 0.12, blue: 0.39, alpha: 1.0))) // #E91E63
-                            .frame(width: 55, height: 21.5)
-                        
-                        HStack(spacing: 4) {
-                            Image(systemName: "heart.fill")
-                                .resizable()
-                                .frame(width: 10, height: 10)
-                                .foregroundColor(.white)
+            ScrollView(.vertical) {
+                VStack(spacing: 0) {
+                    // 상단 시간 및 모드 표시
+                    HStack {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(UIColor(red: 0.91, green: 0.12, blue: 0.39, alpha: 1.0))) // #E91E63
+                                .frame(width: 55, height: 21.5)
                             
-                            Text(sessionMode)
-                                .font(.system(size: 9, weight: .semibold))
-                                .foregroundColor(.white)
+                            HStack(spacing: 4) {
+                                Image(systemName: "heart.fill")
+                                    .resizable()
+                                    .frame(width: 10, height: 10)
+                                    .foregroundColor(.white)
+                                
+                                Text(sessionMode)
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        Text(formattedTime)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
+                    }
+                    .padding(.top, 5)
+                    
+                    // 감정 상태 및 말하기 속도 표시
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white.opacity(0.1))
+                            .frame(height: 67)
+                        
+                        VStack(spacing: 8) {
+                            // 감정 상태
+                            HStack {
+                                Text("감정 상태")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
+                                
+                                Spacer()
+                                
+                                HStack(spacing: 4) {
+                                    Image(systemName: "face.smiling.fill")
+                                        .resizable()
+                                        .frame(width: 12, height: 12)
+                                        .foregroundColor(emotionColor)
+                                    
+                                    Text(emotionState)
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(emotionColor)
+                                }
+                            }
+                            
+                            // 말하기 속도
+                            VStack(spacing: 4) {
+                                Text("말하기 속도")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                
+                                ZStack(alignment: .leading) {
+                                    Rectangle()
+                                        .fill(Color.white.opacity(0.2))
+                                        .frame(height: 4)
+                                        .cornerRadius(2)
+                                    
+                                    Rectangle()
+                                        .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
+                                        .frame(width: WKInterfaceDevice.current().screenBounds.width * 0.75 * speakingSpeed, height: 4)
+                                        .cornerRadius(2)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                    }
+                    .padding(.top, 10)
+                    
+                    // 피드백 메시지
+                    if showFeedback {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 0.15))) // #3F51B5 with opacity
+                                .frame(height: 44)
+                            
+                            Text(feedbackMessage)
+                                .font(.system(size: 10))
+                                .foregroundColor(Color(UIColor(red: 0.56, green: 0.79, blue: 0.98, alpha: 1.0))) // #90CAF9
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 8)
+                        }
+                        .padding(.top, 10)
+                    }
+                    
+                    // 추천 대화 주제
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("추천 대화 주제")
+                            .font(.system(size: 10))
+                            .foregroundColor(Color(UIColor(red: 0.62, green: 0.62, blue: 0.62, alpha: 1.0))) // #9E9E9E
+                        
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                ForEach(recommendedTopics, id: \.self) { topic in
+                                    Text(topic)
+                                        .font(.system(size: 9))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 6)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .fill(Color(UIColor(red: 0.3, green: 0.69, blue: 0.31, alpha: 0.3))) // #4CAF50 with opacity
+                                                .stroke(Color(UIColor(red: 0.3, green: 0.69, blue: 0.31, alpha: 1.0)), lineWidth: 1)
+                                        )
+                                }
+                            }
                         }
                     }
+                    .padding(.top, 10)
                     
                     Spacer()
                     
-                    Text(formattedTime)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
-                }
-                .padding(.top, 5)
-                
-                // 감정 상태 및 말하기 속도 표시
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.white.opacity(0.1))
-                        .frame(height: 67)
-                    
-                    VStack(spacing: 8) {
-                        // 감정 상태
-                        HStack {
-                            Text("감정 상태")
-                                .font(.system(size: 10))
-                                .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
-                            
-                            Spacer()
-                            
-                            HStack(spacing: 4) {
-                                Image(systemName: "face.smiling.fill")
-                                    .resizable()
-                                    .frame(width: 12, height: 12)
-                                    .foregroundColor(emotionColor)
-                                
-                                Text(emotionState)
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .foregroundColor(emotionColor)
-                            }
-                        }
+                    // 종료 버튼
+                    Button(action: {
+                        // 세션 요약 저장
+                        saveSessionSummary()
                         
-                        // 말하기 속도
-                        VStack(spacing: 4) {
-                            Text("말하기 속도")
-                                .font(.system(size: 10))
-                                .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            
-                            ZStack(alignment: .leading) {
-                                Rectangle()
-                                    .fill(Color.white.opacity(0.2))
-                                    .frame(height: 4)
-                                    .cornerRadius(2)
-                                
-                                Rectangle()
-                                    .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
-                                    .frame(width: WKInterfaceDevice.current().screenBounds.width * 0.75 * speakingSpeed, height: 4)
-                                    .cornerRadius(2)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 10)
-                }
-                .padding(.top, 10)
-                
-                // 피드백 메시지
-                if showFeedback {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 0.15))) // #3F51B5 with opacity
-                            .frame(height: 44)
-                        
-                        Text(feedbackMessage)
-                            .font(.system(size: 10))
-                            .foregroundColor(Color(UIColor(red: 0.56, green: 0.79, blue: 0.98, alpha: 1.0))) // #90CAF9
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 8)
-                    }
-                    .padding(.top, 10)
-                }
-                
-                // 추천 대화 주제
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("추천 대화 주제")
-                        .font(.system(size: 10))
-                        .foregroundColor(Color(UIColor(red: 0.62, green: 0.62, blue: 0.62, alpha: 1.0))) // #9E9E9E
-                    
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
-                            ForEach(recommendedTopics, id: \.self) { topic in
-                                Text(topic)
-                                    .font(.system(size: 9))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color(UIColor(red: 0.3, green: 0.69, blue: 0.31, alpha: 0.3))) // #4CAF50 with opacity
-                                            .stroke(Color(UIColor(red: 0.3, green: 0.69, blue: 0.31, alpha: 1.0)), lineWidth: 1)
-                                    )
-                            }
-                        }
+                        // 세션 종료 및 세션 요약 화면으로 이동
+                        showSessionSummary = true
+                    }) {
+                        Text("세션 종료")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(Color(UIColor(red: 0.96, green: 0.26, blue: 0.21, alpha: 1.0))) // #F44336
+                            )
                     }
                 }
-                .padding(.top, 10)
-                
-                Spacer()
-                
-                // 테스트 햅틱 피드백 버튼 (데모용)
-                Button(action: {
-                    showHapticNotification(message: "상대방의 호감도가 상\n승했습니다.\n현재 대화 주제를 이어\n가세요.")
-                }) {
-                    Text("햅틱 피드백 테스트")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.indigo)
-                        )
-                }
-                .padding(.bottom, 10)
-                
-                // 종료 버튼
-                Button(action: {
-                    // 세션 요약 저장
-                    saveSessionSummary()
-                    
-                    // 세션 종료 및 세션 요약 화면으로 이동
-                    showSessionSummary = true
-                }) {
-                    Text("세션 종료")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color(UIColor(red: 0.96, green: 0.26, blue: 0.21, alpha: 1.0))) // #F44336
-                        )
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            
-            // 햅틱 피드백 알림 오버레이
-            if showHapticNotification {
-                HapticFeedbackNotificationView(
-                    sessionType: sessionMode,
-                    elapsedTime: formattedTime,
-                    message: hapticNotificationMessage,
-                    currentTime: getCurrentTimeString()
-                )
-                .onDisappear {
-                    showHapticNotification = false
-                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
             }
         }
         .fullScreenCover(isPresented: $showSessionSummary) {

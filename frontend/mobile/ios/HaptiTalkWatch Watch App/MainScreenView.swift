@@ -128,6 +128,21 @@ struct MainScreenView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 20)
+            // 가로 스와이프 제한을 위한 제스처 처리
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 5, coordinateSpace: .global)
+                    .onChanged { value in
+                        // 수평 스와이프 감지 및 무시
+                        let horizontalAmount = abs(value.translation.width)
+                        let verticalAmount = abs(value.translation.height)
+                        
+                        if horizontalAmount > verticalAmount {
+                            // 수평 제스처 무시
+                        }
+                        // 수직 제스처는 기본 동작 허용
+                    }
+            )
         }
         .sheet(isPresented: $showSessionModeSelection) {
             SessionModeSelectionView(onModeSelected: { mode in

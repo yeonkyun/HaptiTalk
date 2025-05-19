@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import WatchKit
 
 class AppState: ObservableObject {
     @Published var isConnected: Bool = true
@@ -25,6 +26,7 @@ class AppState: ObservableObject {
     
     // 설정 관련 상태
     @Published var hapticIntensity: Double = 0.7  // 0.0 ~ 1.0 사이의 값 (3~5 사이를 표현)
+    @Published var hapticCount: Int = 2           // 햅틱 피드백 횟수 (1~5회)
     @Published var notificationStyle: String = "전체"  // "없음", "아이콘", "전체"
     @Published var isWatchfaceComplicationEnabled: Bool = true
     @Published var isBatterySavingEnabled: Bool = false
@@ -61,7 +63,37 @@ class AppState: ObservableObject {
     
     // 햅틱 테스트 함수
     func testHaptic() {
-        // 실제 애플 워치 햅틱 구현 코드로 대체될 수 있습니다
+        // 햅틱 강도에 따라 다른 햅틱 피드백 제공
+        // hapticIntensity는 0.0~1.0 사이의 값
+        let device = WKInterfaceDevice.current()
+        
+        // 백그라운드 스레드에서 햅틱 실행
+        DispatchQueue.global().async {
+            // 설정된 횟수만큼 햅틱 피드백 반복
+            for _ in 0..<self.hapticCount {
+                // 강도에 따른 햅틱 피드백 타입 결정
+                if self.hapticIntensity < 0.3 {
+                    // 약한 강도 (레벨 3)
+                    device.play(.click)
+                } else if self.hapticIntensity < 0.6 {
+                    // 중간 강도 (레벨 4)
+                    device.play(.notification)
+                } else if self.hapticIntensity < 0.9 {
+                    // 강한 강도 (레벨 4.5)
+                    device.play(.directionUp)
+                } else {
+                    // 최대 강도 (레벨 5)
+                    device.play(.notification)
+                    Thread.sleep(forTimeInterval: 0.05)
+                    device.play(.directionUp)
+                }
+                
+                // 연속 햅틱 사이의 간격
+                if self.hapticCount > 1 {
+                    Thread.sleep(forTimeInterval: 0.2)
+                }
+            }
+        }
     }
     
     // 햅틱 피드백 알림 표시 함수
@@ -80,8 +112,8 @@ class AppState: ObservableObject {
     
     // 햅틱 피드백 발생 함수
     private func triggerHapticFeedback() {
-        // WKInterfaceDevice.current().play(.notification) 또는 다른 햅틱 패턴 사용
-        // 실제 구현에서는 여기에 햅틱 피드백 패턴 구현이 들어갈 수 있습니다
+        // 사용자가 설정한 햅틱 강도에 따라 피드백 제공
+        testHaptic()
     }
     
     // 세션 요약 저장 함수
