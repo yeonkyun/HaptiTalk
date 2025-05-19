@@ -8,5 +8,7 @@ module.exports = {
         '/node_modules/',
         '/tests/'
     ],
-    verbose: true
+    verbose: true,
+    detectOpenHandles: true,
+    testTimeout: 10000
 }; 

@@ -77,11 +77,19 @@ jobs:
         run: |
           cd api/${{ matrix.service }}
           npm ci
+          # 보안 취약점이 있는 의존성 업데이트
+          npm audit fix || true
       
       - name: Run linting
         run: |
           cd api/${{ matrix.service }}
           npm run lint || echo "Linting not configured, skipping"
+      
+      - name: Setup test database and migrations
+        if: matrix.service == 'auth-service' || matrix.service == 'user-service'
+        run: |
+          cd api/${{ matrix.service }}
+          npm run db:migrate || echo "Migration not configured, skipping"
       
       - name: Run tests
         run: |

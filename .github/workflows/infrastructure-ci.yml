@@ -23,7 +23,7 @@ jobs:
       
       - name: Validate docker-compose.yml
         run: |
-          docker-compose -f docker-compose.yml config
+          docker compose -f docker-compose.yml config
       
       - name: Lint Kong configuration
         run: |

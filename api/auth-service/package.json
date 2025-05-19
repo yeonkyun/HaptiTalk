@@ -10,7 +10,8 @@
     "test:unit": "jest tests/unit",
     "test:integration": "jest tests/integration",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "db:migrate": "node scripts/migrate.js"
   },
   "dependencies": {
     "@opentelemetry/auto-instrumentations-node": "^0.58.0",
