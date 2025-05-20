@@ -108,8 +108,10 @@ jobs:
           sudo mv cloudflared /usr/local/bin
           cloudflared version
           
-          # SSH 키 생성
-          ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ""
+          # 시크릿에 저장된 SSH 키 사용
+          mkdir -p ~/.ssh
+          echo "${{ secrets.RASPBERRY_PI_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
           
           # cloudflared로 로컬 포트 2222를 라즈베리파이 SSH 포트로 포워딩
           echo "Cloudflared TCP 포트 포워딩 설정 중..."
@@ -129,12 +131,12 @@ jobs:
             cat cloudflared.log || echo "로그 파일이 없습니다."
             
             # SSH 설정 - 로컬 포트로 연결
-            mkdir -p ~/.ssh
             cat > ~/.ssh/config << EOF
           Host raspberry-pi
             HostName localhost
             Port 2222
             User ${{ secrets.RASPBERRY_PI_USER }}
+            IdentityFile ~/.ssh/id_ed25519
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
             LogLevel DEBUG3
@@ -150,11 +152,14 @@ jobs:
         id: ssh_test
         run: |
           echo "SSH 연결 테스트 중..."
-          if ssh -vvv raspberry-pi 'echo "Connection successful" && uptime'; then
+          
+          # SSH 키 기반 인증으로 연결 시도
+          if ssh -o ConnectTimeout=10 raspberry-pi 'echo "Connection successful" && uptime'; then
             echo "ssh_connected=true" >> $GITHUB_OUTPUT
           else
             echo "ssh_connected=false" >> $GITHUB_OUTPUT
             echo "연결 실패. 자세한 로그:"
+            ssh -vvv raspberry-pi 'echo test' || true
             cat cloudflared.log || echo "cloudflared 로그 파일이 없습니다."
             exit 1
           fi
