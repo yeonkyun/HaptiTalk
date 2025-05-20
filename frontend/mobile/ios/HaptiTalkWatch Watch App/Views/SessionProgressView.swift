@@ -178,7 +178,10 @@ struct SessionProgressView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
+                .buttonStyle(PlainButtonStyle())
+                .padding(.top, -10)
             }
+            .padding(.top, -10)
         }
         .fullScreenCover(isPresented: $showSessionSummary) {
             SessionSummaryView(
