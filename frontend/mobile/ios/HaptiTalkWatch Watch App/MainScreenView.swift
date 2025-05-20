@@ -18,37 +18,20 @@ struct MainScreenView: View {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
             
-            VStack(spacing: 20) {
-                // 앱 아이콘 및 상태
-                HStack {
-                    VStack(spacing: 8) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
-                                .frame(width: 40, height: 40)
-                            
-                            Text("H")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(.white)
-                        }
+            VStack(spacing: 15) {
+                // 앱 아이콘 및 상태 - 가운데 정렬
+                VStack(spacing: 2) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
+                            .frame(width: 40, height: 40)
                         
-                        Text("준비됨")
-                            .font(.system(size: 10))
-                            .foregroundColor(Color(UIColor(red: 0.47, green: 0.53, blue: 0.8, alpha: 1.0))) // #7986CB
+                        Text("H")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
                     }
-                    
-                    Spacer()
-                    
-                    // 설정 버튼
-                    Button(action: {
-                        showSettings = true
-                    }) {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(Color(UIColor(red: 0.47, green: 0.53, blue: 0.8, alpha: 1.0))) // #7986CB
-                    }
-                    .frame(width: 40, height: 40)
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
                 
                 // 연결 상태
                 if appState.isConnected {
@@ -60,9 +43,9 @@ struct MainScreenView: View {
                         Text(appState.connectedDevice)
                             .font(.system(size: 11))
                             .foregroundColor(Color(UIColor(red: 0.3, green: 0.69, blue: 0.31, alpha: 1.0))) // #4CAF50
+                            .lineLimit(1)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 10)
+                    .frame(maxWidth: .infinity, alignment: .center)
                 } else {
                     HStack(spacing: 4) {
                         Circle()
@@ -73,76 +56,57 @@ struct MainScreenView: View {
                             .font(.system(size: 11))
                             .foregroundColor(.red)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 10)
+                    .frame(maxWidth: .infinity, alignment: .center)
                 }
                 
                 Spacer()
                 
-                // 버튼 섹션
-                VStack(spacing: 15) {
-                    Button(action: {
-                        if appState.isConnected {
-                            // 세션 모드 선택 화면으로 이동
-                            showSessionModeSelection = true
-                        } else {
-                            // 연결되지 않은 경우 연결 상태 화면으로 이동
-                            showConnectionStatus = true
-                        }
-                    }) {
-                        Text("세션 시작")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
-                            )
+                // 세션 시작 버튼
+                Button(action: {
+                    if appState.isConnected {
+                        // 세션 모드 선택 화면으로 이동
+                        showSessionModeSelection = true
+                    } else {
+                        // 연결되지 않은 경우 연결 상태 화면으로 이동
+                        showConnectionStatus = true
                     }
-                    
-                    if !appState.recentSessions.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("세션 모드")
-                                .font(.system(size: 11))
-                                .foregroundColor(Color(UIColor(red: 0.62, green: 0.62, blue: 0.62, alpha: 1.0))) // #9E9E9E
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            
-                            Button(action: {
-                                // 세션 모드 선택 화면 열기
-                                showSessionModeSelection = true
-                            }) {
-                                Text(appState.recentSessions.first?.name ?? "소개팅 모드")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 9)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 15)
-                                            .fill(Color(UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0))) // #212121
-                                    )
-                            }
-                        }
-                    }
+                }) {
+                    Text("세션 시작")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
+                        )
                 }
+                .buttonStyle(PlainButtonStyle())
+                
+                // 설정 버튼 - 세션 모드 자리에 배치
+                Button(action: {
+                    showSettings = true
+                }) {
+                    HStack {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(.white)
+                        Text("설정")
+                            .font(.system(size: 11))
+                            .foregroundColor(.white)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 9)
+                    .background(
+                        RoundedRectangle(cornerRadius: 15)
+                            .fill(Color(UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0))) // #212121
+                    )
+                }
+                .padding(.bottom, 5)
+                .buttonStyle(PlainButtonStyle())
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 20)
-            // 가로 스와이프 제한을 위한 제스처 처리
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 5, coordinateSpace: .global)
-                    .onChanged { value in
-                        // 수평 스와이프 감지 및 무시
-                        let horizontalAmount = abs(value.translation.width)
-                        let verticalAmount = abs(value.translation.height)
-                        
-                        if horizontalAmount > verticalAmount {
-                            // 수평 제스처 무시
-                        }
-                        // 수직 제스처는 기본 동작 허용
-                    }
-            )
+            .padding(.vertical, 10)
         }
         .sheet(isPresented: $showSessionModeSelection) {
             SessionModeSelectionView(onModeSelected: { mode in

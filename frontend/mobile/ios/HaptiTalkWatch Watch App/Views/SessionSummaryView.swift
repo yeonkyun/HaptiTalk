@@ -10,7 +10,6 @@ struct SessionSummaryView: View {
     let likeabilityPercent: String
     let coreFeedback: String
     @State private var currentTime: String = ""
-    @State private var showDetailAnalysis: Bool = false
     
     let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     
@@ -35,127 +34,100 @@ struct SessionSummaryView: View {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
             
-            VStack(spacing: 0) {
-                // 상단 시간 표시
-                HStack {
-                    Spacer()
-                    Text(currentTime)
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.top, 8)
-                        .padding(.trailing, 15)
-                }
-                
-                // 헤더 (세션 완료 및 모드)
-                VStack(spacing: 4) {
-                    Text("세션 완료")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
-                    
-                    Text(sessionMode)
-                        .font(.system(size: 11))
-                        .foregroundColor(Color(UIColor.lightGray))
-                }
-                .padding(.top, 15)
-                
-                // 세션 통계 정보
-                ZStack {
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(Color.white.opacity(0.1))
-                        .frame(height: 92)
-                    
-                    VStack(spacing: 10) {
-                        // 총 시간
-                        HStack {
-                            Text("총 시간")
-                                .font(.system(size: 11))
-                                .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
-                            
-                            Spacer()
-                            
-                            Text(totalTime)
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.white)
-                        }
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 0) {
+                    // 헤더 (세션 완료 및 모드)
+                    VStack(spacing: 4) {
+                        Text("세션 완료")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.white)
                         
-                        // 주요 감정
-                        HStack {
-                            Text("주요 감정")
-                                .font(.system(size: 11))
-                                .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
-                            
-                            Spacer()
-                            
-                            HStack(spacing: 4) {
-                                Image(systemName: "face.smiling.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.green)
+                        Text(sessionMode)
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(UIColor.lightGray))
+                    }
+                    .padding(.top, 15)
+                    
+                    // 세션 통계 정보
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(Color.white.opacity(0.1))
+                            .frame(height: 92)
+                        
+                        VStack(spacing: 10) {
+                            // 총 시간
+                            HStack {
+                                Text("총 시간")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
                                 
-                                Text(mainEmotion)
-                                    .font(.system(size: 11, weight: .semibold))
+                                Spacer()
+                                
+                                Text(totalTime)
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                            
+                            // 주요 감정
+                            HStack {
+                                Text("주요 감정")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
+                                
+                                Spacer()
+                                
+                                HStack(spacing: 4) {
+                                    Image(systemName: "face.smiling.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.green)
+                                    
+                                    Text(mainEmotion)
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            
+                            // 호감도
+                            HStack {
+                                Text("호감도")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
+                                
+                                Spacer()
+                                
+                                Text(likeabilityPercent)
+                                    .font(.system(size: 11, weight: .bold))
                                     .foregroundColor(.white)
                             }
                         }
-                        
-                        // 호감도
-                        HStack {
-                            Text("호감도")
-                                .font(.system(size: 11))
-                                .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
-                            
-                            Spacer()
-                            
-                            Text(likeabilityPercent)
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.white)
-                        }
+                        .padding(.horizontal, 12)
                     }
-                    .padding(.horizontal, 12)
-                }
-                .padding(.top, 10)
-                .padding(.horizontal, 10)
-                
-                // 핵심 피드백
-                ZStack {
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 0.15))) // #3F51B5 with opacity
-                        .frame(height: 88.5)
+                    .padding(.top, 10)
+                    .padding(.horizontal, 10)
                     
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("핵심 피드백")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(Color(UIColor(red: 0.56, green: 0.79, blue: 0.98, alpha: 1.0))) // #90CAF9
+                    // 핵심 피드백
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 0.15))) // #3F51B5 with opacity
+                            .frame(height: 88.5)
                         
-                        Text(coreFeedback)
-                            .font(.system(size: 10))
-                            .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
-                            .lineSpacing(2)
-                            .fixedSize(horizontal: false, vertical: true)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("핵심 피드백")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(Color(UIColor(red: 0.56, green: 0.79, blue: 0.98, alpha: 1.0))) // #90CAF9
+                            
+                            Text(coreFeedback)
+                                .font(.system(size: 10))
+                                .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
+                                .lineSpacing(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.horizontal, 12)
                     }
-                    .padding(.horizontal, 12)
-                }
-                .padding(.top, 12)
-                .padding(.horizontal, 10)
-                
-                Spacer()
-                
-                // 버튼 섹션
-                VStack(spacing: 8) {
-                    // 상세 분석 보기 버튼
-                    Button(action: {
-                        // 상세 분석 화면으로 이동
-                        showDetailAnalysis = true
-                    }) {
-                        Text("상세 분석 보기")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
-                            )
-                    }
+                    .padding(.top, 12)
+                    .padding(.horizontal, 10)
+                    
+                    Spacer(minLength: 30)
                     
                     // 홈으로 돌아가기 버튼
                     Button(action: {
@@ -169,28 +141,22 @@ struct SessionSummaryView: View {
                             .font(.system(size: 13, weight: .medium))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
+                            .padding(.vertical, 12)
                             .background(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color.white.opacity(0.15))
+                                    .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
                             )
                     }
+                    .buttonStyle(PlainButtonStyle())
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 20)
                 }
-                .padding(.bottom, 20)
                 .padding(.horizontal, 10)
+                .padding(.top, -30)
             }
-            .padding(.horizontal, 10)
         }
         .onReceive(timer) { _ in
             updateCurrentTime()
-        }
-        .sheet(isPresented: $showDetailAnalysis) {
-            // 여기에 상세 분석 화면을 구현할 수 있습니다
-            Text("상세 분석 화면")
-                .font(.title)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black)
         }
     }
     

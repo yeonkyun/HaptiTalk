@@ -38,16 +38,7 @@ struct SessionModeSelectionView: View {
                                     .fill(Color(UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0))) // #212121
                             )
                     }
-                }
-                
-                Button(action: {
-                    // 취소
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Text("취소")
-                        .font(.system(size: 14))
-                        .foregroundColor(.gray)
-                        .padding(.top, 5)
+                    .buttonStyle(PlainButtonStyle())
                 }
             }
             .padding(.horizontal, 16)

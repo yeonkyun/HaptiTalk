@@ -6,8 +6,8 @@ struct SettingsView: View {
     @EnvironmentObject var appState: AppState
     
     // 설정 상태들
-    @State private var hapticIntensity: Double = 0.7  // 0.0 ~ 1.0 사이의 값 (3~5 사이를 표현)
-    @State private var hapticCount: Int = 2          // 햅틱 피드백 횟수 (1~5회)
+    @State private var hapticIntensity: String = "기본"  // "약하게", "기본", "강하게" 옵션으로 변경
+    @State private var hapticCount: Int = 2          // 햅틱 피드백 횟수 (1~4회)
     @State private var notificationStyle: NotificationStyle = .full
     @State private var isWatchfaceComplicationEnabled: Bool = true
     @State private var isBatterySavingEnabled: Bool = false
@@ -21,10 +21,12 @@ struct SettingsView: View {
     private let screenWidth = WKInterfaceDevice.current().screenBounds.width
     
     enum NotificationStyle: String, CaseIterable {
-        case none = "없음"
         case icon = "아이콘"
         case full = "전체"
     }
+    
+    // 햅틱 강도 옵션
+    let hapticIntensityOptions = ["기본", "강하게"]
     
     var body: some View {
         VStack(spacing: 0) {
@@ -39,159 +41,30 @@ struct SettingsView: View {
                     
                     VStack(spacing: 14) {
                         // 햅틱 강도 설정
-                        settingCard {
-                            VStack(spacing: 10) {
-                                HStack {
-                                    Text("햅틱 강도")
-                                        .font(.system(size: 15, weight: .semibold))
-                                        .foregroundColor(.white)
-                                    Spacer()
-                                }
-                                
-                                HStack {
-                                    Text("3")
-                                        .font(.system(size: 13))
-                                        .foregroundColor(.gray)
-                                    
-                                    // 슬라이더 컴포넌트
-                                    let sliderWidth = screenWidth * 0.6
-                                    
-                                    ZStack(alignment: .leading) {
-                                        Rectangle()
-                                            .fill(Color.gray.opacity(0.5))
-                                            .frame(height: 5)
-                                            .cornerRadius(2.5)
-                                        
-                                        Rectangle()
-                                            .fill(Color.blue)
-                                            .frame(width: sliderWidth * hapticIntensity, height: 5)
-                                            .cornerRadius(2.5)
-                                        
-                                        Circle()
-                                            .fill(Color.blue)
-                                            .frame(width: 18, height: 18)
-                                            .offset(x: sliderWidth * hapticIntensity - 9)
-                                    }
-                                    .frame(width: sliderWidth, height: 18)
-                                    .gesture(
-                                        DragGesture(minimumDistance: 0)
-                                            .onChanged { value in
-                                                let xPos = min(max(0, value.location.x), sliderWidth)
-                                                hapticIntensity = xPos / sliderWidth
-                                            }
-                                    )
-                                    
-                                    Text("5")
-                                        .font(.system(size: 13))
-                                        .foregroundColor(.gray)
-                                }
-                            }
-                        }
+                        HapticIntensityCard(
+                            hapticIntensity: $hapticIntensity,
+                            options: hapticIntensityOptions
+                        )
                         
                         // 햅틱 횟수 설정
-                        settingCard {
-                            VStack(spacing: 10) {
-                                HStack {
-                                    Text("햅틱 횟수")
-                                        .font(.system(size: 15, weight: .semibold))
-                                        .foregroundColor(.white)
-                                    Spacer()
-                                }
-                                
-                                HStack {
-                                    ForEach(1...5, id: \.self) { count in
-                                        Button(action: {
-                                            hapticCount = count
-                                        }) {
-                                            Text("\(count)")
-                                                .font(.system(size: 14, weight: hapticCount == count ? .semibold : .regular))
-                                                .foregroundColor(hapticCount == count ? .white : .gray)
-                                                .frame(width: 32, height: 32)
-                                                .background(
-                                                    Circle()
-                                                        .fill(hapticCount == count ? Color.blue : Color.clear)
-                                                )
-                                                .overlay(
-                                                    Circle()
-                                                        .stroke(hapticCount == count ? Color.blue : Color.gray, lineWidth: 1)
-                                                )
-                                        }
-                                        
-                                        if count < 5 {
-                                            Spacer()
-                                        }
-                                    }
-                                }
-                                .frame(maxWidth: .infinity)
-                            }
-                        }
+                        HapticCountCard(hapticCount: $hapticCount)
                         
                         // 알림 표시 방식
-                        settingCard {
-                            VStack(spacing: 10) {
-                                HStack {
-                                    Text("알림 표시 방식")
-                                        .font(.system(size: 15, weight: .semibold))
-                                        .foregroundColor(.white)
-                                    Spacer()
-                                }
-                                
-                                HStack(spacing: 6) {
-                                    ForEach(NotificationStyle.allCases, id: \.self) { style in
-                                        Button(action: {
-                                            notificationStyle = style
-                                        }) {
-                                            Text(style.rawValue)
-                                                .font(.system(size: 12))
-                                                .foregroundColor(notificationStyle == style ? .white : .gray)
-                                                .frame(maxWidth: .infinity)
-                                                .frame(height: 32)
-                                                .background(
-                                                    notificationStyle == style ?
-                                                    Color.blue :
-                                                    Color.clear
-                                                )
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 8)
-                                                        .stroke(notificationStyle == style ?
-                                                                Color.blue :
-                                                                Color.gray,
-                                                                lineWidth: 1)
-                                                )
-                                                .cornerRadius(8)
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        NotificationStyleCard(
+                            notificationStyle: $notificationStyle
+                        )
                         
                         // 워치페이스 컴플리케이션
-                        settingCard {
-                            HStack {
-                                Text("워치페이스 컴플리케이션")
-                                    .font(.system(size: 15, weight: .semibold))
-                                    .foregroundColor(.white)
-                                Spacer()
-                                Toggle("", isOn: $isWatchfaceComplicationEnabled)
-                                    .labelsHidden()
-                                    .toggleStyle(SwitchToggleStyle(tint: Color.blue))
-                                    .scaleEffect(0.8)
-                            }
-                        }
+                        ToggleSettingCard(
+                            title: "워치페이스 컴플리케이션",
+                            isOn: $isWatchfaceComplicationEnabled
+                        )
                         
                         // 배터리 절약 모드
-                        settingCard {
-                            HStack {
-                                Text("배터리 절약 모드")
-                                    .font(.system(size: 15, weight: .semibold))
-                                    .foregroundColor(.white)
-                                Spacer()
-                                Toggle("", isOn: $isBatterySavingEnabled)
-                                    .labelsHidden()
-                                    .toggleStyle(SwitchToggleStyle(tint: Color.blue))
-                                    .scaleEffect(0.8)
-                            }
-                        }
+                        ToggleSettingCard(
+                            title: "배터리 절약 모드",
+                            isOn: $isBatterySavingEnabled
+                        )
                         
                         // 햅틱 피드백 테스트 버튼
                         Button(action: {
@@ -249,22 +122,9 @@ struct SettingsView: View {
                 .padding(.horizontal, 16)
             }
             .frame(maxWidth: .infinity)
-            // 가로 스크롤 제스처 비활성화
             .contentShape(Rectangle())
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 5, coordinateSpace: .global)
-                    .onChanged { value in
-                        // 수직 방향 제스처만 허용, 수평 제스처는 무시
-                        let horizontalAmount = abs(value.translation.width)
-                        let verticalAmount = abs(value.translation.height)
-                        
-                        if horizontalAmount > verticalAmount {
-                            // 수평 제스처 무시
-                        }
-                        // 수직 제스처는 기본 스크롤 동작에 위임
-                    }
-            )
         }
+        .buttonStyle(.plain)
         .edgesIgnoringSafeArea(.bottom)
         .background(Color.black.edgesIgnoringSafeArea(.all))
         .onAppear {
@@ -288,11 +148,10 @@ struct SettingsView: View {
     private func loadCurrentSettings() {
         // AppState에서 설정 값을 로드
         hapticIntensity = appState.hapticIntensity
-        hapticCount = appState.hapticCount
+        
+        hapticCount = min(appState.hapticCount, 4) // 최대 4회로 제한
         
         switch appState.notificationStyle {
-        case "없음":
-            notificationStyle = .none
         case "아이콘":
             notificationStyle = .icon
         case "전체":
@@ -317,14 +176,10 @@ struct SettingsView: View {
     private func displayHapticFeedbackMessage() {
         // 햅틱 강도 및 횟수에 따른 메시지 설정
         var intensityText = ""
-        if hapticIntensity < 0.3 {
-            intensityText = "약한 강도 (3)"
-        } else if hapticIntensity < 0.6 {
-            intensityText = "중간 강도 (4)"
-        } else if hapticIntensity < 0.9 {
-            intensityText = "강한 강도 (4.5)"
-        } else {
-            intensityText = "최대 강도 (5)"
+        if hapticIntensity == "기본" {
+            intensityText = "방향 햅틱 (중강도)"
+        } else if hapticIntensity == "강하게" {
+            intensityText = "진한 햅틱 (알림 + 방향 진동)"
         }
         
         hapticFeedbackMessage = "\(intensityText), \(hapticCount)회 햅틱 피드백이 전달되었습니다."
@@ -337,6 +192,182 @@ struct SettingsView: View {
             withAnimation {
                 showHapticFeedbackMessage = false
             }
+        }
+    }
+}
+
+// 햅틱 강도 설정 카드
+struct HapticIntensityCard: View {
+    @Binding var hapticIntensity: String
+    let options: [String]
+    
+    var body: some View {
+        SettingCardView {
+            VStack(spacing: 10) {
+                HStack {
+                    Text("햅틱 강도")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.white)
+                    Spacer()
+                }
+                
+                HStack(spacing: 6) {
+                    ForEach(options, id: \.self) { option in
+                        Button(action: {
+                            hapticIntensity = option
+                        }) {
+                            Text(option)
+                                .font(.system(size: 12))
+                                .foregroundColor(hapticIntensity == option ? .white : .gray)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 32)
+                                .background(
+                                    hapticIntensity == option ?
+                                    Color.blue :
+                                    Color.clear
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(hapticIntensity == option ?
+                                                Color.blue :
+                                                Color.gray,
+                                                lineWidth: 1)
+                                )
+                                .cornerRadius(8)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 햅틱 횟수 설정 카드
+struct HapticCountCard: View {
+    @Binding var hapticCount: Int
+    
+    var body: some View {
+        SettingCardView {
+            VStack(spacing: 10) {
+                HStack {
+                    Text("햅틱 횟수")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.white)
+                    Spacer()
+                }
+                
+                HStack {
+                    ForEach(1...4, id: \.self) { count in
+                        Button(action: {
+                            hapticCount = count
+                        }) {
+                            Text("\(count)")
+                                .font(.system(size: 14, weight: hapticCount == count ? .semibold : .regular))
+                                .foregroundColor(hapticCount == count ? .white : .gray)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    Circle()
+                                        .fill(hapticCount == count ? Color.blue : Color.clear)
+                                )
+                                .overlay(
+                                    Circle()
+                                        .stroke(hapticCount == count ? Color.blue : Color.gray, lineWidth: 1)
+                                )
+                        }
+                        
+                        if count < 4 {
+                            Spacer()
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+    }
+}
+
+// 알림 표시 방식 카드
+struct NotificationStyleCard: View {
+    @Binding var notificationStyle: SettingsView.NotificationStyle
+    
+    var body: some View {
+        SettingCardView {
+            VStack(spacing: 10) {
+                HStack {
+                    Text("알림 표시 방식")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.white)
+                    Spacer()
+                }
+                
+                HStack(spacing: 6) {
+                    ForEach(SettingsView.NotificationStyle.allCases, id: \.self) { style in
+                        Button(action: {
+                            notificationStyle = style
+                        }) {
+                            Text(style.rawValue)
+                                .font(.system(size: 12))
+                                .foregroundColor(notificationStyle == style ? .white : .gray)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 32)
+                                .background(
+                                    notificationStyle == style ?
+                                    Color.blue :
+                                    Color.clear
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(notificationStyle == style ?
+                                                Color.blue :
+                                                Color.gray,
+                                                lineWidth: 1)
+                                )
+                                .cornerRadius(8)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 토글 설정 카드
+struct ToggleSettingCard: View {
+    let title: String
+    @Binding var isOn: Bool
+    
+    var body: some View {
+        SettingCardView {
+            HStack {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.white)
+                Spacer()
+                Toggle("", isOn: $isOn)
+                    .labelsHidden()
+                    .toggleStyle(SwitchToggleStyle(tint: Color.blue))
+                    .scaleEffect(0.8)
+            }
+        }
+    }
+}
+
+// 설정 카드 기본 뷰
+struct SettingCardView<Content: View>: View {
+    let content: Content
+    
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+    
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.1))
+            
+            content
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
         }
     }
 }
