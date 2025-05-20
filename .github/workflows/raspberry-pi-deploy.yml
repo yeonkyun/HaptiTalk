@@ -100,47 +100,39 @@ jobs:
     needs: prepare_deployment
     runs-on: ubuntu-latest
     steps:
-      - name: Install cloudflared
+      - name: Install cloudflared and Set up SSH
         run: |
+          # cloudflared 설치
           curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
           chmod +x cloudflared
           sudo mv cloudflared /usr/local/bin
           cloudflared version
-      
-      - name: Set up SSH config with Cloudflare proxy
-        run: |
+          
           mkdir -p ~/.ssh
           
-          # 환경변수를 명시적으로 설정하여 스코프 이슈 방지
-          export SSH_HOSTNAME="${{ secrets.CLOUDFLARE_TUNNEL_HOSTNAME }}"
-          export ACCESS_CLIENT_ID="${{ secrets.CF_ACCESS_CLIENT_ID }}"
-          export ACCESS_CLIENT_SECRET="${{ secrets.CF_ACCESS_CLIENT_SECRET }}"
-          
-          echo "Cloudflare 터널 호스트네임: $SSH_HOSTNAME (마스킹됨)"
-          
-          # SSH 설정 - Cloudflare 터널 사용
-          cat <<EOF > ~/.ssh/config
+          # SSH 설정 - 하드코딩된 호스트네임(pi.eumgyeol.com)
+          cat > ~/.ssh/config << EOF
           Host raspberry-pi
-            HostName $SSH_HOSTNAME
+            HostName pi.eumgyeol.com
             Port 22
             User ${{ secrets.RASPBERRY_PI_USER }}
-            ProxyCommand cloudflared access ssh --hostname $SSH_HOSTNAME --id $ACCESS_CLIENT_ID --secret $ACCESS_CLIENT_SECRET
+            ProxyCommand cloudflared access ssh --hostname pi.eumgyeol.com --id ${{ secrets.CF_ACCESS_CLIENT_ID }} --secret ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
           EOF
           chmod 600 ~/.ssh/config
           
-          echo "SSH 설정 파일 생성 완료"
+          echo "SSH 설정 파일 생성 완료 (호스트: pi.eumgyeol.com)"
       
       - name: Test SSH Connection
         id: ssh_test
         run: |
-          echo "Cloudflare 터널을 통한 SSH 연결 테스트..."
+          echo "SSH 연결 테스트 (pi.eumgyeol.com)..."
           if ssh -v raspberry-pi 'echo "Connection successful" && uptime'; then
             echo "ssh_connected=true" >> $GITHUB_OUTPUT
           else
             echo "ssh_connected=false" >> $GITHUB_OUTPUT
-            echo "연결 실패. 로그 확인:"
+            echo "연결 실패. 디버그 정보:"
             ssh -vvv raspberry-pi 'echo test' || true
             exit 1
           fi
