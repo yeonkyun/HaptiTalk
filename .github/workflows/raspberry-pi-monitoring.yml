@@ -26,7 +26,7 @@ jobs:
       - name: Set up SSH config with Cloudflare proxy
         run: |
           mkdir -p ~/.ssh
-          cat <<'EOF' > ~/.ssh/config
+          cat > ~/.ssh/config << EOF
           Host raspberry-pi
             HostName ${{ secrets.CF_SSH_HOSTNAME }}
             Port 22
@@ -78,7 +78,7 @@ jobs:
           sudo mv cloudflared /usr/local/bin
           
           mkdir -p ~/.ssh
-          cat <<'EOF' > ~/.ssh/config
+          cat > ~/.ssh/config << EOF
           Host raspberry-pi
             HostName ${{ secrets.CF_SSH_HOSTNAME }}
             Port 22
