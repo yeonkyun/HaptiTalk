@@ -111,44 +111,37 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           
-          # 유효한 FQDN 확인 - 디버깅 용도
-          echo "CF_SSH_HOSTNAME 값 확인: ${{ secrets.CF_SSH_HOSTNAME }}"
-          if [[ "${{ secrets.CF_SSH_HOSTNAME }}" != *.* ]]; then
-            echo "경고: CF_SSH_HOSTNAME이 유효한 도메인 이름 형식이 아닙니다!"
-            echo "예상 형식: ssh.example.com 또는 raspberry.domain.com"
-          fi
+          # 환경변수를 명시적으로 설정하여 스코프 이슈 방지
+          export SSH_HOSTNAME="${{ secrets.CLOUDFLARE_TUNNEL_HOSTNAME }}"
+          export ACCESS_CLIENT_ID="${{ secrets.CF_ACCESS_CLIENT_ID }}"
+          export ACCESS_CLIENT_SECRET="${{ secrets.CF_ACCESS_CLIENT_SECRET }}"
           
-          # SSH 설정 생성
+          echo "Cloudflare 터널 호스트네임: $SSH_HOSTNAME (마스킹됨)"
+          
+          # SSH 설정 - Cloudflare 터널 사용
           cat <<EOF > ~/.ssh/config
           Host raspberry-pi
-            HostName ${{ secrets.CF_SSH_HOSTNAME }}
+            HostName $SSH_HOSTNAME
             Port 22
             User ${{ secrets.RASPBERRY_PI_USER }}
-            ProxyCommand cloudflared access ssh --hostname ${{ secrets.CF_SSH_HOSTNAME }} --id ${{ secrets.CF_ACCESS_CLIENT_ID }} --secret ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
-            StrictHostKeyChecking=no
+            ProxyCommand cloudflared access ssh --hostname $SSH_HOSTNAME --id $ACCESS_CLIENT_ID --secret $ACCESS_CLIENT_SECRET
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
           EOF
           chmod 600 ~/.ssh/config
           
-          # 디버깅: SSH 설정 확인 (호스트명 표시, 민감 정보 마스킹)
-          echo "생성된 SSH 설정 파일 확인:"
-          cat ~/.ssh/config | sed 's/--id.*--secret.*/--id [MASKED] --secret [MASKED]/'
-          
-          # cloudflared 버전 확인
-          echo "Cloudflared 버전 정보:"
-          cloudflared --version
-          
-          # 간단한 DNS 조회 테스트 (도메인이 유효한지 확인)
-          echo "DNS 조회 테스트:"
-          nslookup ${{ secrets.CF_SSH_HOSTNAME }} || echo "DNS 조회 실패 - 도메인이 유효하지 않을 수 있습니다"
+          echo "SSH 설정 파일 생성 완료"
       
       - name: Test SSH Connection
         id: ssh_test
         run: |
-          echo "Testing SSH connection via Cloudflare Tunnel..."
-          if ssh raspberry-pi 'echo "Connection successful" && uptime'; then
+          echo "Cloudflare 터널을 통한 SSH 연결 테스트..."
+          if ssh -v raspberry-pi 'echo "Connection successful" && uptime'; then
             echo "ssh_connected=true" >> $GITHUB_OUTPUT
           else
             echo "ssh_connected=false" >> $GITHUB_OUTPUT
+            echo "연결 실패. 로그 확인:"
+            ssh -vvv raspberry-pi 'echo test' || true
             exit 1
           fi
 
