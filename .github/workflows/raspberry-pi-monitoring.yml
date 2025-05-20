@@ -12,16 +12,47 @@ env:
   MIN_EXPECTED_SERVICES: 5  # 최소 실행 필요 서비스 수
 
 jobs:
+  setup_cloudflared:
+    name: Setup Cloudflared Connection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install cloudflared
+        run: |
+          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+          chmod +x cloudflared
+          sudo mv cloudflared /usr/local/bin
+          cloudflared version
+      
+      - name: Set up SSH config with Cloudflare proxy
+        run: |
+          mkdir -p ~/.ssh
+          cat <<'EOF' > ~/.ssh/config
+          Host raspberry-pi
+            HostName ${{ secrets.CF_SSH_HOSTNAME }}
+            Port 22
+            User ${{ secrets.RASPBERRY_PI_USER }}
+            ProxyCommand cloudflared access ssh --hostname %h --id ${{ secrets.CF_ACCESS_CLIENT_ID }} --secret ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+            StrictHostKeyChecking=no
+          EOF
+          chmod 600 ~/.ssh/config
+      
+      - name: Test SSH Connection
+        id: ssh_test
+        run: |
+          echo "Testing SSH connection via Cloudflare Tunnel..."
+          if ssh raspberry-pi 'echo "Connection successful" && uptime'; then
+            echo "ssh_connected=true" >> $GITHUB_OUTPUT
+          else
+            echo "ssh_connected=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
   check_services:
     name: Check Service Status
+    needs: setup_cloudflared
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.RASPBERRY_PI_SSH_KEY }}
       
       - name: Count Expected Services
         id: service_count
@@ -40,23 +71,40 @@ jobs:
             echo "expected_services=$MIN_EXPECTED_SERVICES" >> $GITHUB_OUTPUT
           fi
       
+      - name: Setup Cloudflared Again
+        run: |
+          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+          chmod +x cloudflared
+          sudo mv cloudflared /usr/local/bin
+          
+          mkdir -p ~/.ssh
+          cat <<'EOF' > ~/.ssh/config
+          Host raspberry-pi
+            HostName ${{ secrets.CF_SSH_HOSTNAME }}
+            Port 22
+            User ${{ secrets.RASPBERRY_PI_USER }}
+            ProxyCommand cloudflared access ssh --hostname %h --id ${{ secrets.CF_ACCESS_CLIENT_ID }} --secret ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+            StrictHostKeyChecking=no
+          EOF
+          chmod 600 ~/.ssh/config
+      
       - name: Check Docker Services
         id: docker_check
         run: |
           # SSH로 라즈베리파이에 접속하여 서비스 상태 확인
-          STATUS=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+          STATUS=$(ssh raspberry-pi '
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
             docker-compose ps -q | wc -l
           ')
 
           # 필수 인프라 서비스 확인 (postgres, mongodb, redis, kafka, kong)
-          INFRA_SERVICES=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+          INFRA_SERVICES=$(ssh raspberry-pi '
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
             docker-compose ps postgres mongodb redis kafka kong | grep -c "Up"
           ')
           
           # 컨테이너 상태 및 로그 정보 수집
-          CONTAINER_INFO=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+          CONTAINER_INFO=$(ssh raspberry-pi '
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
             echo "---- Container Status ----"
             docker-compose ps
@@ -92,7 +140,7 @@ jobs:
         id: resource_check
         run: |
           # SSH로 라즈베리파이에 접속하여 시스템 리소스 확인
-          RESOURCES=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+          RESOURCES=$(ssh raspberry-pi '
             echo "---- Memory Usage ----"
             free -h
             echo "---- Disk Usage ----"
@@ -112,7 +160,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
           
           # 디스크 사용량이 임계값 이상인지 확인
-          DISK_USAGE=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+          DISK_USAGE=$(ssh raspberry-pi '
             df -h | grep -E "/$" | awk "{print \$5}" | sed "s/%//"
           ')
           
@@ -125,7 +173,7 @@ jobs:
           fi
           
           # 메모리 사용량이 임계값 이상인지 확인
-          MEM_USAGE=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+          MEM_USAGE=$(ssh raspberry-pi '
             free | grep Mem | awk "{print \$3/\$2 * 100.0}" | cut -d. -f1
           ')
           
@@ -141,7 +189,7 @@ jobs:
         if: steps.docker_check.outputs.services_down == 'true' || steps.docker_check.outputs.infra_down == 'true'
         run: |
           # 서비스 재시작 전 로그 백업
-          ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+          ssh raspberry-pi '
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
             mkdir -p logs/backup
             docker-compose logs > logs/backup/before_restart_$(date +%Y%m%d_%H%M%S).log
@@ -165,7 +213,7 @@ jobs:
       - name: Clean Up Old Logs and Images
         run: |
           # 30일 이상된 로그 파일 및 사용하지 않는 도커 이미지 정리
-          ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+          ssh raspberry-pi '
             # 오래된 로그 파일 삭제
             find /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/logs/backup -type f -name "*.log" -mtime +30 -delete
             
