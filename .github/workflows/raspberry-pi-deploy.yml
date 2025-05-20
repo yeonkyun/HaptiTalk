@@ -108,32 +108,54 @@ jobs:
           sudo mv cloudflared /usr/local/bin
           cloudflared version
           
-          mkdir -p ~/.ssh
+          # SSH 키 생성
+          ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ""
           
-          # SSH 설정 - 하드코딩된 호스트네임(pi.eumgyeol.com)
-          cat > ~/.ssh/config << EOF
+          # cloudflared로 로컬 포트 2222를 라즈베리파이 SSH 포트로 포워딩
+          echo "Cloudflared TCP 포트 포워딩 설정 중..."
+          nohup cloudflared access tcp --hostname pi.eumgyeol.com --url 127.0.0.1:2222 --loglevel debug > cloudflared.log 2>&1 &
+          CLOUDFLARED_PID=$!
+          echo "Cloudflared PID: $CLOUDFLARED_PID"
+          
+          # 설정 확인을 위해 대기
+          sleep 5
+          
+          # cloudflared 상태 확인
+          if ps -p $CLOUDFLARED_PID > /dev/null; then
+            echo "cloudflared 프로세스가 실행 중입니다."
+            
+            # cloudflared 로그 확인
+            echo "cloudflared 로그:"
+            cat cloudflared.log || echo "로그 파일이 없습니다."
+            
+            # SSH 설정 - 로컬 포트로 연결
+            mkdir -p ~/.ssh
+            cat > ~/.ssh/config << EOF
           Host raspberry-pi
-            HostName pi.eumgyeol.com
-            Port 22
+            HostName localhost
+            Port 2222
             User ${{ secrets.RASPBERRY_PI_USER }}
-            ProxyCommand cloudflared access ssh --hostname pi.eumgyeol.com --id ${{ secrets.CF_ACCESS_CLIENT_ID }} --secret ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
+            LogLevel DEBUG3
           EOF
-          chmod 600 ~/.ssh/config
-          
-          echo "SSH 설정 파일 생성 완료 (호스트: pi.eumgyeol.com)"
+            chmod 600 ~/.ssh/config
+          else
+            echo "cloudflared 프로세스 시작 실패"
+            cat cloudflared.log || echo "로그 파일이 없습니다"
+            exit 1
+          fi
       
       - name: Test SSH Connection
         id: ssh_test
         run: |
-          echo "SSH 연결 테스트 (pi.eumgyeol.com)..."
-          if ssh -v raspberry-pi 'echo "Connection successful" && uptime'; then
+          echo "SSH 연결 테스트 중..."
+          if ssh -vvv raspberry-pi 'echo "Connection successful" && uptime'; then
             echo "ssh_connected=true" >> $GITHUB_OUTPUT
           else
             echo "ssh_connected=false" >> $GITHUB_OUTPUT
-            echo "연결 실패. 디버그 정보:"
-            ssh -vvv raspberry-pi 'echo test' || true
+            echo "연결 실패. 자세한 로그:"
+            cat cloudflared.log || echo "cloudflared 로그 파일이 없습니다."
             exit 1
           fi
 
