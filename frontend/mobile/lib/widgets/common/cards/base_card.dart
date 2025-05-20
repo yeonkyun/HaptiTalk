@@ -27,7 +27,7 @@ class BaseCard extends StatelessWidget {
         boxShadow: boxShadow ??
             [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withAlpha(13), // 0.05 * 255 = ~13
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),

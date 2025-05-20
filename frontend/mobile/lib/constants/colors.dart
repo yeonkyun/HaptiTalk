@@ -61,7 +61,7 @@ class AppColors {
 
   // 투명도가 있는 색상
   static Color primaryWithOpacity(double opacity) =>
-      primary.withOpacity(opacity);
+      primary.withAlpha((opacity * 255).round());
   static Color darkBackgroundWithOpacity(double opacity) =>
-      darkBackground.withOpacity(opacity);
+      darkBackground.withAlpha((opacity * 255).round());
 }
