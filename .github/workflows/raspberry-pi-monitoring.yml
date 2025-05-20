@@ -26,15 +26,31 @@ jobs:
       - name: Set up SSH config with Cloudflare proxy
         run: |
           mkdir -p ~/.ssh
-          cat > ~/.ssh/config << EOF
+          cat <<EOF > ~/.ssh/config
           Host raspberry-pi
             HostName ${{ secrets.CF_SSH_HOSTNAME }}
             Port 22
             User ${{ secrets.RASPBERRY_PI_USER }}
-            ProxyCommand cloudflared access ssh --hostname %h --id ${{ secrets.CF_ACCESS_CLIENT_ID }} --secret ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+            # ProxyCommand 수정 - 직접 호스트네임 전달
+            ProxyCommand cloudflared access ssh --hostname ${{ secrets.CF_SSH_HOSTNAME }} --id ${{ secrets.CF_ACCESS_CLIENT_ID }} --secret ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
             StrictHostKeyChecking=no
           EOF
           chmod 600 ~/.ssh/config
+          
+          # 디버깅: 실제 생성된 파일 내용 확인 (민감한 값은 마스킹)
+          echo "생성된 SSH 설정 파일 확인 (민감정보 마스킹):"
+          sed 's/--id.*--secret.*/--id [MASKED] --secret [MASKED]/' ~/.ssh/config
+          
+          # hostname이 비어있는지 확인
+          if ! grep -q "HostName ." ~/.ssh/config; then
+            echo "경고: CF_SSH_HOSTNAME 값이 비어 있거나 설정되지 않았습니다!"
+            echo "CF_SSH_HOSTNAME를 GitHub Secrets에 추가해주세요."
+            exit 1
+          fi
+          
+          # cloudflared 버전 확인
+          echo "Cloudflared 버전 정보:"
+          cloudflared --version
       
       - name: Test SSH Connection
         id: ssh_test
@@ -78,15 +94,20 @@ jobs:
           sudo mv cloudflared /usr/local/bin
           
           mkdir -p ~/.ssh
-          cat > ~/.ssh/config << EOF
+          cat <<EOF > ~/.ssh/config
           Host raspberry-pi
             HostName ${{ secrets.CF_SSH_HOSTNAME }}
             Port 22
             User ${{ secrets.RASPBERRY_PI_USER }}
-            ProxyCommand cloudflared access ssh --hostname %h --id ${{ secrets.CF_ACCESS_CLIENT_ID }} --secret ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+            # ProxyCommand 수정 - 직접 호스트네임 전달
+            ProxyCommand cloudflared access ssh --hostname ${{ secrets.CF_SSH_HOSTNAME }} --id ${{ secrets.CF_ACCESS_CLIENT_ID }} --secret ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
             StrictHostKeyChecking=no
           EOF
           chmod 600 ~/.ssh/config
+          
+          # 디버깅: SSH 설정 확인
+          echo "SSH 설정 확인 (민감정보 마스킹):"
+          sed 's/--id.*--secret.*/--id [MASKED] --secret [MASKED]/' ~/.ssh/config
       
       - name: Check Docker Services
         id: docker_check
