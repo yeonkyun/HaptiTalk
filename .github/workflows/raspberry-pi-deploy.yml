@@ -95,32 +95,59 @@ jobs:
             echo " - 검증 건너뛰기: ${{ github.event.inputs.skip_verification }}"
           fi
 
-  check_raspberry_pi:
-    name: Check Raspberry Pi Health
+  setup_cloudflared:
+    name: Setup Cloudflared Connection
     needs: prepare_deployment
     runs-on: ubuntu-latest
     steps:
-      - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.RASPBERRY_PI_SSH_KEY }}
+      - name: Install cloudflared
+        run: |
+          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+          chmod +x cloudflared
+          sudo mv cloudflared /usr/local/bin
+          cloudflared version
       
+      - name: Set up SSH config with Cloudflare proxy
+        run: |
+          mkdir -p ~/.ssh
+          cat <<'EOF' > ~/.ssh/config
+          Host raspberry-pi
+            HostName ${{ secrets.CF_SSH_HOSTNAME }}
+            Port 22
+            User ${{ secrets.RASPBERRY_PI_USER }}
+            ProxyCommand cloudflared access ssh --hostname %h --id ${{ secrets.CF_ACCESS_CLIENT_ID }} --secret ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+            StrictHostKeyChecking=no
+          EOF
+          chmod 600 ~/.ssh/config
+      
+      - name: Test SSH Connection
+        id: ssh_test
+        run: |
+          echo "Testing SSH connection via Cloudflare Tunnel..."
+          if ssh raspberry-pi 'echo "Connection successful" && uptime'; then
+            echo "ssh_connected=true" >> $GITHUB_OUTPUT
+          else
+            echo "ssh_connected=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+  check_raspberry_pi:
+    name: Check Raspberry Pi Health
+    needs: [prepare_deployment, setup_cloudflared]
+    runs-on: ubuntu-latest
+    steps:
       - name: Check Disk Space
         id: disk_check
         run: |
           # 디스크 공간 확인
-          DISK_INFO=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
-            df -h | grep -E "/$"
-          ')
+          DISK_INFO=$(ssh raspberry-pi 'df -h | grep -E "/$"')
           
           # 디스크 사용량 추출 (% 제거)
           DISK_USAGE=$(echo "$DISK_INFO" | awk '{print $5}' | sed 's/%//')
           echo "disk_usage=$DISK_USAGE" >> $GITHUB_OUTPUT
           
           # 사용 가능한 공간 확인 (MB 단위)
-          AVAILABLE_SPACE=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
-            df -m | grep -E "/$" | awk "{print \$4}"
-          ')
+          AVAILABLE_SPACE=$(ssh raspberry-pi 'df -m | grep -E "/$" | awk "{print \$4}"')
           echo "available_space=${AVAILABLE_SPACE}MB" >> $GITHUB_OUTPUT
           
           # 최소 필요 공간: 500MB
@@ -134,9 +161,7 @@ jobs:
         id: ram_check
         run: |
           # 메모리 정보 확인
-          RAM_INFO=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
-            free -m | grep "Mem:"
-          ')
+          RAM_INFO=$(ssh raspberry-pi 'free -m | grep "Mem:"')
           
           # 사용 가능한 메모리 추출 (MB)
           AVAILABLE_RAM=$(echo "$RAM_INFO" | awk '{print $7}')
@@ -159,7 +184,7 @@ jobs:
         if: steps.disk_check.outputs.disk_warning == 'true'
         run: |
           echo "디스크 공간 부족, 정리 작업 수행 중..."
-          ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+          ssh raspberry-pi '
             # 미사용 도커 리소스 정리
             docker system prune -af --volumes
             
@@ -171,28 +196,21 @@ jobs:
           '
           
           # 정리 후 디스크 공간 다시 확인
-          DISK_USAGE_AFTER=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
-            df -h | grep -E "/$" | awk "{print \$5}" | sed "s/%//"
-          ')
+          DISK_USAGE_AFTER=$(ssh raspberry-pi 'df -h | grep -E "/$" | awk "{print \$5}" | sed "s/%//"')
           
           echo "정리 후 디스크 사용량: ${DISK_USAGE_AFTER}%"
 
   backup_data:
     name: Backup Data
-    needs: [prepare_deployment, check_raspberry_pi]
+    needs: [prepare_deployment, setup_cloudflared, check_raspberry_pi]
     runs-on: ubuntu-latest
     if: needs.prepare_deployment.outputs.backup_before_deploy == 'true'
     steps:
-      - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.RASPBERRY_PI_SSH_KEY }}
-      
       - name: Create Backup
         run: |
           # 배포 전 데이터 백업 (볼륨, 환경 변수 등)
           BACKUP_DATE=$(date +%Y%m%d_%H%M%S)
-          ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+          ssh raspberry-pi '
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
             
             # 백업 디렉토리 생성
@@ -215,21 +233,16 @@ jobs:
 
   deploy_to_raspberry_pi:
     name: Deploy to Raspberry Pi
-    needs: [prepare_deployment, check_raspberry_pi, backup_data]
+    needs: [prepare_deployment, setup_cloudflared, check_raspberry_pi, backup_data]
     runs-on: ubuntu-latest
     environment: ${{ needs.prepare_deployment.outputs.environment }}
     steps:
       - uses: actions/checkout@v4
       
-      - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.RASPBERRY_PI_SSH_KEY }}
-      
       - name: Transfer Docker Compose Files
         run: |
           # Docker Compose 파일 전송
-          scp -o StrictHostKeyChecking=no docker-compose.yml ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }}:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+          scp -o StrictHostKeyChecking=no docker-compose.yml raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
           
           # .env 파일 생성 및 전송 (필요한 환경 변수 포함)
           cat > .env << EOL
@@ -286,10 +299,10 @@ jobs:
           DEPLOY_ENVIRONMENT=${{ needs.prepare_deployment.outputs.environment }}
           EOL
           
-          scp -o StrictHostKeyChecking=no .env ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }}:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+          scp -o StrictHostKeyChecking=no .env raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
           
           # 인프라스트럭처 디렉토리 전송
-          scp -o StrictHostKeyChecking=no -r infrastructure ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }}:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+          scp -o StrictHostKeyChecking=no -r infrastructure raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
           
           # 배포 스크립트 생성 및 전송
           cat > deploy.sh << 'EOL'
@@ -349,11 +362,11 @@ jobs:
           EOL
           
           chmod +x deploy.sh
-          scp -o StrictHostKeyChecking=no deploy.sh ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }}:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+          scp -o StrictHostKeyChecking=no deploy.sh raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
       
       - name: Create Docker Network
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+          ssh raspberry-pi '
             docker network create haptitalk_network || echo "Network already exists"
           '
       
@@ -364,16 +377,20 @@ jobs:
           SPECIFIC_SERVICES="${{ needs.prepare_deployment.outputs.specific_services }}"
           FORCE_RESTART="${{ needs.prepare_deployment.outputs.force_restart }}"
           
-          ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} "
+          ssh raspberry-pi "
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
             ./deploy.sh \"$SPECIFIC_SERVICES\" \"$FORCE_RESTART\"
           "
+      
+      - name: Get Current Time
+        id: current_time
+        run: echo "time=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
       
       - name: Verify Deployment
         id: verify
         run: |
           # 배포 검증
-          VERIFICATION=$(ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+          VERIFICATION=$(ssh raspberry-pi '
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
             
             # 주요 서비스 상태 확인
@@ -412,7 +429,7 @@ jobs:
         run: |
           echo "배포 검증 실패, 롤백을 진행합니다..."
           
-          ssh -o StrictHostKeyChecking=no ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }} '
+          ssh raspberry-pi '
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
             
             # 이전 상태로 롤백
@@ -432,7 +449,7 @@ jobs:
             docker-compose ps
           '
       
-      - name: Send Notification
+      - name: Send Deployment Notification
         if: always()
         uses: rtCamp/action-slack-notify@v2
         env:
@@ -452,4 +469,6 @@ jobs:
             
             *디스크 공간:* ${{ steps.disk_check.outputs.disk_usage }}% 사용 (가용: ${{ steps.disk_check.outputs.available_space }})
             *메모리:* 가용 ${{ steps.ram_check.outputs.available_ram }}
-          SLACK_FOOTER: 'Haptitalk CI/CD - $(date +%Y-%m-%d %H:%M:%S)'
+            *배포 시간:* ${{ steps.current_time.outputs.time }}
+          SLACK_FOOTER: 'HaptiTalk CI/CD'
+        continue-on-error: true
