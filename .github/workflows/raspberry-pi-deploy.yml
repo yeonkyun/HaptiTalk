@@ -684,6 +684,22 @@ jobs:
           # Kong 설정 파일 전송 (필요시)
           if [ -f "infrastructure/api-gateway/kong.yml" ]; then
             scp -o StrictHostKeyChecking=no infrastructure/api-gateway/kong.yml raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/api-gateway/
+          else
+            # 기본 Kong 설정 파일 생성
+            mkdir -p infrastructure/api-gateway
+            cat > infrastructure/api-gateway/kong.yml << 'EOL'
+            _format_version: "2.1"
+            _transform: true
+            
+            services:
+              - name: default-service
+                url: http://static-web
+                routes:
+                  - name: default-route
+                    paths:
+                      - /
+            EOL
+            scp -o StrictHostKeyChecking=no infrastructure/api-gateway/kong.yml raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/api-gateway/
           fi
           
           # .env 파일 생성 및 전송
@@ -743,8 +759,20 @@ jobs:
           
           scp -o StrictHostKeyChecking=no .env raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
           
-          # 인프라스트럭처 디렉토리 전송
-          scp -o StrictHostKeyChecking=no -r infrastructure raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+          # 인프라스트럭처 디렉토리 전송 (존재하는 경우에만)
+          if [ -d "infrastructure" ]; then
+            scp -o StrictHostKeyChecking=no -r infrastructure raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+          else
+            echo "infrastructure 디렉토리가 존재하지 않습니다. 원격에서 생성합니다."
+            # 원격에서 필요한 디렉토리 구조 생성
+            ssh raspberry-pi "
+              mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/database/postgres/init
+              mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/database/mongodb/init
+              mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/database/redis/init
+              mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/api-gateway
+              mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/static-web/html
+            "
+          fi
           
           # 배포 스크립트 생성 및 전송
           cat > deploy.sh << 'EOL'
