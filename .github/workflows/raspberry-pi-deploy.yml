@@ -95,8 +95,8 @@ jobs:
             echo " - 검증 건너뛰기: ${{ github.event.inputs.skip_verification }}"
           fi
 
-  setup_cloudflared:
-    name: Setup Cloudflared Connection
+  setup_ssh_connection:
+    name: Setup SSH Connection
     needs: prepare_deployment
     runs-on: ubuntu-latest
     steps:
@@ -108,8 +108,11 @@ jobs:
           sudo mv cloudflared /usr/local/bin
           cloudflared version
           
-          # 시크릿에 저장된 SSH 키 사용
+          # SSH 디렉토리 확인 및 생성
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          
+          # 시크릿에 저장된 SSH 키 사용
           echo "${{ secrets.RASPBERRY_PI_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           
@@ -120,7 +123,7 @@ jobs:
           echo "Cloudflared PID: $CLOUDFLARED_PID"
           
           # 설정 확인을 위해 대기
-          sleep 5
+          sleep 10
           
           # cloudflared 상태 확인
           if ps -p $CLOUDFLARED_PID > /dev/null; then
@@ -140,12 +143,44 @@ jobs:
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
             LogLevel DEBUG3
+            ConnectTimeout 30
+            ServerAliveInterval 60
+            ServerAliveCountMax 10
           EOF
             chmod 600 ~/.ssh/config
           else
             echo "cloudflared 프로세스 시작 실패"
             cat cloudflared.log || echo "로그 파일이 없습니다"
-            exit 1
+            
+            # 재시도
+            echo "cloudflared 재시작을 시도합니다..."
+            pkill cloudflared || echo "기존 프로세스가 없습니다"
+            sleep 2
+            nohup cloudflared access tcp --hostname pi.eumgyeol.com --url 127.0.0.1:2222 --loglevel debug > cloudflared_retry.log 2>&1 &
+            CLOUDFLARED_PID=$!
+            sleep 10
+            
+            if ps -p $CLOUDFLARED_PID > /dev/null; then
+              echo "cloudflared 재시작 성공"
+              cat > ~/.ssh/config << EOF
+          Host raspberry-pi
+            HostName localhost
+            Port 2222
+            User ${{ secrets.RASPBERRY_PI_USER }}
+            IdentityFile ~/.ssh/id_ed25519
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            LogLevel DEBUG3
+            ConnectTimeout 30
+            ServerAliveInterval 60
+            ServerAliveCountMax 10
+          EOF
+              chmod 600 ~/.ssh/config
+            else
+              echo "cloudflared 재시작 실패"
+              cat cloudflared_retry.log || echo "재시도 로그 파일이 없습니다"
+              exit 1
+            fi
           fi
       
       - name: Test SSH Connection
@@ -154,19 +189,39 @@ jobs:
           echo "SSH 연결 테스트 중..."
           
           # SSH 키 기반 인증으로 연결 시도
-          if ssh -o ConnectTimeout=10 raspberry-pi 'echo "Connection successful" && uptime'; then
+          if ssh -o ConnectTimeout=20 raspberry-pi 'echo "Connection successful" && uptime'; then
             echo "ssh_connected=true" >> $GITHUB_OUTPUT
           else
             echo "ssh_connected=false" >> $GITHUB_OUTPUT
             echo "연결 실패. 자세한 로그:"
             ssh -vvv raspberry-pi 'echo test' || true
             cat cloudflared.log || echo "cloudflared 로그 파일이 없습니다."
-            exit 1
+            
+            # 재시도
+            echo "SSH 연결 재시도..."
+            pkill cloudflared || echo "cloudflared 프로세스가 없습니다"
+            sleep 2
+            
+            # cloudflared 재설치
+            curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+            chmod +x cloudflared
+            sudo mv cloudflared /usr/local/bin
+            
+            nohup cloudflared access tcp --hostname pi.eumgyeol.com --url 127.0.0.1:2222 --loglevel debug > cloudflared_retry2.log 2>&1 &
+            sleep 10
+            
+            if ssh -o ConnectTimeout=20 raspberry-pi 'echo "Connection successful on retry" && uptime'; then
+              echo "ssh_connected=true" >> $GITHUB_OUTPUT
+            else
+              echo "SSH 재시도 실패. 워크플로우를 중단합니다."
+              cat cloudflared_retry2.log || echo "재시도 로그 파일이 없습니다"
+              exit 1
+            fi
           fi
 
   check_raspberry_pi:
     name: Check Raspberry Pi Health
-    needs: [prepare_deployment, setup_cloudflared]
+    needs: [prepare_deployment, setup_ssh_connection]
     runs-on: ubuntu-latest
     steps:
       - name: Setup SSH Connection Again
@@ -193,12 +248,12 @@ jobs:
           
           # 새 cloudflared TCP 터널 설정
           echo "Cloudflared TCP 포트 포워딩 설정 중..."
-          nohup cloudflared access tcp --hostname pi.eumgyeol.com --url 127.0.0.1:2222 --loglevel debug > cloudflared_again.log 2>&1 &
+          nohup cloudflared access tcp --hostname pi.eumgyeol.com --url 127.0.0.1:2222 --loglevel debug > cloudflared_health.log 2>&1 &
           CLOUDFLARED_PID=$!
           echo "Cloudflared PID: $CLOUDFLARED_PID"
           
           # 설정 확인을 위해 대기
-          sleep 5
+          sleep 10
           
           # cloudflared 상태 확인
           if ps -p $CLOUDFLARED_PID > /dev/null; then
@@ -206,7 +261,7 @@ jobs:
             
             # cloudflared 로그 확인
             echo "cloudflared 로그:"
-            cat cloudflared_again.log || echo "로그 파일이 없습니다."
+            cat cloudflared_health.log || echo "로그 파일이 없습니다."
             
             # SSH 설정 - 로컬 포트로 연결
             cat > ~/.ssh/config << EOF
@@ -218,11 +273,14 @@ jobs:
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
             LogLevel DEBUG3
+            ConnectTimeout 30
+            ServerAliveInterval 60
+            ServerAliveCountMax 10
           EOF
             chmod 600 ~/.ssh/config
           else
             echo "cloudflared 프로세스 시작 실패"
-            cat cloudflared_again.log || echo "로그 파일이 없습니다"
+            cat cloudflared_health.log || echo "로그 파일이 없습니다"
             exit 1
           fi
           
@@ -231,13 +289,28 @@ jobs:
           echo "SSH 연결 테스트 중..."
           
           # SSH 키 기반 인증으로 연결 시도 
-          if ssh -o ConnectTimeout=10 raspberry-pi 'echo "Connection successful" && uptime'; then
+          if ssh -o ConnectTimeout=20 raspberry-pi 'echo "Connection successful" && uptime'; then
             echo "SSH 연결 성공"
           else
             echo "SSH 연결 실패. 자세한 로그:"
             ssh -vvv raspberry-pi 'echo test' || true
-            cat cloudflared_again.log || echo "cloudflared 로그 파일이 없습니다."
-            exit 1
+            cat cloudflared_health.log || echo "cloudflared 로그 파일이 없습니다."
+            
+            # 재시도
+            echo "SSH 연결 재시도..."
+            pkill cloudflared || echo "cloudflared 프로세스가 없습니다"
+            sleep 2
+            
+            nohup cloudflared access tcp --hostname pi.eumgyeol.com --url 127.0.0.1:2222 --loglevel debug > cloudflared_retry_health.log 2>&1 &
+            sleep 10
+            
+            if ssh -o ConnectTimeout=20 raspberry-pi 'echo "Connection successful on retry" && uptime'; then
+              echo "SSH 재연결 성공"
+            else
+              echo "SSH 재시도 실패. 워크플로우를 중단합니다."
+              cat cloudflared_retry_health.log || echo "재시도 로그 파일이 없습니다"
+              exit 1
+            fi
           fi
           
       - name: Setup Docker Authentication on Raspberry Pi
@@ -245,8 +318,8 @@ jobs:
           # GitHub Container Registry 인증 설정
           echo "GitHub Container Registry 인증 설정 중..."
           
-          # 인증 정보 전송
-          echo "${{ secrets.GITHUB_TOKEN }}" | ssh raspberry-pi "cat > ~/.github_token"
+          # read:packages 권한이 있는 PAT 토큰 사용
+          echo "${{ secrets.GHCR_PAT }}" | ssh raspberry-pi "cat > ~/.github_token"
           
           # 라즈베리파이에서 Docker 로그인 실행
           ssh raspberry-pi '
@@ -321,7 +394,7 @@ jobs:
 
   backup_data:
     name: Backup Data
-    needs: [prepare_deployment, setup_cloudflared, check_raspberry_pi]
+    needs: [prepare_deployment, setup_ssh_connection, check_raspberry_pi]
     runs-on: ubuntu-latest
     if: needs.prepare_deployment.outputs.backup_before_deploy == 'true'
     steps:
@@ -349,12 +422,12 @@ jobs:
           
           # 새 cloudflared TCP 터널 설정
           echo "Cloudflared TCP 포트 포워딩 설정 중..."
-          nohup cloudflared access tcp --hostname pi.eumgyeol.com --url 127.0.0.1:2222 --loglevel debug > cloudflared_again.log 2>&1 &
+          nohup cloudflared access tcp --hostname pi.eumgyeol.com --url 127.0.0.1:2222 --loglevel debug > cloudflared_backup.log 2>&1 &
           CLOUDFLARED_PID=$!
           echo "Cloudflared PID: $CLOUDFLARED_PID"
           
           # 설정 확인을 위해 대기
-          sleep 5
+          sleep 10
           
           # cloudflared 상태 확인
           if ps -p $CLOUDFLARED_PID > /dev/null; then
@@ -362,7 +435,7 @@ jobs:
             
             # cloudflared 로그 확인
             echo "cloudflared 로그:"
-            cat cloudflared_again.log || echo "로그 파일이 없습니다."
+            cat cloudflared_backup.log || echo "로그 파일이 없습니다."
             
             # SSH 설정 - 로컬 포트로 연결
             cat > ~/.ssh/config << EOF
@@ -374,11 +447,14 @@ jobs:
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
             LogLevel DEBUG3
+            ConnectTimeout 30
+            ServerAliveInterval 60
+            ServerAliveCountMax 10
           EOF
             chmod 600 ~/.ssh/config
           else
             echo "cloudflared 프로세스 시작 실패"
-            cat cloudflared_again.log || echo "로그 파일이 없습니다"
+            cat cloudflared_backup.log || echo "로그 파일이 없습니다"
             exit 1
           fi
           
@@ -387,13 +463,28 @@ jobs:
           echo "SSH 연결 테스트 중..."
           
           # SSH 키 기반 인증으로 연결 시도 
-          if ssh -o ConnectTimeout=10 raspberry-pi 'echo "Connection successful" && uptime'; then
+          if ssh -o ConnectTimeout=20 raspberry-pi 'echo "Connection successful" && uptime'; then
             echo "SSH 연결 성공"
           else
             echo "SSH 연결 실패. 자세한 로그:"
             ssh -vvv raspberry-pi 'echo test' || true
-            cat cloudflared_again.log || echo "cloudflared 로그 파일이 없습니다."
-            exit 1
+            cat cloudflared_backup.log || echo "cloudflared 로그 파일이 없습니다."
+            
+            # 재시도
+            echo "SSH 연결 재시도..."
+            pkill cloudflared || echo "cloudflared 프로세스가 없습니다"
+            sleep 2
+            
+            nohup cloudflared access tcp --hostname pi.eumgyeol.com --url 127.0.0.1:2222 --loglevel debug > cloudflared_retry_backup.log 2>&1 &
+            sleep 10
+            
+            if ssh -o ConnectTimeout=20 raspberry-pi 'echo "Connection successful on retry" && uptime'; then
+              echo "SSH 재연결 성공"
+            else
+              echo "SSH 재시도 실패. 워크플로우를 중단합니다."
+              cat cloudflared_retry_backup.log || echo "재시도 로그 파일이 없습니다"
+              exit 1
+            fi
           fi
       
       - name: Setup Docker Authentication on Raspberry Pi
@@ -401,8 +492,8 @@ jobs:
           # GitHub Container Registry 인증 설정
           echo "GitHub Container Registry 인증 설정 중..."
           
-          # 인증 정보 전송
-          echo "${{ secrets.GITHUB_TOKEN }}" | ssh raspberry-pi "cat > ~/.github_token"
+          # read:packages 권한이 있는 PAT 토큰 사용
+          echo "${{ secrets.GHCR_PAT }}" | ssh raspberry-pi "cat > ~/.github_token"
           
           # 라즈베리파이에서 Docker 로그인 실행
           ssh raspberry-pi '
@@ -883,7 +974,13 @@ jobs:
             
             # Kong 이미지 수정 (ARM 호환성 문제 해결)
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
-            sed -i 's|image: kong:3.3.1-alpine|image: kong/kong:3.3.1-alpine\\n    platform: linux/arm64/v8|g' docker-compose.yml 2>/dev/null || true
+            
+            # Kong 이미지를 ARM 호환 버전으로 수정
+            if grep -q 'image: kong:' docker-compose.yml; then
+              sed -i 's|image: kong:.*|image: kong/kong:3.3.1-alpine\\n    platform: linux/arm64/v8|g' docker-compose.yml
+            elif grep -q 'image: kong/kong:' docker-compose.yml && ! grep -q 'platform: linux/arm64/v8' docker-compose.yml; then
+              sed -i 's|image: kong/kong:.*|image: kong/kong:3.3.1-alpine\\n    platform: linux/arm64/v8|g' docker-compose.yml
+            fi
             
             # 배포 실행
             ./deploy.sh \"$SPECIFIC_SERVICES\" \"$FORCE_RESTART\"
