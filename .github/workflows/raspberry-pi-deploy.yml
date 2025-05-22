@@ -240,6 +240,21 @@ jobs:
             exit 1
           fi
           
+      - name: Setup Docker Authentication on Raspberry Pi
+        run: |
+          # GitHub Container Registry 인증 설정
+          echo "GitHub Container Registry 인증 설정 중..."
+          
+          # 인증 정보 전송
+          echo "${{ secrets.GITHUB_TOKEN }}" | ssh raspberry-pi "cat > ~/.github_token"
+          
+          # 라즈베리파이에서 Docker 로그인 실행
+          ssh raspberry-pi '
+            echo "GitHub Container Registry 인증 설정 중..."
+            cat ~/.github_token | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+            rm ~/.github_token  # 보안을 위해 토큰 파일 삭제
+          '
+      
       - name: Check Disk Space
         id: disk_check
         run: |
@@ -381,109 +396,20 @@ jobs:
             exit 1
           fi
       
-      - name: Create Backup
+      - name: Setup Docker Authentication on Raspberry Pi
         run: |
-          # 배포 전 데이터 백업 (볼륨, 환경 변수 등)
-          BACKUP_DATE=$(date +%Y%m%d_%H%M%S)
+          # GitHub Container Registry 인증 설정
+          echo "GitHub Container Registry 인증 설정 중..."
+          
+          # 인증 정보 전송
+          echo "${{ secrets.GITHUB_TOKEN }}" | ssh raspberry-pi "cat > ~/.github_token"
+          
+          # 라즈베리파이에서 Docker 로그인 실행
           ssh raspberry-pi '
-            cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
-            
-            # 백업 디렉토리 생성
-            mkdir -p backups
-            
-            # 환경 변수 파일 백업
-            if [ -f ".env" ]; then
-              cp .env backups/.env.backup_$BACKUP_DATE
-            fi
-            
-            # 중요 볼륨 데이터 백업 (예: PostgreSQL)
-            # 주의: 대용량 데이터의 경우 별도 스크립트를 통해 선택적으로 백업하는 것이 좋음
-            if docker volume ls | grep -q "postgres_data"; then
-              docker run --rm -v postgres_data:/data -v /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/backups:/backup alpine \
-                tar czf /backup/postgres_data_$BACKUP_DATE.tar.gz /data
-            fi
-            
-            echo "백업 완료: backups/ 디렉토리에 저장됨"
+            echo "GitHub Container Registry 인증 설정 중..."
+            cat ~/.github_token | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+            rm ~/.github_token  # 보안을 위해 토큰 파일 삭제
           '
-
-  deploy_to_raspberry_pi:
-    name: Deploy to Raspberry Pi
-    needs: [prepare_deployment, setup_cloudflared, check_raspberry_pi, backup_data]
-    runs-on: ubuntu-latest
-    environment: ${{ needs.prepare_deployment.outputs.environment }}
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup SSH Connection Again
-        run: |
-          # 이전 cloudflared 프로세스 종료
-          pkill cloudflared || echo "실행 중인 cloudflared 프로세스가 없습니다"
-          
-          # cloudflared 설치
-          echo "cloudflared 설치 중..."
-          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
-          chmod +x cloudflared
-          sudo mv cloudflared /usr/local/bin
-          cloudflared version
-          
-          # SSH 디렉토리 확인 및 생성
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          
-          # SSH 키 확인 (이미 있으면 다시 생성하지 않음)
-          if [ ! -f ~/.ssh/id_ed25519 ]; then
-            echo "${{ secrets.RASPBERRY_PI_SSH_KEY }}" > ~/.ssh/id_ed25519
-            chmod 600 ~/.ssh/id_ed25519
-          fi
-          
-          # 새 cloudflared TCP 터널 설정
-          echo "Cloudflared TCP 포트 포워딩 설정 중..."
-          nohup cloudflared access tcp --hostname pi.eumgyeol.com --url 127.0.0.1:2222 --loglevel debug > cloudflared_again.log 2>&1 &
-          CLOUDFLARED_PID=$!
-          echo "Cloudflared PID: $CLOUDFLARED_PID"
-          
-          # 설정 확인을 위해 대기
-          sleep 5
-          
-          # cloudflared 상태 확인
-          if ps -p $CLOUDFLARED_PID > /dev/null; then
-            echo "cloudflared 프로세스가 실행 중입니다."
-            
-            # cloudflared 로그 확인
-            echo "cloudflared 로그:"
-            cat cloudflared_again.log || echo "로그 파일이 없습니다."
-            
-            # SSH 설정 - 로컬 포트로 연결
-            cat > ~/.ssh/config << EOF
-          Host raspberry-pi
-            HostName localhost
-            Port 2222
-            User ${{ secrets.RASPBERRY_PI_USER }}
-            IdentityFile ~/.ssh/id_ed25519
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-            LogLevel DEBUG3
-          EOF
-            chmod 600 ~/.ssh/config
-          else
-            echo "cloudflared 프로세스 시작 실패"
-            cat cloudflared_again.log || echo "로그 파일이 없습니다"
-            exit 1
-          fi
-          
-      - name: Test SSH Connection
-        run: |
-          echo "SSH 연결 테스트 중..."
-          
-          # SSH 키 기반 인증으로 연결 시도 
-          if ssh -o ConnectTimeout=10 raspberry-pi 'echo "Connection successful" && uptime'; then
-            echo "SSH 연결 성공"
-          else
-            echo "SSH 연결 실패. 자세한 로그:"
-            ssh -vvv raspberry-pi 'echo test' || true
-            cat cloudflared_again.log || echo "cloudflared 로그 파일이 없습니다."
-            exit 1
-          fi
       
       - name: Transfer Docker Compose Files
         run: |
@@ -584,7 +510,8 @@ jobs:
           
             # API 게이트웨이
             kong:
-              image: kong:3.3.1-alpine
+              image: kong/kong:3.3.1-alpine
+              platform: linux/arm64/v8
               restart: always
               environment:
                 KONG_DATABASE: "off"
@@ -841,15 +768,22 @@ jobs:
           
           # 이미지 가져오기
           echo "도커 이미지 업데이트 중..." | tee -a $DEPLOY_LOG
-          docker-compose pull
+          # 이미지 풀 오류시 계속 진행 (일부 실패해도 진행)
+          docker-compose pull || echo "일부 이미지를 가져오지 못했습니다. 계속 진행합니다." | tee -a $DEPLOY_LOG
           
           # 기존 컨테이너 상태 저장 (롤백용)
           echo "현재 컨테이너 상태 백업 중..." | tee -a $DEPLOY_LOG
-          docker-compose ps > /home/${USER}/haptitalk/container_state_before_deploy.txt
+          docker-compose ps > /home/${USER}/haptitalk/container_state_before_deploy.txt || true
           
           # 특정 서비스만 재시작 여부 확인
           SPECIFIC_SERVICES="$1"
           FORCE_RESTART="$2"
+          
+          # 도커 네트워크 생성 (없으면)
+          docker network create haptitalk_network 2>/dev/null || echo "네트워크가 이미 존재합니다."
+          
+          # 실제 배포 시작
+          echo "배포 시작..." | tee -a $DEPLOY_LOG
           
           if [ "$FORCE_RESTART" == "true" ]; then
             echo "강제 재시작 모드: 모든 컨테이너를 중지하고 재시작합니다." | tee -a $DEPLOY_LOG
@@ -860,18 +794,35 @@ jobs:
             IFS=',' read -ra SERVICES <<< "$SPECIFIC_SERVICES"
             for service in "${SERVICES[@]}"; do
               echo "서비스 재시작: $service" | tee -a $DEPLOY_LOG
-              docker-compose stop $service
-              docker-compose rm -f $service
-              docker-compose up -d $service
+              # 서비스 존재 여부 확인 후 재시작
+              if grep -q "$service:" docker-compose.yml; then
+                docker-compose stop $service || true
+                docker-compose rm -f $service || true
+                docker-compose up -d $service
+              else
+                echo "경고: $service 서비스가 docker-compose.yml에 정의되어 있지 않습니다." | tee -a $DEPLOY_LOG
+              fi
             done
           else
             echo "인프라 서비스 배포 중..." | tee -a $DEPLOY_LOG
+            # 기본 인프라 서비스만 시작
             docker-compose up -d postgres mongodb redis zookeeper kafka kafka-ui kafka-init kong static-web
+            
+            echo "애플리케이션 서비스 배포 중..." | tee -a $DEPLOY_LOG
+            # 각 서비스 개별 시작 (오류 격리)
+            for service in auth-service realtime-service session-service feedback-service user-service report-service; do
+              echo "서비스 시작: $service" | tee -a $DEPLOY_LOG
+              docker-compose up -d $service || echo "경고: $service 시작 실패" | tee -a $DEPLOY_LOG
+            done
           fi
           
           # 배포 완료 확인
           echo "컨테이너 상태:" | tee -a $DEPLOY_LOG
           docker-compose ps | tee -a $DEPLOY_LOG
+          
+          # 실행 중인 컨테이너 수 확인
+          RUNNING_COUNT=$(docker-compose ps --services --filter "status=running" | wc -l)
+          echo "실행 중인 컨테이너 수: $RUNNING_COUNT" | tee -a $DEPLOY_LOG
           
           echo "===== 배포 완료: $(date) =====" | tee -a $DEPLOY_LOG
           EOL
@@ -892,8 +843,21 @@ jobs:
           SPECIFIC_SERVICES="${{ needs.prepare_deployment.outputs.specific_services }}"
           FORCE_RESTART="${{ needs.prepare_deployment.outputs.force_restart }}"
           
+          # GitHub Container Registry 인증 설정
+          echo "GitHub Container Registry 인증 설정 중..."
+          echo "${{ secrets.GHCR_PAT }}" | ssh raspberry-pi "cat > ~/.github_token"
+          
           ssh raspberry-pi "
+            # Docker 로그인 실행
+            echo \"GitHub Container Registry 로그인 중...\"
+            cat ~/.github_token | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+            rm ~/.github_token  # 보안을 위해 토큰 파일 삭제
+            
+            # Kong 이미지 수정 (ARM 호환성 문제 해결)
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
+            sed -i 's|image: kong:3.3.1-alpine|image: kong/kong:3.3.1-alpine\\n    platform: linux/arm64/v8|g' docker-compose.yml 2>/dev/null || true
+            
+            # 배포 실행
             ./deploy.sh \"$SPECIFIC_SERVICES\" \"$FORCE_RESTART\"
           "
       
