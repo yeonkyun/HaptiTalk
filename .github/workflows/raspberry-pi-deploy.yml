@@ -174,6 +174,13 @@ jobs:
           # 이전 cloudflared 프로세스 종료
           pkill cloudflared || echo "실행 중인 cloudflared 프로세스가 없습니다"
           
+          # cloudflared 설치
+          echo "cloudflared 설치 중..."
+          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+          chmod +x cloudflared
+          sudo mv cloudflared /usr/local/bin
+          cloudflared version
+          
           # SSH 디렉토리 확인 및 생성
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
@@ -308,6 +315,13 @@ jobs:
           # 이전 cloudflared 프로세스 종료
           pkill cloudflared || echo "실행 중인 cloudflared 프로세스가 없습니다"
           
+          # cloudflared 설치
+          echo "cloudflared 설치 중..."
+          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+          chmod +x cloudflared
+          sudo mv cloudflared /usr/local/bin
+          cloudflared version
+          
           # SSH 디렉토리 확인 및 생성
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
@@ -404,6 +418,13 @@ jobs:
         run: |
           # 이전 cloudflared 프로세스 종료
           pkill cloudflared || echo "실행 중인 cloudflared 프로세스가 없습니다"
+          
+          # cloudflared 설치
+          echo "cloudflared 설치 중..."
+          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+          chmod +x cloudflared
+          sudo mv cloudflared /usr/local/bin
+          cloudflared version
           
           # SSH 디렉토리 확인 및 생성
           mkdir -p ~/.ssh
