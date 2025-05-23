@@ -751,62 +751,82 @@ jobs:
             # 배포용 docker-compose.yml 생성 (ARM64 호환 및 이미지 기반)
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
             
-            # Kong ARM64 호환 이미지로 변경
-            if grep -q 'image: kong:3.0' docker-compose.yml; then
-              sed -i 's|image: kong:3.0|image: kong/kong-gateway:3.0.1.0-alpine|g' docker-compose.yml
+            # 기존 파일 백업
+            if [ -f docker-compose.yml ]; then
+              cp docker-compose.yml docker-compose.yml.backup
             fi
             
-            # 애플리케이션 서비스들을 빌드에서 이미지로 변경
-            # auth-service 변경
-            if grep -A 10 'auth-service:' docker-compose.yml | grep -q 'build:'; then
-              sed -i '/auth-service:/,/build:/{
-                /build:/,/dockerfile:/d
-              }' docker-compose.yml
-              sed -i '/auth-service:/a\\    image: ghcr.io/${{ github.repository_owner }}/haptitalk-auth-service:latest' docker-compose.yml
-            fi
+            # 간단한 배포용 docker-compose.yml 생성 (기본 서비스만)
+            echo 'version: \"3.8\"' > docker-compose.yml
+            echo '' >> docker-compose.yml
+            echo 'networks:' >> docker-compose.yml
+            echo '  haptitalk_network:' >> docker-compose.yml
+            echo '    driver: bridge' >> docker-compose.yml
+            echo '' >> docker-compose.yml
+            echo 'services:' >> docker-compose.yml
+            echo '  postgres:' >> docker-compose.yml
+            echo '    image: postgres:14-alpine' >> docker-compose.yml
+            echo '    container_name: haptitalk-postgres' >> docker-compose.yml
+            echo '    restart: unless-stopped' >> docker-compose.yml
+            echo '    environment:' >> docker-compose.yml
+            echo '      POSTGRES_USER: \${POSTGRES_USER}' >> docker-compose.yml
+            echo '      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD}' >> docker-compose.yml
+            echo '      POSTGRES_DB: \${POSTGRES_DB}' >> docker-compose.yml
+            echo '    volumes:' >> docker-compose.yml
+            echo '      - \${POSTGRES_VOLUME_NAME}:/var/lib/postgresql/data' >> docker-compose.yml
+            echo '    ports:' >> docker-compose.yml
+            echo '      - \"\${POSTGRES_PORT}:5432\"' >> docker-compose.yml
+            echo '    networks:' >> docker-compose.yml
+            echo '      - haptitalk_network' >> docker-compose.yml
+            echo '' >> docker-compose.yml
+            echo '  redis:' >> docker-compose.yml
+            echo '    image: redis:7-alpine' >> docker-compose.yml
+            echo '    container_name: haptitalk-redis' >> docker-compose.yml
+            echo '    restart: unless-stopped' >> docker-compose.yml
+            echo '    command: redis-server --requirepass \"\${REDIS_PASSWORD}\"' >> docker-compose.yml
+            echo '    volumes:' >> docker-compose.yml
+            echo '      - \${REDIS_VOLUME_NAME}:/data' >> docker-compose.yml
+            echo '    ports:' >> docker-compose.yml
+            echo '      - \"\${REDIS_PORT}:6379\"' >> docker-compose.yml
+            echo '    networks:' >> docker-compose.yml
+            echo '      - haptitalk_network' >> docker-compose.yml
+            echo '' >> docker-compose.yml
+            echo '  kong:' >> docker-compose.yml
+            echo '    image: kong/kong-gateway:3.0.1.0-alpine' >> docker-compose.yml
+            echo '    container_name: haptitalk-kong' >> docker-compose.yml
+            echo '    restart: unless-stopped' >> docker-compose.yml
+            echo '    environment:' >> docker-compose.yml
+            echo '      KONG_DATABASE: \"off\"' >> docker-compose.yml
+            echo '      KONG_DECLARATIVE_CONFIG: /tmp/kong.yml' >> docker-compose.yml
+            echo '      KONG_PROXY_ACCESS_LOG: /dev/stdout' >> docker-compose.yml
+            echo '      KONG_ADMIN_ACCESS_LOG: /dev/stdout' >> docker-compose.yml
+            echo '      KONG_PROXY_ERROR_LOG: /dev/stderr' >> docker-compose.yml
+            echo '      KONG_ADMIN_ERROR_LOG: /dev/stderr' >> docker-compose.yml
+            echo '      KONG_ADMIN_LISTEN: 0.0.0.0:8001' >> docker-compose.yml
+            echo '    volumes:' >> docker-compose.yml
+            echo '      - ./infrastructure/api-gateway:/kong/declarative' >> docker-compose.yml
+            echo '    ports:' >> docker-compose.yml
+            echo '      - \"\${KONG_PROXY_PORT}:8000\"' >> docker-compose.yml
+            echo '      - \"\${KONG_ADMIN_PORT}:8001\"' >> docker-compose.yml
+            echo '    networks:' >> docker-compose.yml
+            echo '      - haptitalk_network' >> docker-compose.yml
+            echo '' >> docker-compose.yml
+            echo '  static-web:' >> docker-compose.yml
+            echo '    image: nginx:1.23-alpine' >> docker-compose.yml
+            echo '    container_name: haptitalk-static-web' >> docker-compose.yml
+            echo '    restart: unless-stopped' >> docker-compose.yml
+            echo '    volumes:' >> docker-compose.yml
+            echo '      - ./infrastructure/static-web/html:/usr/share/nginx/html:ro' >> docker-compose.yml
+            echo '    networks:' >> docker-compose.yml
+            echo '      - haptitalk_network' >> docker-compose.yml
+            echo '' >> docker-compose.yml
+            echo 'volumes:' >> docker-compose.yml
+            echo '  postgres_data:' >> docker-compose.yml
+            echo '    name: \${POSTGRES_VOLUME_NAME}' >> docker-compose.yml
+            echo '  redis_data:' >> docker-compose.yml
+            echo '    name: \${REDIS_VOLUME_NAME}' >> docker-compose.yml
             
-            # realtime-service 변경
-            if grep -A 10 'realtime-service:' docker-compose.yml | grep -q 'build:'; then
-              sed -i '/realtime-service:/,/build:/{
-                /build:/,/dockerfile:/d
-              }' docker-compose.yml
-              sed -i '/realtime-service:/a\\    image: ghcr.io/${{ github.repository_owner }}/haptitalk-realtime-service:latest' docker-compose.yml
-            fi
-            
-            # session-service 변경
-            if grep -A 10 'session-service:' docker-compose.yml | grep -q 'build:'; then
-              sed -i '/session-service:/,/build:/{
-                /build:/,/dockerfile:/d
-              }' docker-compose.yml
-              sed -i '/session-service:/a\\    image: ghcr.io/${{ github.repository_owner }}/haptitalk-session-service:latest' docker-compose.yml
-            fi
-            
-            # feedback-service 변경
-            if grep -A 10 'feedback-service:' docker-compose.yml | grep -q 'build:'; then
-              sed -i '/feedback-service:/,/build:/{
-                /build:/,/dockerfile:/d
-              }' docker-compose.yml
-              sed -i '/feedback-service:/a\\    image: ghcr.io/${{ github.repository_owner }}/haptitalk-feedback-service:latest' docker-compose.yml
-            fi
-            
-            # user-service 변경
-            if grep -A 10 'user-service:' docker-compose.yml | grep -q 'build:'; then
-              sed -i '/user-service:/,/build:/{
-                /build:/,/dockerfile:/d
-              }' docker-compose.yml
-              sed -i '/user-service:/a\\    image: ghcr.io/${{ github.repository_owner }}/haptitalk-user-service:latest' docker-compose.yml
-            fi
-            
-            # report-service 변경
-            if grep -A 10 'report-service:' docker-compose.yml | grep -q 'build:'; then
-              sed -i '/report-service:/,/build:/{
-                /build:/,/dockerfile:/d
-              }' docker-compose.yml
-              sed -i '/report-service:/a\\    image: ghcr.io/${{ github.repository_owner }}/haptitalk-report-service:latest' docker-compose.yml
-            fi
-            
-            echo \"Docker Compose 설정 변경 완료. 수정된 내용 확인:\"
-            grep -A 2 -E '(kong:|auth-service:|realtime-service:)' docker-compose.yml || echo \"확인 실패\"
+            echo \"배포용 Docker Compose 파일 생성 완료\"
             
             # 배포 실행
             ./deploy.sh \"$SPECIFIC_SERVICES\" \"$FORCE_RESTART\"
