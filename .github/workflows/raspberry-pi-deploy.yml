@@ -762,29 +762,38 @@ jobs:
             # 애플리케이션 서비스들을 GitHub Container Registry 이미지로 변경
             # 간단한 방법으로 build 섹션을 image로 교체
             
+            # 현재 브랜치에 맞는 이미지 태그 설정
+            if [[ \"${{ github.ref_name }}\" == \"main\" ]]; then
+              IMAGE_TAG=\"latest\"
+            else
+              IMAGE_TAG=\"${{ github.ref_name }}\"
+            fi
+            
+            echo \"Using image tag: \$IMAGE_TAG\"
+            
             # 1. auth-service 수정
             sed -i '/^  auth-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
-            sed -i '/^  auth-service:/a\    image: ghcr.io/tae4an/haptitalk-auth-service:latest' docker-compose.yml
+            sed -i \"/^  auth-service:/a\\    image: ghcr.io/tae4an/haptitalk-auth-service:\$IMAGE_TAG\" docker-compose.yml
             
             # 2. realtime-service 수정  
             sed -i '/^  realtime-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
-            sed -i '/^  realtime-service:/a\    image: ghcr.io/tae4an/haptitalk-realtime-service:latest' docker-compose.yml
+            sed -i \"/^  realtime-service:/a\\    image: ghcr.io/tae4an/haptitalk-realtime-service:\$IMAGE_TAG\" docker-compose.yml
             
             # 3. session-service 수정
             sed -i '/^  session-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
-            sed -i '/^  session-service:/a\    image: ghcr.io/tae4an/haptitalk-session-service:latest' docker-compose.yml
+            sed -i \"/^  session-service:/a\\    image: ghcr.io/tae4an/haptitalk-session-service:\$IMAGE_TAG\" docker-compose.yml
             
             # 4. feedback-service 수정
             sed -i '/^  feedback-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
-            sed -i '/^  feedback-service:/a\    image: ghcr.io/tae4an/haptitalk-feedback-service:latest' docker-compose.yml
+            sed -i \"/^  feedback-service:/a\\    image: ghcr.io/tae4an/haptitalk-feedback-service:\$IMAGE_TAG\" docker-compose.yml
             
             # 5. user-service 수정
             sed -i '/^  user-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
-            sed -i '/^  user-service:/a\    image: ghcr.io/tae4an/haptitalk-user-service:latest' docker-compose.yml
+            sed -i \"/^  user-service:/a\\    image: ghcr.io/tae4an/haptitalk-user-service:\$IMAGE_TAG\" docker-compose.yml
             
             # 6. report-service 수정
             sed -i '/^  report-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
-            sed -i '/^  report-service:/a\    image: ghcr.io/tae4an/haptitalk-report-service:latest' docker-compose.yml
+            sed -i \"/^  report-service:/a\\    image: ghcr.io/tae4an/haptitalk-report-service:\$IMAGE_TAG\" docker-compose.yml
             
             echo \"애플리케이션 서비스들을 GitHub Container Registry 이미지로 변경 완료\"
             
