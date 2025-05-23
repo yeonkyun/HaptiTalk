@@ -760,36 +760,31 @@ jobs:
             sed -i 's|image: kong:3.0|image: kong/kong-gateway:3.0.1.0-alpine|g' docker-compose.yml
             
             # 애플리케이션 서비스들을 GitHub Container Registry 이미지로 변경
-            # build 섹션을 이미지로 교체
-            sed -i '/auth-service:/,/^[[:space:]]*[^[:space:]]/ {
-              /build:/,/dockerfile:/ d
-              /auth-service:/ a\    image: ghcr.io/${{ github.repository_owner }}/haptitalk-auth-service:latest
-            }' docker-compose.yml
+            # 간단한 방법으로 build 섹션을 image로 교체
             
-            sed -i '/realtime-service:/,/^[[:space:]]*[^[:space:]]/ {
-              /build:/,/dockerfile:/ d
-              /realtime-service:/ a\    image: ghcr.io/${{ github.repository_owner }}/haptitalk-realtime-service:latest
-            }' docker-compose.yml
+            # 1. auth-service 수정
+            sed -i '/^  auth-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
+            sed -i '/^  auth-service:/a\    image: ghcr.io/tae4an/haptitalk-auth-service:latest' docker-compose.yml
             
-            sed -i '/session-service:/,/^[[:space:]]*[^[:space:]]/ {
-              /build:/,/dockerfile:/ d
-              /session-service:/ a\    image: ghcr.io/${{ github.repository_owner }}/haptitalk-session-service:latest
-            }' docker-compose.yml
+            # 2. realtime-service 수정  
+            sed -i '/^  realtime-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
+            sed -i '/^  realtime-service:/a\    image: ghcr.io/tae4an/haptitalk-realtime-service:latest' docker-compose.yml
             
-            sed -i '/feedback-service:/,/^[[:space:]]*[^[:space:]]/ {
-              /build:/,/dockerfile:/ d
-              /feedback-service:/ a\    image: ghcr.io/${{ github.repository_owner }}/haptitalk-feedback-service:latest
-            }' docker-compose.yml
+            # 3. session-service 수정
+            sed -i '/^  session-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
+            sed -i '/^  session-service:/a\    image: ghcr.io/tae4an/haptitalk-session-service:latest' docker-compose.yml
             
-            sed -i '/user-service:/,/^[[:space:]]*[^[:space:]]/ {
-              /build:/,/dockerfile:/ d
-              /user-service:/ a\    image: ghcr.io/${{ github.repository_owner }}/haptitalk-user-service:latest
-            }' docker-compose.yml
+            # 4. feedback-service 수정
+            sed -i '/^  feedback-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
+            sed -i '/^  feedback-service:/a\    image: ghcr.io/tae4an/haptitalk-feedback-service:latest' docker-compose.yml
             
-            sed -i '/report-service:/,/^[[:space:]]*[^[:space:]]/ {
-              /build:/,/dockerfile:/ d
-              /report-service:/ a\    image: ghcr.io/${{ github.repository_owner }}/haptitalk-report-service:latest
-            }' docker-compose.yml
+            # 5. user-service 수정
+            sed -i '/^  user-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
+            sed -i '/^  user-service:/a\    image: ghcr.io/tae4an/haptitalk-user-service:latest' docker-compose.yml
+            
+            # 6. report-service 수정
+            sed -i '/^  report-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
+            sed -i '/^  report-service:/a\    image: ghcr.io/tae4an/haptitalk-report-service:latest' docker-compose.yml
             
             echo \"애플리케이션 서비스들을 GitHub Container Registry 이미지로 변경 완료\"
             
