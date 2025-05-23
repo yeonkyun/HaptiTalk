@@ -504,227 +504,227 @@ jobs:
             rm ~/.github_token  # 보안을 위해 토큰 파일 삭제
           '
       
-          - name: Transfer Docker Compose Files
-          run: |
-            # 기존 docker-compose.yml 확인 및 수정
-            echo "Docker Compose 파일 준비 중..."
-            
-            # 레포지토리에서 docker-compose.yml 파일 사용 (이미 체크아웃됨)
-            if [ -f "docker-compose.yml" ]; then
-              echo "기존 docker-compose.yml 파일을 사용합니다."
-            else
-              echo "docker-compose.yml 파일이 없습니다. 기본 파일을 생성합니다."
-              # 기본 docker-compose.yml 생성 (간단한 버전)
-              cat > docker-compose.yml << 'EOF'
-            version: "3.8"
-            services:
-              postgres:
-                image: postgres:14-alpine
-                restart: always
-                environment:
-                  POSTGRES_USER: ${POSTGRES_USER}
-                  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-                  POSTGRES_DB: ${POSTGRES_DB}
-                ports:
-                  - "${POSTGRES_PORT:-5432}:5432"
-              redis:
-                image: redis:7-alpine
-                restart: always
-                command: redis-server --requirepass ${REDIS_PASSWORD}
-                ports:
-                  - "${REDIS_PORT:-6379}:6379"
-            volumes:
-              postgres_data:
-              redis_data:
-            EOF
-            fi
-            
-            # 라즈베리파이에 파일 전송
-            scp -o StrictHostKeyChecking=no docker-compose.yml raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
-            
-            # 필요한 디렉토리 구조 생성
-            ssh raspberry-pi << 'REMOTE_SCRIPT'
+      - name: Transfer Docker Compose Files
+        run: |
+          # 기존 docker-compose.yml 확인 및 수정
+          echo "Docker Compose 파일 준비 중..."
+          
+          # 레포지토리에서 docker-compose.yml 파일 사용 (이미 체크아웃됨)
+          if [ -f "docker-compose.yml" ]; then
+            echo "기존 docker-compose.yml 파일을 사용합니다."
+          else
+            echo "docker-compose.yml 파일이 없습니다. 기본 파일을 생성합니다."
+            # 기본 docker-compose.yml 생성 (간단한 버전)
+            cat > docker-compose.yml << 'EOF'
+          version: "3.8"
+          services:
+            postgres:
+              image: postgres:14-alpine
+              restart: always
+              environment:
+                POSTGRES_USER: ${POSTGRES_USER}
+                POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+                POSTGRES_DB: ${POSTGRES_DB}
+              ports:
+                - "${POSTGRES_PORT:-5432}:5432"
+            redis:
+              image: redis:7-alpine
+              restart: always
+              command: redis-server --requirepass ${REDIS_PASSWORD}
+              ports:
+                - "${REDIS_PORT:-6379}:6379"
+          volumes:
+            postgres_data:
+            redis_data:
+          EOF
+          fi
+          
+          # 라즈베리파이에 파일 전송
+          scp -o StrictHostKeyChecking=no docker-compose.yml raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+          
+          # 필요한 디렉토리 구조 생성
+          ssh raspberry-pi << 'REMOTE_SCRIPT'
+            mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/database/postgres/init
+            mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/database/mongodb/init
+            mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/database/redis/init
+            mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/api-gateway
+            mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/static-web/html
+          REMOTE_SCRIPT
+          
+          # Kong 설정 파일 전송 (필요시)
+          if [ -f "infrastructure/api-gateway/kong.yml" ]; then
+            scp -o StrictHostKeyChecking=no infrastructure/api-gateway/kong.yml raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/api-gateway/
+          else
+            # 기본 Kong 설정 파일 생성
+            mkdir -p infrastructure/api-gateway
+            cat > infrastructure/api-gateway/kong.yml << 'EOF'
+          _format_version: "2.1"
+          _transform: true
+          
+          services:
+            - name: default-service
+              url: http://static-web
+              routes:
+                - name: default-route
+                  paths:
+                    - /
+          EOF
+            scp -o StrictHostKeyChecking=no infrastructure/api-gateway/kong.yml raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/api-gateway/
+          fi
+          
+          # .env 파일을 단계별로 생성
+          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" > .env
+          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
+          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
+          echo "POSTGRES_VOLUME_NAME=postgres_data" >> .env
+          echo "POSTGRES_PORT=5432" >> .env
+          echo "" >> .env
+          echo "MONGO_USER=${{ secrets.MONGO_USER }}" >> .env
+          echo "MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }}" >> .env
+          echo "MONGO_DB=${{ secrets.MONGO_DB }}" >> .env
+          echo "MONGODB_VOLUME_NAME=mongodb_data" >> .env
+          echo "MONGO_PORT=27017" >> .env
+          echo "" >> .env
+          echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" >> .env
+          echo "REDIS_VOLUME_NAME=redis_data" >> .env
+          echo "REDIS_PORT=6379" >> .env
+          echo "" >> .env
+          echo "ZOOKEEPER_PORT=2181" >> .env
+          echo "KAFKA_PORT=9092" >> .env
+          echo "KAFKA_UI_PORT=8080" >> .env
+          echo "" >> .env
+          echo "KONG_PROXY_PORT=8000" >> .env
+          echo "KONG_HTTPS_PORT=8443" >> .env
+          echo "KONG_ADMIN_PORT=8001" >> .env
+          echo "KONG_VOLUME_NAME=kong_data" >> .env
+          echo "" >> .env
+          echo "JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}" >> .env
+          echo "JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}" >> .env
+          echo "JWT_SESSION_SECRET=${{ secrets.JWT_SESSION_SECRET }}" >> .env
+          echo "JWT_ACCESS_EXPIRES_IN=15m" >> .env
+          echo "JWT_REFRESH_EXPIRES_IN=7d" >> .env
+          echo "JWT_SESSION_EXPIRES_IN=30d" >> .env
+          echo "" >> .env
+          echo "KAFKA_TOPIC_SESSION_EVENTS=session-events" >> .env
+          echo "KAFKA_TOPIC_ANALYSIS_RESULTS=analysis-results" >> .env
+          echo "KAFKA_TOPIC_FEEDBACK_COMMANDS=feedback-commands" >> .env
+          echo "KAFKA_TOPIC_USER_ACTIVITY=user-activity" >> .env
+          echo "" >> .env
+          echo "AUTH_SERVICE_PORT=3000" >> .env
+          echo "REALTIME_SERVICE_PORT=3001" >> .env
+          echo "SESSION_SERVICE_PORT=3002" >> .env
+          echo "FEEDBACK_SERVICE_PORT=3003" >> .env
+          echo "USER_SERVICE_PORT=3004" >> .env
+          echo "REPORT_SERVICE_PORT=3005" >> .env
+          echo "" >> .env
+          echo "LOG_LEVEL=info" >> .env
+          echo "FRONTEND_URL=http://${{ secrets.RASPBERRY_PI_IP }}:8080" >> .env
+          echo "EMAIL_FROM=no-reply@haptitalk.com" >> .env
+          echo "" >> .env
+          echo "DEPLOY_VERSION=$(date +%Y%m%d%H%M%S)" >> .env
+          echo "DEPLOY_ENVIRONMENT=${{ needs.prepare_deployment.outputs.environment }}" >> .env
+          
+          scp -o StrictHostKeyChecking=no .env raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+          
+          # 인프라스트럭처 디렉토리 전송 (존재하는 경우에만)
+          if [ -d "infrastructure" ]; then
+            scp -o StrictHostKeyChecking=no -r infrastructure raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+          else
+            echo "infrastructure 디렉토리가 존재하지 않습니다. 원격에서 생성합니다."
+            # 원격에서 필요한 디렉토리 구조 생성
+            ssh raspberry-pi << 'REMOTE_SCRIPT2'
               mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/database/postgres/init
               mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/database/mongodb/init
               mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/database/redis/init
               mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/api-gateway
               mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/static-web/html
-            REMOTE_SCRIPT
+          REMOTE_SCRIPT2
+          fi
+          
+          # 배포 스크립트 생성 및 전송
+          cat > deploy.sh << 'DEPLOY_EOF'
+          #!/bin/bash
+          set -e
+          
+          # 배포 로그 시작
+          DEPLOY_LOG="/home/${USER}/haptitalk/logs/deploy_$(date +%Y%m%d_%H%M%S).log"
+          mkdir -p /home/${USER}/haptitalk/logs
+          
+          echo "===== 배포 시작: $(date) =====" | tee -a $DEPLOY_LOG
+          cd /home/${USER}/haptitalk
+          
+          # 디렉토리 구조 확인
+          mkdir -p infrastructure/database/postgres/init
+          mkdir -p infrastructure/database/mongodb/init
+          mkdir -p infrastructure/database/redis/init
+          mkdir -p infrastructure/api-gateway
+          mkdir -p infrastructure/messaging/kafka/init
+          mkdir -p infrastructure/static-web/html
+          
+          # 이미지 가져오기
+          echo "도커 이미지 업데이트 중..." | tee -a $DEPLOY_LOG
+          # 이미지 풀 오류시 계속 진행 (일부 실패해도 진행)
+          docker-compose pull || echo "일부 이미지를 가져오지 못했습니다. 계속 진행합니다." | tee -a $DEPLOY_LOG
+          
+          # 기존 컨테이너 상태 저장 (롤백용)
+          echo "현재 컨테이너 상태 백업 중..." | tee -a $DEPLOY_LOG
+          docker-compose ps > /home/${USER}/haptitalk/container_state_before_deploy.txt || true
+          
+          # 특정 서비스만 재시작 여부 확인
+          SPECIFIC_SERVICES="$1"
+          FORCE_RESTART="$2"
+          
+          # 도커 네트워크 생성 (없으면)
+          docker network create haptitalk_network 2>/dev/null || echo "네트워크가 이미 존재합니다."
+          
+          # 실제 배포 시작
+          echo "배포 시작..." | tee -a $DEPLOY_LOG
+          
+          if [ "$FORCE_RESTART" == "true" ]; then
+            echo "강제 재시작 모드: 모든 컨테이너를 중지하고 재시작합니다." | tee -a $DEPLOY_LOG
+            docker-compose down --remove-orphans
+            docker-compose up -d
+          elif [ -n "$SPECIFIC_SERVICES" ]; then
+            echo "특정 서비스만 재시작: $SPECIFIC_SERVICES" | tee -a $DEPLOY_LOG
+            IFS=',' read -ra SERVICES <<< "$SPECIFIC_SERVICES"
+            for service in "${SERVICES[@]}"; do
+              echo "서비스 재시작: $service" | tee -a $DEPLOY_LOG
+              # 서비스 존재 여부 확인 후 재시작
+              if grep -q "$service:" docker-compose.yml; then
+                docker-compose stop $service || true
+                docker-compose rm -f $service || true
+                docker-compose up -d $service
+              else
+                echo "경고: $service 서비스가 docker-compose.yml에 정의되어 있지 않습니다." | tee -a $DEPLOY_LOG
+              fi
+            done
+          else
+            echo "인프라 서비스 배포 중..." | tee -a $DEPLOY_LOG
+            # 기본 인프라 서비스만 시작
+            docker-compose up -d postgres mongodb redis zookeeper kafka kafka-ui kafka-init kong static-web
             
-            # Kong 설정 파일 전송 (필요시)
-            if [ -f "infrastructure/api-gateway/kong.yml" ]; then
-              scp -o StrictHostKeyChecking=no infrastructure/api-gateway/kong.yml raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/api-gateway/
-            else
-              # 기본 Kong 설정 파일 생성
-              mkdir -p infrastructure/api-gateway
-              cat > infrastructure/api-gateway/kong.yml << 'EOF'
-            _format_version: "2.1"
-            _transform: true
-            
-            services:
-              - name: default-service
-                url: http://static-web
-                routes:
-                  - name: default-route
-                    paths:
-                      - /
-            EOF
-              scp -o StrictHostKeyChecking=no infrastructure/api-gateway/kong.yml raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/api-gateway/
-            fi
-            
-            # .env 파일을 단계별로 생성
-            echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" > .env
-            echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
-            echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
-            echo "POSTGRES_VOLUME_NAME=postgres_data" >> .env
-            echo "POSTGRES_PORT=5432" >> .env
-            echo "" >> .env
-            echo "MONGO_USER=${{ secrets.MONGO_USER }}" >> .env
-            echo "MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }}" >> .env
-            echo "MONGO_DB=${{ secrets.MONGO_DB }}" >> .env
-            echo "MONGODB_VOLUME_NAME=mongodb_data" >> .env
-            echo "MONGO_PORT=27017" >> .env
-            echo "" >> .env
-            echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" >> .env
-            echo "REDIS_VOLUME_NAME=redis_data" >> .env
-            echo "REDIS_PORT=6379" >> .env
-            echo "" >> .env
-            echo "ZOOKEEPER_PORT=2181" >> .env
-            echo "KAFKA_PORT=9092" >> .env
-            echo "KAFKA_UI_PORT=8080" >> .env
-            echo "" >> .env
-            echo "KONG_PROXY_PORT=8000" >> .env
-            echo "KONG_HTTPS_PORT=8443" >> .env
-            echo "KONG_ADMIN_PORT=8001" >> .env
-            echo "KONG_VOLUME_NAME=kong_data" >> .env
-            echo "" >> .env
-            echo "JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}" >> .env
-            echo "JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}" >> .env
-            echo "JWT_SESSION_SECRET=${{ secrets.JWT_SESSION_SECRET }}" >> .env
-            echo "JWT_ACCESS_EXPIRES_IN=15m" >> .env
-            echo "JWT_REFRESH_EXPIRES_IN=7d" >> .env
-            echo "JWT_SESSION_EXPIRES_IN=30d" >> .env
-            echo "" >> .env
-            echo "KAFKA_TOPIC_SESSION_EVENTS=session-events" >> .env
-            echo "KAFKA_TOPIC_ANALYSIS_RESULTS=analysis-results" >> .env
-            echo "KAFKA_TOPIC_FEEDBACK_COMMANDS=feedback-commands" >> .env
-            echo "KAFKA_TOPIC_USER_ACTIVITY=user-activity" >> .env
-            echo "" >> .env
-            echo "AUTH_SERVICE_PORT=3000" >> .env
-            echo "REALTIME_SERVICE_PORT=3001" >> .env
-            echo "SESSION_SERVICE_PORT=3002" >> .env
-            echo "FEEDBACK_SERVICE_PORT=3003" >> .env
-            echo "USER_SERVICE_PORT=3004" >> .env
-            echo "REPORT_SERVICE_PORT=3005" >> .env
-            echo "" >> .env
-            echo "LOG_LEVEL=info" >> .env
-            echo "FRONTEND_URL=http://${{ secrets.RASPBERRY_PI_IP }}:8080" >> .env
-            echo "EMAIL_FROM=no-reply@haptitalk.com" >> .env
-            echo "" >> .env
-            echo "DEPLOY_VERSION=$(date +%Y%m%d%H%M%S)" >> .env
-            echo "DEPLOY_ENVIRONMENT=${{ needs.prepare_deployment.outputs.environment }}" >> .env
-            
-            scp -o StrictHostKeyChecking=no .env raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
-            
-            # 인프라스트럭처 디렉토리 전송 (존재하는 경우에만)
-            if [ -d "infrastructure" ]; then
-              scp -o StrictHostKeyChecking=no -r infrastructure raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
-            else
-              echo "infrastructure 디렉토리가 존재하지 않습니다. 원격에서 생성합니다."
-              # 원격에서 필요한 디렉토리 구조 생성
-              ssh raspberry-pi << 'REMOTE_SCRIPT2'
-                mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/database/postgres/init
-                mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/database/mongodb/init
-                mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/database/redis/init
-                mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/api-gateway
-                mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/static-web/html
-            REMOTE_SCRIPT2
-            fi
-            
-            # 배포 스크립트 생성 및 전송
-            cat > deploy.sh << 'DEPLOY_EOF'
-            #!/bin/bash
-            set -e
-            
-            # 배포 로그 시작
-            DEPLOY_LOG="/home/${USER}/haptitalk/logs/deploy_$(date +%Y%m%d_%H%M%S).log"
-            mkdir -p /home/${USER}/haptitalk/logs
-            
-            echo "===== 배포 시작: $(date) =====" | tee -a $DEPLOY_LOG
-            cd /home/${USER}/haptitalk
-            
-            # 디렉토리 구조 확인
-            mkdir -p infrastructure/database/postgres/init
-            mkdir -p infrastructure/database/mongodb/init
-            mkdir -p infrastructure/database/redis/init
-            mkdir -p infrastructure/api-gateway
-            mkdir -p infrastructure/messaging/kafka/init
-            mkdir -p infrastructure/static-web/html
-            
-            # 이미지 가져오기
-            echo "도커 이미지 업데이트 중..." | tee -a $DEPLOY_LOG
-            # 이미지 풀 오류시 계속 진행 (일부 실패해도 진행)
-            docker-compose pull || echo "일부 이미지를 가져오지 못했습니다. 계속 진행합니다." | tee -a $DEPLOY_LOG
-            
-            # 기존 컨테이너 상태 저장 (롤백용)
-            echo "현재 컨테이너 상태 백업 중..." | tee -a $DEPLOY_LOG
-            docker-compose ps > /home/${USER}/haptitalk/container_state_before_deploy.txt || true
-            
-            # 특정 서비스만 재시작 여부 확인
-            SPECIFIC_SERVICES="$1"
-            FORCE_RESTART="$2"
-            
-            # 도커 네트워크 생성 (없으면)
-            docker network create haptitalk_network 2>/dev/null || echo "네트워크가 이미 존재합니다."
-            
-            # 실제 배포 시작
-            echo "배포 시작..." | tee -a $DEPLOY_LOG
-            
-            if [ "$FORCE_RESTART" == "true" ]; then
-              echo "강제 재시작 모드: 모든 컨테이너를 중지하고 재시작합니다." | tee -a $DEPLOY_LOG
-              docker-compose down --remove-orphans
-              docker-compose up -d
-            elif [ -n "$SPECIFIC_SERVICES" ]; then
-              echo "특정 서비스만 재시작: $SPECIFIC_SERVICES" | tee -a $DEPLOY_LOG
-              IFS=',' read -ra SERVICES <<< "$SPECIFIC_SERVICES"
-              for service in "${SERVICES[@]}"; do
-                echo "서비스 재시작: $service" | tee -a $DEPLOY_LOG
-                # 서비스 존재 여부 확인 후 재시작
-                if grep -q "$service:" docker-compose.yml; then
-                  docker-compose stop $service || true
-                  docker-compose rm -f $service || true
-                  docker-compose up -d $service
-                else
-                  echo "경고: $service 서비스가 docker-compose.yml에 정의되어 있지 않습니다." | tee -a $DEPLOY_LOG
-                fi
-              done
-            else
-              echo "인프라 서비스 배포 중..." | tee -a $DEPLOY_LOG
-              # 기본 인프라 서비스만 시작
-              docker-compose up -d postgres mongodb redis zookeeper kafka kafka-ui kafka-init kong static-web
-              
-              echo "애플리케이션 서비스 배포 중..." | tee -a $DEPLOY_LOG
-              # 각 서비스 개별 시작 (오류 격리)
-              for service in auth-service realtime-service session-service feedback-service user-service report-service; do
-                echo "서비스 시작: $service" | tee -a $DEPLOY_LOG
-                docker-compose up -d $service || echo "경고: $service 시작 실패" | tee -a $DEPLOY_LOG
-              done
-            fi
-            
-            # 배포 완료 확인
-            echo "컨테이너 상태:" | tee -a $DEPLOY_LOG
-            docker-compose ps | tee -a $DEPLOY_LOG
-            
-            # 실행 중인 컨테이너 수 확인
-            RUNNING_COUNT=$(docker-compose ps --services --filter "status=running" | wc -l)
-            echo "실행 중인 컨테이너 수: $RUNNING_COUNT" | tee -a $DEPLOY_LOG
-            
-            echo "===== 배포 완료: $(date) =====" | tee -a $DEPLOY_LOG
-            DEPLOY_EOF
-            
-            chmod +x deploy.sh
-            scp -o StrictHostKeyChecking=no deploy.sh raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
-            
+            echo "애플리케이션 서비스 배포 중..." | tee -a $DEPLOY_LOG
+            # 각 서비스 개별 시작 (오류 격리)
+            for service in auth-service realtime-service session-service feedback-service user-service report-service; do
+              echo "서비스 시작: $service" | tee -a $DEPLOY_LOG
+              docker-compose up -d $service || echo "경고: $service 시작 실패" | tee -a $DEPLOY_LOG
+            done
+          fi
+          
+          # 배포 완료 확인
+          echo "컨테이너 상태:" | tee -a $DEPLOY_LOG
+          docker-compose ps | tee -a $DEPLOY_LOG
+          
+          # 실행 중인 컨테이너 수 확인
+          RUNNING_COUNT=$(docker-compose ps --services --filter "status=running" | wc -l)
+          echo "실행 중인 컨테이너 수: $RUNNING_COUNT" | tee -a $DEPLOY_LOG
+          
+          echo "===== 배포 완료: $(date) =====" | tee -a $DEPLOY_LOG
+          DEPLOY_EOF
+          
+          chmod +x deploy.sh
+          scp -o StrictHostKeyChecking=no deploy.sh raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+          
       - name: Create Docker Network
         run: |
           ssh raspberry-pi '
