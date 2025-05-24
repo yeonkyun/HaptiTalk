@@ -768,6 +768,10 @@ jobs:
             echo '=== 기존 컨테이너 정리 중 ==='
             docker-compose -f docker-compose.prod.yml down --remove-orphans || echo '기존 컨테이너 정리 완료'
             
+            # PostgreSQL 볼륨 초기화 (초기화 스크립트 적용을 위해)
+            echo '=== PostgreSQL 볼륨 초기화 ==='
+            docker volume rm postgres_data 2>/dev/null || echo 'PostgreSQL 볼륨이 존재하지 않거나 이미 삭제됨'
+            
             # 인프라 서비스 시작 (먼저)
             echo '=== 인프라 서비스 시작 ==='
             docker-compose -f docker-compose.prod.yml up -d postgres mongodb redis zookeeper kafka kafka-ui kong static-web
