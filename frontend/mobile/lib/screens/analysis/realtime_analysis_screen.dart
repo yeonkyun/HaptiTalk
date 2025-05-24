@@ -86,13 +86,17 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
 
   void _endSession() {
     _timer.cancel();
-    // 세션 종료 및 결과 화면으로 이동
-    Navigator.pushReplacement(
+
+    // 세션 종료 및 분석 결과 저장
+    Provider.of<AnalysisProvider>(context, listen: false)
+        .stopAnalysis(widget.sessionId);
+
+    // 메인 화면의 분석 탭으로 이동 (인덱스 1)
+    Navigator.pushNamedAndRemoveUntil(
       context,
-      MaterialPageRoute(
-        builder: (context) =>
-            AnalysisSummaryScreen(sessionId: widget.sessionId),
-      ),
+      '/main',
+      (route) => false,
+      arguments: {'initialTabIndex': 1},
     );
   }
 

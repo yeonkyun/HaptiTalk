@@ -11,6 +11,8 @@ import 'package:haptitalk/screens/history/history_screen.dart';
 // import 'package:haptitalk/screens/profile/profile_screen.dart';
 import 'package:haptitalk/screens/profile/settings_screen.dart';
 import 'package:haptitalk/screens/profile/subscription_screen.dart';
+import 'package:haptitalk/screens/profile/statistics_detail_screen.dart';
+import 'package:haptitalk/screens/profile/help_support_screen.dart';
 
 class AppRoutes {
   // 라우트 이름 정의
@@ -27,6 +29,8 @@ class AppRoutes {
   static const String profile = '/profile';
   static const String settings = '/profile/settings';
   static const String subscription = '/profile/subscription';
+  static const String statisticsDetail = '/profile/statistics';
+  static const String helpSupport = '/profile/help';
 
   // 라우트 생성 함수
   static Map<String, WidgetBuilder> getRoutes() {
@@ -48,6 +52,8 @@ class AppRoutes {
       // profile: (context) => const ProfileScreen(),
       settings: (context) => const SettingsScreen(),
       subscription: (context) => const SubscriptionScreen(),
+      statisticsDetail: (context) => const StatisticsDetailScreen(),
+      helpSupport: (context) => const HelpSupportScreen(),
     };
   }
 }

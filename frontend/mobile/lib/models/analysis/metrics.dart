@@ -38,6 +38,23 @@ class SessionMetrics {
       'topicMetrics': topicMetrics.toJson(),
     };
   }
+
+  // 주요 감정 라벨 반환
+  String get mainEmotionLabel {
+    // 감정 지표를 기반으로 주요 감정 라벨 계산
+    if (emotionMetrics.averageLikeability >= 75) {
+      return '긍정적';
+    } else if (emotionMetrics.averageLikeability >= 50) {
+      return '중립적';
+    } else {
+      return '개선 필요';
+    }
+  }
+
+  // 호감도 퍼센트 반환 (정수형)
+  String get likabilityPercent {
+    return emotionMetrics.averageLikeability.round().toString();
+  }
 }
 
 // 말하기 관련 지표
