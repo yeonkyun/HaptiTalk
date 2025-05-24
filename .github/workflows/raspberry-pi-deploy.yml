@@ -42,6 +42,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     outputs:
       environment: ${{ steps.set_env.outputs.environment }}
+      image_tag: ${{ steps.set_env.outputs.image_tag }}
       specific_services: ${{ steps.set_env.outputs.specific_services }}
       force_restart: ${{ steps.set_env.outputs.force_restart }}
       backup_before_deploy: ${{ steps.set_env.outputs.backup_before_deploy }}
@@ -49,11 +50,18 @@ jobs:
     steps:
       - id: set_env
         run: |
-          if [[ "${{ github.event.workflow_run.head_branch || github.ref_name }}" == "main" ]]; then
+          BRANCH_NAME="${{ github.event.workflow_run.head_branch || github.ref_name }}"
+          
+          if [[ "$BRANCH_NAME" == "main" ]]; then
             echo "environment=production" >> $GITHUB_OUTPUT
+            echo "image_tag=latest" >> $GITHUB_OUTPUT
           else
             echo "environment=development" >> $GITHUB_OUTPUT
+            echo "image_tag=develop" >> $GITHUB_OUTPUT
           fi
+          
+          echo "배포 브랜치: $BRANCH_NAME"
+          echo "이미지 태그: $(if [[ \"$BRANCH_NAME\" == \"main\" ]]; then echo \"latest\"; else echo \"develop\"; fi)"
           
           # 수동 실행 시 입력 파라미터 처리
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
@@ -748,7 +756,7 @@ jobs:
             
             # 환경 변수 파일에 GitHub Container Registry 설정 추가
             echo 'GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}' >> .env
-            echo 'IMAGE_TAG=${{ github.sha }}' >> .env
+            echo 'IMAGE_TAG=${{ needs.prepare_deployment.outputs.image_tag }}' >> .env
             
             # GitHub Container Registry 인증
             echo '${{ secrets.GHCR_PAT }}' | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
