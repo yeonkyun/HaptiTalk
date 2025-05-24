@@ -738,67 +738,39 @@ jobs:
           SPECIFIC_SERVICES="${{ needs.prepare_deployment.outputs.specific_services }}"
           FORCE_RESTART="${{ needs.prepare_deployment.outputs.force_restart }}"
           
-          # GitHub Container Registry 인증 설정
-          echo "GitHub Container Registry 인증 설정 중..."
-          echo "${{ secrets.GHCR_PAT }}" | ssh raspberry-pi "cat > ~/.github_token"
+          echo "배포 시작: 환경=${{ needs.prepare_deployment.outputs.environment }}"
+          echo "특정 서비스: $SPECIFIC_SERVICES"
+          echo "강제 재시작: $FORCE_RESTART"
           
+          # 라즈베리파이에서 배포 실행
           ssh raspberry-pi "
-            # Docker 로그인 실행
-            echo \"GitHub Container Registry 로그인 중...\"
-            cat ~/.github_token | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-            rm ~/.github_token  # 보안을 위해 토큰 파일 삭제
-            
-            # 배포용 docker-compose.yml 생성 (ARM64 호환 및 이미지 기반)
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
             
-            # 기존 파일 백업
-            if [ -f docker-compose.yml ]; then
-              cp docker-compose.yml docker-compose.yml.backup
-            fi
+            # 환경 변수 파일에 GitHub Container Registry 설정 추가
+            echo 'GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}' >> .env
+            echo 'IMAGE_TAG=${{ github.sha }}' >> .env
             
-            # Kong 이미지만 ARM64 호환 버전으로 변경 (기존 docker-compose.yml 기반)
-            sed -i 's|image: kong:3.0|image: kong/kong-gateway:3.0.1.0-alpine|g' docker-compose.yml
+            # GitHub Container Registry 인증
+            echo '${{ secrets.GHCR_PAT }}' | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
             
-            # 애플리케이션 서비스들을 GitHub Container Registry 이미지로 변경
-            # 간단한 방법으로 build 섹션을 image로 교체
+            echo '=== 프로덕션 배포 시작 ==='
             
-            # 현재 브랜치에 맞는 이미지 태그 설정
-            if [[ \"${{ github.ref_name }}\" == \"main\" ]]; then
-              IMAGE_TAG=\"latest\"
-            else
-              IMAGE_TAG=\"${{ github.ref_name }}\"
-            fi
+            # 인프라 서비스 시작 (먼저)
+            echo '=== 인프라 서비스 시작 ==='
+            docker-compose -f docker-compose.prod.yml up -d postgres mongodb redis zookeeper kafka kafka-ui kong static-web
             
-            echo \"Using image tag: \$IMAGE_TAG\"
+            # 인프라 서비스 준비 대기
+            echo '=== 인프라 서비스 준비 대기 ==='
+            sleep 30
             
-            # 1. auth-service 수정
-            sed -i '/^  auth-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
-            sed -i \"/^  auth-service:/a\\    image: ghcr.io/tae4an/haptitalk-auth-service:\$IMAGE_TAG\" docker-compose.yml
+            # 애플리케이션 서비스 이미지 pull 및 시작
+            echo '=== 애플리케이션 서비스 이미지 다운로드 ==='
+            docker-compose -f docker-compose.prod.yml pull auth-service session-service user-service feedback-service report-service realtime-service || echo '일부 이미지를 가져오지 못했습니다.'
             
-            # 2. realtime-service 수정  
-            sed -i '/^  realtime-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
-            sed -i \"/^  realtime-service:/a\\    image: ghcr.io/tae4an/haptitalk-realtime-service:\$IMAGE_TAG\" docker-compose.yml
+            echo '=== 애플리케이션 서비스 시작 ==='
+            docker-compose -f docker-compose.prod.yml up -d auth-service session-service user-service feedback-service report-service realtime-service
             
-            # 3. session-service 수정
-            sed -i '/^  session-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
-            sed -i \"/^  session-service:/a\\    image: ghcr.io/tae4an/haptitalk-session-service:\$IMAGE_TAG\" docker-compose.yml
-            
-            # 4. feedback-service 수정
-            sed -i '/^  feedback-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
-            sed -i \"/^  feedback-service:/a\\    image: ghcr.io/tae4an/haptitalk-feedback-service:\$IMAGE_TAG\" docker-compose.yml
-            
-            # 5. user-service 수정
-            sed -i '/^  user-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
-            sed -i \"/^  user-service:/a\\    image: ghcr.io/tae4an/haptitalk-user-service:\$IMAGE_TAG\" docker-compose.yml
-            
-            # 6. report-service 수정
-            sed -i '/^  report-service:/,/^  [^ ]/{/^    build:/,/^    [^ ]/d;}' docker-compose.yml
-            sed -i \"/^  report-service:/a\\    image: ghcr.io/tae4an/haptitalk-report-service:\$IMAGE_TAG\" docker-compose.yml
-            
-            echo \"애플리케이션 서비스들을 GitHub Container Registry 이미지로 변경 완료\"
-            
-            # 배포 실행
-            ./deploy.sh \"$SPECIFIC_SERVICES\" \"$FORCE_RESTART\"
+            echo '=== 배포 완료 ==='
           "
       
       - name: Get Current Time
