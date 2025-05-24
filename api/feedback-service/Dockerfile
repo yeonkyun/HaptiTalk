@@ -2,13 +2,13 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY api/feedback-service/package*.json ./
 
 RUN npm install
 
-COPY ../shared /app/api/shared
+COPY api/shared /app/api/shared
 
-COPY . .
+COPY api/feedback-service .
 
 EXPOSE ${PORT}
 

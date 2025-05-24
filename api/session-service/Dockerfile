@@ -5,16 +5,16 @@ FROM node:18-alpine
 WORKDIR /app
 
 # 의존성 파일 복사
-COPY package*.json ./
+COPY api/session-service/package*.json ./
 
 # 의존성 설치
 RUN npm install
 
 # 공유 모듈 복사 (먼저)
-COPY ../shared /app/api/shared
+COPY api/shared /app/api/shared
 
 # 앱 소스 복사
-COPY . .
+COPY api/session-service .
 
 # 포트 설정
 EXPOSE ${PORT}
