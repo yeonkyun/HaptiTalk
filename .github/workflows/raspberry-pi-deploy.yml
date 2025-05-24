@@ -756,7 +756,7 @@ jobs:
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
             
             # 환경 변수 파일에 GitHub Container Registry 설정 추가
-            echo 'GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}' >> .env
+            echo 'GITHUB_REPOSITORY_OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")' >> .env
             echo 'IMAGE_TAG=${{ needs.prepare_deployment.outputs.image_tag }}' >> .env
             
             # GitHub Container Registry 인증
