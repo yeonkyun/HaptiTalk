@@ -549,6 +549,7 @@ jobs:
           
           # 라즈베리파이에 파일 전송
           scp -o StrictHostKeyChecking=no docker-compose.yml raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+          scp -o StrictHostKeyChecking=no docker-compose.prod.yml raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
           
           # 필요한 디렉토리 구조 생성
           ssh raspberry-pi << 'REMOTE_SCRIPT'
