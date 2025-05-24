@@ -4,20 +4,20 @@ FROM node:18-alpine
 # 작업 디렉토리 설정
 WORKDIR /app
 
-# 패키지 파일 복사
+# 의존성 파일 복사
 COPY package*.json ./
 
 # 의존성 설치
 RUN npm install
 
-# 소스 코드 복사
+# 공유 모듈 복사 (먼저)
+COPY ../shared /app/api/shared
+
+# 앱 소스 복사
 COPY . .
 
-# shared 디렉토리 생성 (볼륨 마운트용)
-RUN mkdir -p /app/api/shared
+# 포트 설정
+EXPOSE ${PORT}
 
-# 3002 포트 노출
-EXPOSE 3002
-
-# 애플리케이션 실행
-CMD ["node", "src/app.js"]
+# 실행 명령
+CMD ["npm", "start"]

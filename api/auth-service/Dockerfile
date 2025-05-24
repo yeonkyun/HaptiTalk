@@ -15,11 +15,11 @@ COPY package*.json ./
 RUN npm ci --production && \
     npm install morgan prom-client
 
+# Copy shared modules first
+COPY ../shared /app/api/shared
+
 # Copy source code
 COPY . .
-
-# Create shared directory structure if it doesn't exist
-RUN mkdir -p /app/api/shared
 
 # Create logs directory
 RUN mkdir -p logs
