@@ -5,20 +5,14 @@
 -- PostgreSQL 컨테이너는 POSTGRES_DB 환경변수로 지정된 DB를 자동 생성해야 하지만
 -- 때로는 수동으로 생성해야 할 수 있음
 
--- 일반적인 데이터베이스 이름들을 생성 (환경변수 값을 직접 사용할 수 없으므로)
-DO $$
-BEGIN
-    -- haptitalk 데이터베이스 생성 (존재하지 않는 경우)
-    IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'haptitalk') THEN
-        CREATE DATABASE haptitalk;
-    END IF;
-    
-    -- haptitalk_prod 데이터베이스 생성 (존재하지 않는 경우)
-    IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'haptitalk_prod') THEN
-        CREATE DATABASE haptitalk_prod;
-    END IF;
-END
-$$;
+-- 일반적인 데이터베이스 이름들을 생성 (함수 밖에서 직접 실행)
+-- haptitalk 데이터베이스 생성 (존재하지 않는 경우)
+SELECT 'CREATE DATABASE haptitalk'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'haptitalk')\gexec
+
+-- haptitalk_prod 데이터베이스 생성 (존재하지 않는 경우)  
+SELECT 'CREATE DATABASE haptitalk_prod'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'haptitalk_prod')\gexec
 
 -- 기본 사용자에게 모든 권한 부여 (간단한 해결책)
 -- 모든 서비스가 POSTGRES_USER로 연결하도록 함
