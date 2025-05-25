@@ -354,16 +354,20 @@ services:
           policy: local
           fault_tolerant: true
   
-  # 통합 Swagger UI 서비스
+  # 통합 Swagger UI 서비스 (docs.eumgyeol.com에서만 접근)
   - name: api-docs-aggregator
     url: http://static-web:80
     routes:
       - name: api-docs-aggregator-route
+        hosts:
+          - docs.eumgyeol.com
         paths:
           - /api-docs
         strip_path: false
         preserve_host: true
       - name: swagger-specs-route
+        hosts:
+          - docs.eumgyeol.com
         paths:
           - /swagger-specs
         strip_path: false
