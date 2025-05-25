@@ -1193,13 +1193,15 @@ jobs:
             echo "메모리 사용률:"
             free -h | grep -E "Mem:|Swap:"
             
-            # 간단한 헬스체크 (컨테이너 실행 여부만)
+            # 간단한 헬스체크 (docker-compose 기반으로 수정)
             echo "===== 간단한 헬스체크 ====="
             
-            # PostgreSQL 컨테이너 확인
-            if docker ps | grep -q "haptitalk-postgres.*Up"; then
+            # Docker Compose 서비스 상태 기반 헬스체크
+            COMPOSE_STATUS=$(docker-compose -f docker-compose.prod.yml ps --services --filter "status=running")
+            
+            # PostgreSQL 확인
+            if echo "$COMPOSE_STATUS" | grep -q "postgres"; then
               echo "PostgreSQL 컨테이너: 실행 중"
-              # 실제 헬스체크
               POSTGRES_HEALTH=$(docker-compose -f docker-compose.prod.yml exec -T postgres pg_isready 2>/dev/null && echo "OK" || echo "FAIL")
               echo "PostgreSQL 헬스체크: $POSTGRES_HEALTH"
             else
@@ -1207,8 +1209,8 @@ jobs:
               echo "PostgreSQL: FAIL"
             fi
             
-            # Redis 컨테이너 확인
-            if docker ps | grep -q "haptitalk-redis.*Up"; then
+            # Redis 확인
+            if echo "$COMPOSE_STATUS" | grep -q "redis"; then
               echo "Redis 컨테이너: 실행 중"
               REDIS_HEALTH=$(docker-compose -f docker-compose.prod.yml exec -T redis redis-cli ping 2>/dev/null && echo "OK" || echo "FAIL")
               echo "Redis 헬스체크: $REDIS_HEALTH"
@@ -1217,8 +1219,8 @@ jobs:
               echo "Redis: FAIL"
             fi
             
-            # Kong 컨테이너 확인
-            if docker ps | grep -q "haptitalk-kong.*Up"; then
+            # Kong 확인
+            if echo "$COMPOSE_STATUS" | grep -q "kong"; then
               echo "Kong 컨테이너: 실행 중"
               KONG_HEALTH=$(docker-compose -f docker-compose.prod.yml exec -T kong kong version 2>/dev/null && echo "OK" || echo "FAIL")
               echo "Kong 헬스체크: $KONG_HEALTH"
@@ -1227,32 +1229,81 @@ jobs:
               echo "Kong: FAIL"
             fi
             
-            # 최근 컨테이너 로그 확인 (오류 중심)
-            echo "===== 최근 컨테이너 로그 (오류만) ====="
-            if [ -f "docker-compose.prod.yml" ]; then
-              RECENT_ERRORS=$(docker-compose -f docker-compose.prod.yml logs --tail=50 --since="10m" 2>/dev/null | grep -i "error\|exception\|fatal\|failed\|cannot\|denied" | head -10)
-              if [ -z "$RECENT_ERRORS" ]; then
-                echo "최근 오류 로그 없음"
-              else
-                echo "최근 오류 로그:"
-                echo "$RECENT_ERRORS"
-              fi
+            # MongoDB 확인
+            if echo "$COMPOSE_STATUS" | grep -q "mongodb"; then
+              echo "MongoDB 컨테이너: 실행 중"
+              MONGODB_HEALTH=$(docker-compose -f docker-compose.prod.yml exec -T mongodb mongosh --quiet --eval "db.runCommand({ping: 1}).ok" 2>/dev/null | grep -q "1" && echo "OK" || echo "FAIL")
+              echo "MongoDB 헬스체크: $MONGODB_HEALTH"
             else
-              echo "docker-compose.prod.yml 파일 없어서 로그 확인 불가"
+              echo "MongoDB 컨테이너: 실행 중이 아님"
+              echo "MongoDB: FAIL"
             fi
+            
+            # Kafka 확인
+            if echo "$COMPOSE_STATUS" | grep -q "kafka"; then
+              echo "Kafka 컨테이너: 실행 중"
+              KAFKA_HEALTH=$(docker-compose -f docker-compose.prod.yml exec -T kafka kafka-topics.sh --bootstrap-server localhost:9092 --list 2>/dev/null >/dev/null && echo "OK" || echo "FAIL")
+              echo "Kafka 헬스체크: $KAFKA_HEALTH"
+            else
+              echo "Kafka 컨테이너: 실행 중이 아님"
+              echo "Kafka: FAIL"
+            fi
+            
+            # 애플리케이션 서비스 상태 확인
+            echo "===== 애플리케이션 서비스 상태 ====="
+            for service in auth-service session-service user-service feedback-service report-service realtime-service; do
+              if echo "$COMPOSE_STATUS" | grep -q "$service"; then
+                # 헬스체크 상태도 확인
+                SERVICE_HEALTH=$(docker-compose -f docker-compose.prod.yml ps $service | grep -q "healthy" && echo "healthy" || echo "running")
+                echo "$service: OK ($SERVICE_HEALTH)"
+              else
+                echo "$service: FAIL"
+              fi
+            done
             
             echo "===== 디버깅 정보 끝 ====="
           ')
           
           echo "$VERIFICATION"
           
-          # 핵심 서비스 실행 여부만 확인 (단순화)
+          # 핵심 서비스 실행 여부 확인 (docker-compose 기반으로 수정)
+          CORE_SERVICES_RUNNING=0
+          
+          # 각 핵심 서비스가 실행 중인지 확인
           if echo "$VERIFICATION" | grep -q "PostgreSQL 컨테이너: 실행 중"; then
+            CORE_SERVICES_RUNNING=$((CORE_SERVICES_RUNNING + 1))
+          fi
+          
+          if echo "$VERIFICATION" | grep -q "Redis 컨테이너: 실행 중"; then
+            CORE_SERVICES_RUNNING=$((CORE_SERVICES_RUNNING + 1))
+          fi
+          
+          if echo "$VERIFICATION" | grep -q "MongoDB 컨테이너: 실행 중"; then
+            CORE_SERVICES_RUNNING=$((CORE_SERVICES_RUNNING + 1))
+          fi
+          
+          if echo "$VERIFICATION" | grep -q "Kafka 컨테이너: 실행 중"; then
+            CORE_SERVICES_RUNNING=$((CORE_SERVICES_RUNNING + 1))
+          fi
+          
+          # Kong은 unhealthy 상태여도 실행 중이면 OK로 간주
+          if echo "$VERIFICATION" | grep -q "Kong 컨테이너: 실행 중"; then
+            CORE_SERVICES_RUNNING=$((CORE_SERVICES_RUNNING + 1))
+          fi
+          
+          # 애플리케이션 서비스 실행 여부 확인 (OK 패턴으로 수정)
+          APP_SERVICES_RUNNING=$(echo "$VERIFICATION" | grep -c ": OK (healthy)\|: OK (running)")
+          
+          echo "핵심 서비스 실행 중: $CORE_SERVICES_RUNNING/5"
+          echo "애플리케이션 서비스 실행 중: $APP_SERVICES_RUNNING"
+          
+          # 성공 조건: 핵심 서비스 4개 이상 + 애플리케이션 서비스 3개 이상
+          if [ "$CORE_SERVICES_RUNNING" -ge 4 ] && [ "$APP_SERVICES_RUNNING" -ge 3 ]; then
             echo "deploy_success=true" >> $GITHUB_OUTPUT
-            echo "verification_result=기본 디버깅 정보 수집 완료. 로그를 확인하세요." >> $GITHUB_OUTPUT
+            echo "verification_result=배포 성공! 핵심 서비스 $CORE_SERVICES_RUNNING/5개, 앱 서비스 $APP_SERVICES_RUNNING개 실행 중" >> $GITHUB_OUTPUT
           else
             echo "deploy_success=false" >> $GITHUB_OUTPUT
-            echo "verification_result=컨테이너가 실행되지 않았습니다. 디버깅 정보를 확인하세요." >> $GITHUB_OUTPUT
+            echo "verification_result=배포 실패. 핵심 서비스 $CORE_SERVICES_RUNNING/5개, 앱 서비스 $APP_SERVICES_RUNNING개만 실행 중" >> $GITHUB_OUTPUT
           fi
       
       - name: Rollback if Necessary
