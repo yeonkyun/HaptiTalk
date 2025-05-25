@@ -383,6 +383,7 @@ services:
           - /swagger-specs
         strip_path: false
         preserve_host: true
+        regex_priority: 100
     plugins:
       - name: cors
 

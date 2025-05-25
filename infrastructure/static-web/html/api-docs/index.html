@@ -92,27 +92,27 @@
     const serviceSpecs = {
       'auth-service': {
         title: '인증 서비스 API',
-        url: '/swagger-specs/auth-service.json'
+        url: window.location.origin + '/swagger-specs/auth-service.json'
       },
       'user-service': {
         title: '사용자 서비스 API',
-        url: '/swagger-specs/user-service.json'
+        url: window.location.origin + '/swagger-specs/user-service.json'
       },
       'session-service': {
         title: '세션 서비스 API',
-        url: '/swagger-specs/session-service.json'
+        url: window.location.origin + '/swagger-specs/session-service.json'
       },
       'feedback-service': {
         title: '피드백 서비스 API',
-        url: '/swagger-specs/feedback-service.json'
+        url: window.location.origin + '/swagger-specs/feedback-service.json'
       },
       'realtime-service': {
         title: '실시간 서비스 API',
-        url: '/swagger-specs/realtime-service.json'
+        url: window.location.origin + '/swagger-specs/realtime-service.json'
       },
       'report-service': {
         title: '리포트 서비스 API',
-        url: '/swagger-specs/report-service.json'
+        url: window.location.origin + '/swagger-specs/report-service.json'
       }
     };
     
@@ -223,6 +223,13 @@
         onComplete: function() {
           console.log('Swagger UI loaded successfully for ' + serviceKey);
           console.log('API Base URL: ' + apiBaseUrl);
+          console.log('Spec URL: ' + serviceSpec.url);
+        },
+        onFailure: function(error) {
+          console.error('Swagger UI failed to load:', error);
+          console.error('Failed Spec URL: ' + serviceSpec.url);
+          const swaggerDiv = document.getElementById('swagger-ui');
+          swaggerDiv.innerHTML = '<div style="text-align: center; padding: 50px; color: #d32f2f;"><h3>API 스펙 로드 실패</h3><p>URL: ' + serviceSpec.url + '</p><p>오류: ' + error.message + '</p></div>';
         }
       });
     }
