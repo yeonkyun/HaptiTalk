@@ -365,10 +365,6 @@ services:
         preserve_host: true
     plugins:
       - name: cors
-      # API 문서 접근 제어를 위한 기본 인증(Basic Auth) 추가
-      - name: basic-auth
-        config:
-          hide_credentials: true
       # 속도 제한 설정
       - name: rate-limiting
         config:
@@ -389,10 +385,6 @@ services:
         preserve_host: true
     plugins:
       - name: cors
-      # API 문서 스펙 접근 제어를 위한 기본 인증(Basic Auth) 추가
-      - name: basic-auth
-        config:
-          hide_credentials: true
 
 # Kong 소비자 및 JWT 구성
 consumers:
