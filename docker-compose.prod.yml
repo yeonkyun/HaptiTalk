@@ -158,7 +158,7 @@ services:
       - haptitalk_network
     restart: on-failure
 
-  # Kong API 게이트웨이 (YAML 구문 수정)
+  # Kong API 게이트웨이 (설정 간소화)
   kong:
     image: ${KONG_IMAGE:-kong/kong-gateway:3.4.2.0}
     platform: linux/arm64
@@ -174,18 +174,15 @@ services:
       KONG_ADMIN_LISTEN: 0.0.0.0:8001
       KONG_PLUGINS: bundled
     command: >
-      bash -c '
-      cat > /tmp/kong.yml << "EOF"
+      sh -c '
+      cat > /tmp/kong.yml << EOF
       _format_version: "3.0"
-      _transform: true
-      
       services:
-        - name: default-service
-          url: http://static-web
-          routes:
-            - name: default-route
-              paths:
-                - /
+      - name: default
+        url: http://static-web
+        routes:
+        - name: default
+          paths: ["/"]
       EOF
       kong start --v
       '
@@ -309,7 +306,7 @@ services:
       timeout: 10s
       retries: 5
 
-  # Filebeat - 로그 수집 (YAML 구문 수정)
+  # Filebeat - 로그 수집 (설정 간소화)
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.8.0
     platform: linux/arm64
@@ -317,21 +314,17 @@ services:
     restart: unless-stopped
     user: root
     command: >
-      bash -c '
-      cat > /usr/share/filebeat/filebeat.yml << "EOF"
+      sh -c '
+      cat > /usr/share/filebeat/filebeat.yml << EOF
       filebeat.inputs:
-        - type: container
-          paths:
-            - "/var/lib/docker/containers/*/*.log"
-          processors:
-            - add_docker_metadata:
-                host: "unix:///var/run/docker.sock"
-      
+      - type: container
+        paths: ["/var/lib/docker/containers/*/*.log"]
+        processors:
+        - add_docker_metadata:
+            host: "unix:///var/run/docker.sock"
       output.logstash:
         hosts: ["logstash:5044"]
-      
       logging.level: info
-      logging.to_stderr: true
       EOF
       chown root:root /usr/share/filebeat/filebeat.yml &&
       chmod 600 /usr/share/filebeat/filebeat.yml &&
@@ -469,15 +462,14 @@ services:
       timeout: 5s
       retries: 5
 
-  # PostgreSQL Exporter
+  # PostgreSQL Exporter (환경 변수 방식으로 변경)
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:latest
     platform: linux/arm64
     container_name: haptitalk-postgres-exporter
     restart: unless-stopped
     environment:
-      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
-      - DATA_SOURCE_URI=postgres:5432
+      - DATA_SOURCE_URI=postgres:5432/${POSTGRES_DB}?sslmode=disable
       - DATA_SOURCE_USER=${POSTGRES_USER}
       - DATA_SOURCE_PASS=${POSTGRES_PASSWORD}
     ports:
@@ -876,14 +868,16 @@ services:
       timeout: 5s
       retries: 5
 
-  # MongoDB Exporter
+  # MongoDB Exporter (인증 방식 개선)
   mongodb-exporter:
     image: percona/mongodb_exporter:0.39
     platform: linux/arm64
     container_name: haptitalk-mongodb-exporter
     restart: unless-stopped
-    environment:
-      - MONGODB_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DB}?authSource=admin
+    command: 
+      - --mongodb.uri=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/admin
+      - --collect-all
+      - --compatible-mode
     ports:
       - "${MONGODB_EXPORTER_PORT:-9216}:9216"
     networks:
