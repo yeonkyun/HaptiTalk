@@ -10,6 +10,15 @@ on:
     branches:
       - main
       - develop
+  # Push 이벤트 추가 - develop 브랜치에 코드 푸시 시 자동 배포
+  push:
+    branches:
+      - develop
+    paths:
+      - 'api/**'
+      - 'infrastructure/**'
+      - 'docker-compose.prod.yml'
+      - '.github/workflows/backend-ci.yml'
   # 수동 실행도 지원
   workflow_dispatch:
     inputs:
