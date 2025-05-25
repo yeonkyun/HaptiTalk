@@ -363,6 +363,12 @@ services:
           - /api-docs
         strip_path: false
         preserve_host: true
+      - name: swagger-specs-route
+        paths:
+          - /swagger-specs
+        strip_path: false
+        preserve_host: true
+        regex_priority: 100
     plugins:
       - name: cors
       # 속도 제한 설정
@@ -373,19 +379,6 @@ services:
           day: 6000
           policy: local
           fault_tolerant: true
-
-  # Swagger 스펙 파일 서비스
-  - name: swagger-specs-service
-    url: http://static-web:80
-    routes:
-      - name: swagger-specs-route
-        paths:
-          - /swagger-specs
-        strip_path: false
-        preserve_host: true
-        regex_priority: 100
-    plugins:
-      - name: cors
 
 # Kong 소비자 및 JWT 구성
 consumers:
