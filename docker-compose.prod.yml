@@ -409,7 +409,7 @@ services:
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
-      - ./infrastructure/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infrastructure/monitoring/prometheus/config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     networks:
       - haptitalk_network
@@ -477,6 +477,9 @@ services:
     restart: unless-stopped
     environment:
       - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      - DATA_SOURCE_URI=postgres:5432
+      - DATA_SOURCE_USER=${POSTGRES_USER}
+      - DATA_SOURCE_PASS=${POSTGRES_PASSWORD}
     ports:
       - "${POSTGRES_EXPORTER_PORT:-9187}:9187"
     networks:
@@ -497,14 +500,15 @@ services:
     container_name: haptitalk-redis-exporter
     restart: unless-stopped
     environment:
-      - REDIS_ADDR=redis://redis:6379
+      - REDIS_ADDR=redis:6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
     ports:
       - "${REDIS_EXPORTER_PORT:-9121}:9121"
     networks:
       - haptitalk_network
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:9121/metrics"]
       interval: 10s
@@ -524,7 +528,8 @@ services:
     networks:
       - haptitalk_network
     depends_on:
-      - elasticsearch
+      elasticsearch:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:9114/metrics"]
       interval: 10s
@@ -878,7 +883,7 @@ services:
     container_name: haptitalk-mongodb-exporter
     restart: unless-stopped
     environment:
-      - MONGODB_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DB}
+      - MONGODB_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DB}?authSource=admin
     ports:
       - "${MONGODB_EXPORTER_PORT:-9216}:9216"
     networks:
