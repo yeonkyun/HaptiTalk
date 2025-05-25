@@ -1122,62 +1122,175 @@ jobs:
           VERIFICATION=$(ssh raspberry-pi '
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
             
+            # 환경 변수 로드
+            source .env
+            
             # 주요 서비스 상태 확인
             echo "===== 서비스 상태 ====="
             docker-compose -f docker-compose.prod.yml ps
             
-            # 서비스별 Health Check
+            # 서비스별 Health Check (개선된 방식)
             echo "===== 헬스 체크 ====="
-            POSTGRES_HEALTH=$(docker-compose -f docker-compose.prod.yml exec -T postgres pg_isready 2>/dev/null && echo "OK" || echo "FAIL")
+            
+            # PostgreSQL 헬스체크
+            POSTGRES_HEALTH=$(docker-compose -f docker-compose.prod.yml exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" 2>/dev/null && echo "OK" || echo "FAIL")
             echo "PostgreSQL: $POSTGRES_HEALTH"
             
+            # Redis 헬스체크 (패스워드 포함)
             REDIS_HEALTH=$(docker-compose -f docker-compose.prod.yml exec -T redis redis-cli -a "$REDIS_PASSWORD" ping 2>/dev/null && echo "OK" || echo "FAIL")
             echo "Redis: $REDIS_HEALTH"
             
+            # Kong 헬스체크 (더 안정적인 방식)
             KONG_HEALTH=$(docker-compose -f docker-compose.prod.yml exec -T kong kong health 2>/dev/null && echo "OK" || echo "FAIL")
             echo "Kong: $KONG_HEALTH"
             
+            # 추가 헬스체크
+            # MongoDB 헬스체크
+            MONGODB_HEALTH=$(docker-compose -f docker-compose.prod.yml exec -T mongodb mongosh --quiet --eval "db.runCommand({ping: 1}).ok" 2>/dev/null | grep -q "1" && echo "OK" || echo "FAIL")
+            echo "MongoDB: $MONGODB_HEALTH"
+            
+            # Kafka 헬스체크
+            KAFKA_HEALTH=$(docker-compose -f docker-compose.prod.yml exec -T kafka kafka-topics.sh --bootstrap-server localhost:9092 --list 2>/dev/null >/dev/null && echo "OK" || echo "FAIL")
+            echo "Kafka: $KAFKA_HEALTH"
+            
+            # 애플리케이션 서비스 헬스체크
+            APP_SERVICES_HEALTH=true
+            for service in auth-service session-service user-service feedback-service report-service realtime-service; do
+              if docker-compose -f docker-compose.prod.yml ps | grep -q "$service.*Up"; then
+                echo "$service: OK"
+              else
+                echo "$service: FAIL"
+                APP_SERVICES_HEALTH=false
+              fi
+            done
+            
+            # 모니터링 서비스 헬스체크
+            for service in prometheus grafana jaeger elasticsearch kibana; do
+              if docker-compose -f docker-compose.prod.yml ps | grep -q "$service.*Up"; then
+                echo "$service: OK"
+              else
+                echo "$service: FAIL"
+              fi
+            done
+            
             # 최근 로그 확인 (오류 여부)
             echo "===== 최근 오류 로그 ====="
-            docker-compose -f docker-compose.prod.yml logs --tail=50 | grep -i "error\|exception\|fatal" || echo "최근 오류 없음"
+            RECENT_ERRORS=$(docker-compose -f docker-compose.prod.yml logs --tail=100 --since="5m" | grep -i "error\|exception\|fatal" | head -20)
+            if [ -z "$RECENT_ERRORS" ]; then
+              echo "최근 오류 없음"
+            else
+              echo "최근 오류:"
+              echo "$RECENT_ERRORS"
+            fi
           ')
           
           echo "$VERIFICATION"
           
-          # 주요 서비스가 정상적으로 실행 중인지 확인
-          if echo "$VERIFICATION" | grep -q "FAIL"; then
+          # 중요한 기본 서비스들이 정상적으로 실행 중인지 확인
+          CORE_SERVICES_FAILED=false
+          if echo "$VERIFICATION" | grep -E "PostgreSQL: FAIL|Redis: FAIL|Kong: FAIL|MongoDB: FAIL|Kafka: FAIL"; then
+            CORE_SERVICES_FAILED=true
+          fi
+          
+          if [ "$CORE_SERVICES_FAILED" = true ]; then
             echo "deploy_success=false" >> $GITHUB_OUTPUT
-            echo "verification_result=일부 서비스가 정상 작동하지 않습니다." >> $GITHUB_OUTPUT
+            echo "verification_result=핵심 인프라 서비스가 정상 작동하지 않습니다." >> $GITHUB_OUTPUT
           else
             echo "deploy_success=true" >> $GITHUB_OUTPUT
-            echo "verification_result=모든 서비스가 정상 작동합니다." >> $GITHUB_OUTPUT
+            echo "verification_result=모든 핵심 서비스가 정상 작동합니다." >> $GITHUB_OUTPUT
           fi
       
       - name: Rollback if Necessary
+        id: rollback
         if: steps.verify.outputs.deploy_success == 'false'
         run: |
           echo "배포 검증 실패, 롤백을 진행합니다..."
           
-          ssh raspberry-pi '
+          ROLLBACK_RESULT=$(ssh raspberry-pi '
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
             
-            # 이전 상태로 롤백
-            echo "===== 롤백 시작 ====="
-            docker-compose -f docker-compose.prod.yml down --remove-orphans
+            # 환경 변수 로드
+            source .env
             
-            # 이전 이미지로 롤백 (가장 최근 태그가 아닌 이전 태그 사용)
-            DEPLOY_VERSION=$(date +%Y%m%d)
-            if [ -f ".env.prev" ]; then
-              cp .env.prev .env
+            echo "===== 롤백 시작 ====="
+            echo "롤백 시작 시간: $(date)"
+            
+            # 현재 상태 백업
+            echo "현재 컨테이너 상태 백업..."
+            docker-compose -f docker-compose.prod.yml ps > rollback_before_state.log
+            
+            # 모든 서비스 정지 (graceful shutdown)
+            echo "서비스 정지 중..."
+            docker-compose -f docker-compose.prod.yml stop
+            
+            # 컨테이너 제거 (orphan 컨테이너 포함)
+            echo "컨테이너 정리 중..."
+            docker-compose -f docker-compose.prod.yml down --remove-orphans --volumes
+            
+            # 최신 이미지 pull (롤백을 위해)
+            echo "최신 이미지 확인 중..."
+            docker-compose -f docker-compose.prod.yml pull --ignore-pull-failures
+            
+            # 이전 환경 설정 복원 (있는 경우)
+            if [ -f ".env.backup" ]; then
+              echo "이전 환경 설정 복원 중..."
+              cp .env.backup .env
             fi
             
-            # 서비스 재시작
-            echo "서비스 재시작 중..."
-            docker-compose -f docker-compose.prod.yml up -d
+            # 핵심 인프라 서비스부터 단계적으로 시작
+            echo "핵심 인프라 서비스 시작 중..."
+            docker-compose -f docker-compose.prod.yml up -d postgres mongodb redis zookeeper
+            sleep 10
             
-            echo "===== 롤백 완료: $(date) ====="
+            echo "메시징 및 API 게이트웨이 시작 중..."
+            docker-compose -f docker-compose.prod.yml up -d kafka kong
+            sleep 10
+            
+            echo "모니터링 서비스 시작 중..."
+            docker-compose -f docker-compose.prod.yml up -d prometheus grafana elasticsearch kibana
+            sleep 15
+            
+            # 롤백 후 상태 확인
+            echo "===== 롤백 후 상태 확인 ====="
             docker-compose -f docker-compose.prod.yml ps
-          '
+            
+            # 기본 헬스체크
+            echo "===== 롤백 후 헬스체크 ====="
+            
+            # PostgreSQL 체크
+            POSTGRES_CHECK=$(docker-compose -f docker-compose.prod.yml exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" 2>/dev/null && echo "OK" || echo "FAIL")
+            echo "PostgreSQL: $POSTGRES_CHECK"
+            
+            # Redis 체크
+            REDIS_CHECK=$(docker-compose -f docker-compose.prod.yml exec -T redis redis-cli -a "$REDIS_PASSWORD" ping 2>/dev/null && echo "OK" || echo "FAIL")
+            echo "Redis: $REDIS_CHECK"
+            
+            # MongoDB 체크
+            MONGODB_CHECK=$(docker-compose -f docker-compose.prod.yml exec -T mongodb mongosh --quiet --eval "db.runCommand({ping: 1}).ok" 2>/dev/null | grep -q "1" && echo "OK" || echo "FAIL")
+            echo "MongoDB: $MONGODB_CHECK"
+            
+            # 롤백 완료 시간
+            echo "===== 롤백 완료: $(date) ====="
+            
+            # 롤백 성공 여부 판단
+            if [[ "$POSTGRES_CHECK" == "OK" && "$REDIS_CHECK" == "OK" && "$MONGODB_CHECK" == "OK" ]]; then
+              echo "ROLLBACK_SUCCESS=true"
+            else
+              echo "ROLLBACK_SUCCESS=false"
+            fi
+          ')
+          
+          echo "$ROLLBACK_RESULT"
+          
+          # 롤백 결과 확인
+          if echo "$ROLLBACK_RESULT" | grep -q "ROLLBACK_SUCCESS=true"; then
+            echo "✅ 롤백이 성공적으로 완료되었습니다."
+            echo "rollback_success=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ 롤백 중 문제가 발생했습니다. 수동 개입이 필요합니다."
+            echo "rollback_success=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
       
       - name: Send Deployment Notification
         if: always()
@@ -1191,7 +1304,7 @@ jobs:
             *🚀 라즈베리파이 ARM64 배포 결과*
             
             *환경:* ${{ needs.prepare_deployment.outputs.environment }}
-            *상태:* ${{ steps.verify.outputs.deploy_success == 'false' && '❌ 배포 실패 (롤백 완료)' || '✅ 배포 성공' }}
+            *상태:* ${{ steps.verify.outputs.deploy_success == 'false' && (steps.rollback.outputs.rollback_success == 'true' && '⚠️ 배포 실패 (롤백 완료)' || '🚨 배포 및 롤백 실패') || '✅ 배포 성공' }}
             *플랫폼:* ${{ needs.prepare_deployment.outputs.platform_arch }}
             *Kong 이미지:* ${{ needs.prepare_deployment.outputs.kong_image }}
             
@@ -1201,6 +1314,7 @@ jobs:
             ${{ needs.validate_images.outputs.missing_images && format('*누락된 이미지:* {0}', needs.validate_images.outputs.missing_images) || '' }}
             
             *검증 결과:* ${{ steps.verify.outputs.verification_result || '검증 정보 없음' }}
+            ${{ steps.verify.outputs.deploy_success == 'false' && format('*롤백 상태:* {0}', (steps.rollback.outputs.rollback_success == 'true' && '✅ 롤백 성공' || '❌ 롤백 실패 - 수동 개입 필요')) || '' }}
             
             *시스템 리소스:*
             • 디스크 공간: ${{ steps.disk_check.outputs.disk_usage }}% 사용 (가용: ${{ steps.disk_check.outputs.available_space }})
@@ -1212,7 +1326,7 @@ jobs:
             • 배포 시간: ${{ steps.current_time.outputs.time }}
             • 워크플로우: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|상세 보기>
             
-            *📊 모니터링 대시보드:*
+            ${{ steps.verify.outputs.deploy_success == 'true' && '*📊 모니터링 대시보드:*
             • Grafana: http://${{ secrets.RASPBERRY_PI_IP }}:3000
             • Prometheus: http://${{ secrets.RASPBERRY_PI_IP }}:9090
             • Kibana: http://${{ secrets.RASPBERRY_PI_IP }}:5601
@@ -1225,7 +1339,12 @@ jobs:
             • PostgreSQL Exporter: http://${{ secrets.RASPBERRY_PI_IP }}:9187/metrics
             • Redis Exporter: http://${{ secrets.RASPBERRY_PI_IP }}:9121/metrics
             • Elasticsearch Exporter: http://${{ secrets.RASPBERRY_PI_IP }}:9114/metrics
-            • Logstash API: http://${{ secrets.RASPBERRY_PI_IP }}:9600
+            • Logstash API: http://${{ secrets.RASPBERRY_PI_IP }}:9600' || '' }}
+            
+            ${{ steps.verify.outputs.deploy_success == 'false' && '*⚠️ 문제 해결이 필요합니다:*
+            • 라즈베리파이 SSH 접속: `ssh ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }}`
+            • 로그 확인: `cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk && docker-compose -f docker-compose.prod.yml logs --tail=100`
+            • 수동 재시작: `docker-compose -f docker-compose.prod.yml restart`' || '' }}
           SLACK_FOOTER: 'HaptiTalk CI/CD - ARM64 Deployment Pipeline'
         continue-on-error: true
 
