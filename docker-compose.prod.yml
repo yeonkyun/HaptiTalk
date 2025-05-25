@@ -158,7 +158,7 @@ services:
       - haptitalk_network
     restart: on-failure
 
-  # Kong API 게이트웨이 (ARM64 호환 버전, 간소화된 설정)
+  # Kong API 게이트웨이 (YAML 구문 수정)
   kong:
     image: ${KONG_IMAGE:-kong/kong-gateway:3.4.2.0}
     platform: linux/arm64
@@ -175,9 +175,10 @@ services:
       KONG_PLUGINS: bundled
     command: >
       bash -c '
-      echo "
-      _format_version: \"3.0\"
+      cat > /tmp/kong.yml << "EOF"
+      _format_version: "3.0"
       _transform: true
+      
       services:
         - name: default-service
           url: http://static-web
@@ -185,7 +186,7 @@ services:
             - name: default-route
               paths:
                 - /
-      " > /tmp/kong.yml &&
+      EOF
       kong start --v
       '
     ports:
@@ -308,7 +309,7 @@ services:
       timeout: 10s
       retries: 5
 
-  # Filebeat - 로그 수집 (간소화된 설정)
+  # Filebeat - 로그 수집 (YAML 구문 수정)
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.8.0
     platform: linux/arm64
@@ -317,18 +318,21 @@ services:
     user: root
     command: >
       bash -c '
-      echo "
+      cat > /usr/share/filebeat/filebeat.yml << "EOF"
       filebeat.inputs:
-      - type: container
-        paths:
-          - /var/lib/docker/containers/*/*.log
-        processors:
-        - add_docker_metadata:
-            host: unix:///var/run/docker.sock
+        - type: container
+          paths:
+            - "/var/lib/docker/containers/*/*.log"
+          processors:
+            - add_docker_metadata:
+                host: "unix:///var/run/docker.sock"
+      
       output.logstash:
-        hosts: [\"logstash:5044\"]
+        hosts: ["logstash:5044"]
+      
       logging.level: info
-      " > /usr/share/filebeat/filebeat.yml &&
+      logging.to_stderr: true
+      EOF
       chown root:root /usr/share/filebeat/filebeat.yml &&
       chmod 600 /usr/share/filebeat/filebeat.yml &&
       filebeat -e
@@ -478,7 +482,8 @@ services:
     networks:
       - haptitalk_network
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:9187/metrics"]
       interval: 10s
@@ -629,9 +634,12 @@ services:
     networks:
       - haptitalk_network
     depends_on:
-      - postgres
-      - redis
-      - kafka
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:${AUTH_SERVICE_PORT}/health"]
       interval: 10s
@@ -669,8 +677,10 @@ services:
     networks:
       - haptitalk_network
     depends_on:
-      - redis
-      - kafka
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:${REALTIME_SERVICE_PORT}/health"]
       interval: 10s
@@ -707,9 +717,12 @@ services:
     networks:
       - haptitalk_network
     depends_on:
-      - postgres
-      - redis
-      - kafka
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:${SESSION_SERVICE_PORT}/health"]
       interval: 10s
@@ -752,10 +765,14 @@ services:
     networks:
       - haptitalk_network
     depends_on:
-      - postgres
-      - redis
-      - mongodb
-      - kafka
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:${FEEDBACK_SERVICE_PORT}/health"]
       interval: 10s
@@ -792,9 +809,12 @@ services:
     networks:
       - haptitalk_network
     depends_on:
-      - postgres
-      - redis
-      - kafka
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     healthcheck:
       test: [ "CMD", "wget", "-qO-", "http://localhost:${USER_SERVICE_PORT}/health" ]
       interval: 10s
@@ -837,12 +857,37 @@ services:
     networks:
       - haptitalk_network
     depends_on:
-      - postgres
-      - redis
-      - mongodb
-      - kafka
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:${REPORT_SERVICE_PORT}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MongoDB Exporter
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.39
+    platform: linux/arm64
+    container_name: haptitalk-mongodb-exporter
+    restart: unless-stopped
+    environment:
+      - MONGODB_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DB}
+    ports:
+      - "${MONGODB_EXPORTER_PORT:-9216}:9216"
+    networks:
+      - haptitalk_network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9216/metrics"]
       interval: 10s
       timeout: 5s
       retries: 5
