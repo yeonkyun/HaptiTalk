@@ -1059,37 +1059,74 @@ jobs:
             echo '=== 기존 컨테이너 정리 중 ==='
             docker-compose -f docker-compose.prod.yml down --remove-orphans || echo '기존 컨테이너 정리 완료'
             
-            # 인프라 서비스 시작 (먼저)
-            echo '=== 인프라 서비스 시작 ==='
-            docker-compose -f docker-compose.prod.yml up -d postgres mongodb redis zookeeper kafka kafka-ui kong static-web node-exporter kibana logstash mongodb-exporter postgres-exporter redis-exporter elasticsearch-exporter kong-blackbox-exporter kibana-blackbox-exporter mongodb-blackbox-exporter
+            # 환경 변수 확인
+            echo '=== 환경 변수 확인 ==='
+            echo \"POSTGRES_USER: \${POSTGRES_USER:+설정됨}\"
+            echo \"REDIS_PASSWORD: \${REDIS_PASSWORD:+설정됨}\"
+            echo \"MONGO_USER: \${MONGO_USER:+설정됨}\"
             
-            # 인프라 서비스 준비 대기
-            echo '=== 인프라 서비스 준비 대기 ==='
+            # 네트워크 생성
+            echo '=== Docker 네트워크 확인/생성 ==='
+            docker network create haptitalk_network 2>/dev/null || echo 'haptitalk_network 이미 존재'
+            
+            # 1단계: 핵심 데이터베이스 서비스 시작
+            echo '=== 1단계: 핵심 데이터베이스 서비스 시작 ==='
+            docker-compose -f docker-compose.prod.yml up -d postgres mongodb redis
+            
+            echo '=== 데이터베이스 서비스 준비 대기 (30초) ==='
             sleep 30
             
-            # 모니터링 및 로깅 서비스 시작
-            echo '=== 모니터링 및 로깅 서비스 시작 ==='
-            docker-compose -f docker-compose.prod.yml up -d elasticsearch kibana logstash filebeat jaeger otel-collector prometheus grafana node-exporter
+            # 데이터베이스 상태 확인
+            echo '=== 데이터베이스 상태 확인 ==='
+            docker-compose -f docker-compose.prod.yml ps postgres mongodb redis
             
-            # Exporters 시작
-            echo '=== Exporters 시작 ==='
+            # 2단계: 메시징 시스템 시작
+            echo '=== 2단계: 메시징 시스템 시작 ==='
+            docker-compose -f docker-compose.prod.yml up -d zookeeper
+            sleep 10
+            docker-compose -f docker-compose.prod.yml up -d kafka
+            sleep 15
+            docker-compose -f docker-compose.prod.yml up -d kafka-ui
+            
+            # 3단계: API 게이트웨이 및 정적 웹 서버 시작
+            echo '=== 3단계: API 게이트웨이 및 웹 서버 시작 ==='
+            docker-compose -f docker-compose.prod.yml up -d kong static-web
+            
+            # 4단계: 모니터링 시스템 시작
+            echo '=== 4단계: 모니터링 시스템 시작 ==='
+            docker-compose -f docker-compose.prod.yml up -d elasticsearch
+            sleep 20
+            docker-compose -f docker-compose.prod.yml up -d kibana logstash filebeat
+            sleep 15
+            docker-compose -f docker-compose.prod.yml up -d jaeger otel-collector
+            sleep 10
+            docker-compose -f docker-compose.prod.yml up -d prometheus grafana node-exporter
+            
+            # 5단계: Exporters 시작
+            echo '=== 5단계: Exporters 시작 ==='
             docker-compose -f docker-compose.prod.yml up -d mongodb-exporter postgres-exporter redis-exporter elasticsearch-exporter
             
-            # Blackbox Exporters 시작
-            echo '=== Blackbox Exporters 시작 ==='
+            # 6단계: Blackbox Exporters 시작
+            echo '=== 6단계: Blackbox Exporters 시작 ==='
             docker-compose -f docker-compose.prod.yml up -d kong-blackbox-exporter kibana-blackbox-exporter mongodb-blackbox-exporter
             
-            # 모니터링 서비스 준비 대기
-            echo '=== 모니터링 서비스 준비 대기 ==='
-            sleep 30
+            # 중간 상태 확인
+            echo '=== 중간 상태 확인 ==='
+            docker-compose -f docker-compose.prod.yml ps
             
-            # 사용 가능한 애플리케이션 서비스만 시작
-            echo '=== 애플리케이션 서비스 시작 ==='
+            # 7단계: 애플리케이션 서비스 시작
+            echo '=== 7단계: 애플리케이션 서비스 시작 ==='
             
             # 이미지가 사용 가능한 서비스만 배포
             if [[ '$IMAGES_AVAILABLE' == 'true' ]]; then
               echo '모든 이미지가 사용 가능합니다. 전체 서비스를 시작합니다.'
-              docker-compose -f docker-compose.prod.yml up -d auth-service session-service user-service feedback-service report-service realtime-service
+              
+              # 개별적으로 시작 (실패 시에도 계속 진행)
+              for service in auth-service session-service user-service feedback-service report-service realtime-service; do
+                echo \"서비스 시작: \$service\"
+                docker-compose -f docker-compose.prod.yml up -d \$service || echo \"경고: \$service 시작 실패\"
+                sleep 5
+              done
             else
               echo '일부 이미지가 누락되었습니다. 사용 가능한 서비스만 시작합니다.'
               
@@ -1098,11 +1135,20 @@ jobs:
                 if ! echo '$MISSING_IMAGES' | grep -q \"\$service\"; then
                   echo \"서비스 시작: \$service\"
                   docker-compose -f docker-compose.prod.yml up -d \$service || echo \"경고: \$service 시작 실패\"
+                  sleep 5
                 else
                   echo \"건너뛰기: \$service (이미지 누락)\"
                 fi
               done
             fi
+            
+            # 최종 상태 확인
+            echo '=== 최종 배포 상태 ==='
+            docker-compose -f docker-compose.prod.yml ps
+            
+            # 실행 중인 컨테이너 수 확인
+            RUNNING_CONTAINERS=\$(docker-compose -f docker-compose.prod.yml ps | grep -c \"Up\")
+            echo \"실행 중인 컨테이너 수: \$RUNNING_CONTAINERS\"
             
             # 배포 후 정리 작업
             echo '=== 배포 후 정리 ==='
@@ -1196,11 +1242,13 @@ jobs:
             # 간단한 헬스체크 (docker-compose 기반으로 수정)
             echo "===== 간단한 헬스체크 ====="
             
-            # Docker Compose 서비스 상태 기반 헬스체크
-            COMPOSE_STATUS=$(docker-compose -f docker-compose.prod.yml ps --services --filter "status=running")
+            # Docker Compose 서비스 상태 직접 확인
+            COMPOSE_PS_OUTPUT=$(docker-compose -f docker-compose.prod.yml ps)
+            echo "Docker Compose 서비스 상태:"
+            echo "$COMPOSE_PS_OUTPUT"
             
             # PostgreSQL 확인
-            if echo "$COMPOSE_STATUS" | grep -q "postgres"; then
+            if echo "$COMPOSE_PS_OUTPUT" | grep -q "postgres.*Up"; then
               echo "PostgreSQL 컨테이너: 실행 중"
               POSTGRES_HEALTH=$(docker-compose -f docker-compose.prod.yml exec -T postgres pg_isready 2>/dev/null && echo "OK" || echo "FAIL")
               echo "PostgreSQL 헬스체크: $POSTGRES_HEALTH"
@@ -1210,7 +1258,7 @@ jobs:
             fi
             
             # Redis 확인
-            if echo "$COMPOSE_STATUS" | grep -q "redis"; then
+            if echo "$COMPOSE_PS_OUTPUT" | grep -q "redis.*Up"; then
               echo "Redis 컨테이너: 실행 중"
               REDIS_HEALTH=$(docker-compose -f docker-compose.prod.yml exec -T redis redis-cli ping 2>/dev/null && echo "OK" || echo "FAIL")
               echo "Redis 헬스체크: $REDIS_HEALTH"
@@ -1220,7 +1268,7 @@ jobs:
             fi
             
             # Kong 확인
-            if echo "$COMPOSE_STATUS" | grep -q "kong"; then
+            if echo "$COMPOSE_PS_OUTPUT" | grep -q "kong.*Up"; then
               echo "Kong 컨테이너: 실행 중"
               KONG_HEALTH=$(docker-compose -f docker-compose.prod.yml exec -T kong kong version 2>/dev/null && echo "OK" || echo "FAIL")
               echo "Kong 헬스체크: $KONG_HEALTH"
@@ -1230,7 +1278,7 @@ jobs:
             fi
             
             # MongoDB 확인
-            if echo "$COMPOSE_STATUS" | grep -q "mongodb"; then
+            if echo "$COMPOSE_PS_OUTPUT" | grep -q "mongodb.*Up"; then
               echo "MongoDB 컨테이너: 실행 중"
               MONGODB_HEALTH=$(docker-compose -f docker-compose.prod.yml exec -T mongodb mongosh --quiet --eval "db.runCommand({ping: 1}).ok" 2>/dev/null | grep -q "1" && echo "OK" || echo "FAIL")
               echo "MongoDB 헬스체크: $MONGODB_HEALTH"
@@ -1240,7 +1288,7 @@ jobs:
             fi
             
             # Kafka 확인
-            if echo "$COMPOSE_STATUS" | grep -q "kafka"; then
+            if echo "$COMPOSE_PS_OUTPUT" | grep -q "kafka.*Up"; then
               echo "Kafka 컨테이너: 실행 중"
               KAFKA_HEALTH=$(docker-compose -f docker-compose.prod.yml exec -T kafka kafka-topics.sh --bootstrap-server localhost:9092 --list 2>/dev/null >/dev/null && echo "OK" || echo "FAIL")
               echo "Kafka 헬스체크: $KAFKA_HEALTH"
@@ -1252,10 +1300,13 @@ jobs:
             # 애플리케이션 서비스 상태 확인
             echo "===== 애플리케이션 서비스 상태 ====="
             for service in auth-service session-service user-service feedback-service report-service realtime-service; do
-              if echo "$COMPOSE_STATUS" | grep -q "$service"; then
+              if echo "$COMPOSE_PS_OUTPUT" | grep -q "$service.*Up"; then
                 # 헬스체크 상태도 확인
-                SERVICE_HEALTH=$(docker-compose -f docker-compose.prod.yml ps $service | grep -q "healthy" && echo "healthy" || echo "running")
-                echo "$service: OK ($SERVICE_HEALTH)"
+                if echo "$COMPOSE_PS_OUTPUT" | grep "$service" | grep -q "healthy"; then
+                  echo "$service: OK (healthy)"
+                else
+                  echo "$service: OK (running)"
+                fi
               else
                 echo "$service: FAIL"
               fi
