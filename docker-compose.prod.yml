@@ -295,7 +295,7 @@ services:
       timeout: 10s
       retries: 5
 
-  # Filebeat - 로그 수집 (최종 간소화)
+  # Filebeat - 로그 수집 (YAML 구문 오류 수정)
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.8.0
     platform: linux/arm64
@@ -306,18 +306,22 @@ services:
       - STRICT_PERMS=false
     command: >
       sh -c '
-      echo "filebeat.inputs:
+      cat > /usr/share/filebeat/filebeat.yml << EOF
+      filebeat.inputs:
       - type: log
         enabled: true
         paths:
           - /var/lib/docker/containers/*/*.log
         json.keys_under_root: true
         json.add_error_key: true
+      
       output.logstash:
-        hosts: [\"logstash:5044\"]
+        hosts: ["logstash:5044"]
+      
       logging:
         level: info
-        to_stderr: true" > /usr/share/filebeat/filebeat.yml &&
+        to_stderr: true
+      EOF
       filebeat -e -strict.perms=false -c /usr/share/filebeat/filebeat.yml
       '
     volumes:
@@ -476,16 +480,15 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis Exporter (완전 재설정)
+  # Redis Exporter (헬스체크 개선)
   redis-exporter:
     image: oliver006/redis_exporter:latest
     platform: linux/arm64
     container_name: haptitalk-redis-exporter
     restart: unless-stopped
-    command: 
-      - '--redis.addr=redis:6379'
-      - '--redis.password=${REDIS_PASSWORD}'
-      - '--log-format=txt'
+    environment:
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     ports:
       - "${REDIS_EXPORTER_PORT:-9121}:9121"
     networks:
@@ -860,16 +863,14 @@ services:
       timeout: 5s
       retries: 5
 
-  # MongoDB Exporter (이미지 변경)
+  # MongoDB Exporter (연결 문자열 수정)
   mongodb-exporter:
     image: bitnami/mongodb-exporter:0.40.0
     platform: linux/arm64
     container_name: haptitalk-mongodb-exporter
     restart: unless-stopped
-    command:
-      - --mongodb.uri=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/admin?authSource=admin
-      - --collect-all
-      - --compatible-mode
+    environment:
+      - MONGODB_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/admin?authSource=admin
     ports:
       - "${MONGODB_EXPORTER_PORT:-9216}:9216"
     networks:
