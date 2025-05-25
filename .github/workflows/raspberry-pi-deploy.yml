@@ -841,7 +841,7 @@ jobs:
           echo "OTEL_COLLECTOR_PROM_PORT=8889" >> .env
           echo "OTEL_COLLECTOR_ZPAGES_PORT=55679" >> .env
           echo "PROMETHEUS_PORT=9090" >> .env
-          echo "GRAFANA_PORT=3000" >> .env
+          echo "GRAFANA_PORT=3333" >> .env
           echo "NODE_EXPORTER_PORT=9100" >> .env
           echo "" >> .env
           echo "# Exporters 포트 설정" >> .env
