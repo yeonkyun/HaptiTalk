@@ -158,7 +158,7 @@ services:
       - haptitalk_network
     restart: on-failure
 
-  # Kong API 게이트웨이 (ARM64 호환 버전)
+  # Kong API 게이트웨이 (ARM64 호환 버전, 간소화된 설정)
   kong:
     image: ${KONG_IMAGE:-kong/kong-gateway:3.4.2.0}
     platform: linux/arm64
@@ -171,24 +171,27 @@ services:
       KONG_ADMIN_ACCESS_LOG: /dev/stdout
       KONG_PROXY_ERROR_LOG: /dev/stderr
       KONG_ADMIN_ERROR_LOG: /dev/stderr
-      KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
-      # API 문서 접근 인증 설정
-      API_DOCS_USERNAME: ${API_DOCS_USERNAME:-apidocs}
-      API_DOCS_PASSWORD: ${API_DOCS_PASSWORD:-haptitalk-docs}
-      # JWT 서비스 키 설정
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
-      JWT_APP_KEY_ID: ${JWT_APP_KEY_ID:-haptitalk-app-key}
-      JWT_ADMIN_KEY_ID: ${JWT_ADMIN_KEY_ID:-haptitalk-admin-key}
-    volumes:
-      # 템플릿 파일을 컨테이너의 /tmp 디렉토리에 마운트
-      - ./infrastructure/api-gateway/kong.yml.template:/tmp/kong.yml.template
-      - ./infrastructure/api-gateway/entrypoint.sh:/usr/local/bin/custom-entrypoint.sh
-    command: ["/usr/local/bin/custom-entrypoint.sh"]
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_PLUGINS: bundled
+    command: >
+      bash -c '
+      echo "
+      _format_version: \"3.0\"
+      _transform: true
+      services:
+        - name: default-service
+          url: http://static-web
+          routes:
+            - name: default-route
+              paths:
+                - /
+      " > /tmp/kong.yml &&
+      kong start --v
+      '
     ports:
       - "${KONG_PROXY_PORT}:8000"
       - "${KONG_HTTPS_PORT}:8443"
       - "${KONG_ADMIN_PORT}:8001"
-      - "8444:8444"
     networks:
       - haptitalk_network
     healthcheck:
@@ -260,7 +263,7 @@ services:
       timeout: 10s
       retries: 5
 
-  # Logstash - 로그 처리 파이프라인
+  # Logstash - 로그 처리 파이프라인 (간소화된 설정)
   logstash:
     image: docker.elastic.co/logstash/logstash:8.8.0
     platform: linux/arm64
@@ -272,9 +275,28 @@ services:
       - "${LOGSTASH_API_PORT:-9600}:9600"
     environment:
       - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
+      - "xpack.monitoring.enabled=false"
+    command: >
+      bash -c '
+      echo "
+      input {
+        beats {
+          port => 5044
+        }
+        tcp {
+          port => 5000
+        }
+      }
+      output {
+        elasticsearch {
+          hosts => [\"elasticsearch:9200\"]
+          index => \"haptitalk-logs-%{+YYYY.MM.dd}\"
+        }
+      }
+      " > /usr/share/logstash/pipeline/logstash.conf &&
+      /usr/local/bin/docker-entrypoint
+      '
     volumes:
-      - ./infrastructure/monitoring/elk/logstash/pipeline:/usr/share/logstash/pipeline:ro
-      - ./infrastructure/monitoring/elk/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
       - logstash_data:/usr/share/logstash/data
     depends_on:
       - elasticsearch
@@ -286,15 +308,32 @@ services:
       timeout: 10s
       retries: 5
 
-  # Filebeat - 로그 수집
+  # Filebeat - 로그 수집 (간소화된 설정)
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.8.0
     platform: linux/arm64
     container_name: haptitalk-filebeat
     restart: unless-stopped
     user: root
+    command: >
+      bash -c '
+      echo "
+      filebeat.inputs:
+      - type: container
+        paths:
+          - /var/lib/docker/containers/*/*.log
+        processors:
+        - add_docker_metadata:
+            host: unix:///var/run/docker.sock
+      output.logstash:
+        hosts: [\"logstash:5044\"]
+      logging.level: info
+      " > /usr/share/filebeat/filebeat.yml &&
+      chown root:root /usr/share/filebeat/filebeat.yml &&
+      chmod 600 /usr/share/filebeat/filebeat.yml &&
+      filebeat -e
+      '
     volumes:
-      - ./infrastructure/monitoring/elk/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
@@ -426,30 +465,9 @@ services:
       timeout: 5s
       retries: 5
 
-  # MongoDB Exporter
-  mongodb-exporter:
-    image: percona/mongodb_exporter:0.40
-    platform: linux/arm64
-    container_name: haptitalk-mongodb-exporter
-    restart: unless-stopped
-    command:
-      - '--mongodb.uri=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DB}?authSource=admin'
-      - '--collect-all'
-    ports:
-      - "${MONGODB_EXPORTER_PORT:-9216}:9216"
-    networks:
-      - haptitalk_network
-    depends_on:
-      - mongodb
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9216/metrics"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # PostgreSQL Exporter
   postgres-exporter:
-    image: wrouesnel/postgres_exporter:latest
+    image: quay.io/prometheuscommunity/postgres-exporter:latest
     platform: linux/arm64
     container_name: haptitalk-postgres-exporter
     restart: unless-stopped
@@ -490,7 +508,7 @@ services:
 
   # Elasticsearch Exporter
   elasticsearch-exporter:
-    image: justwatch/elasticsearch_exporter:1.1.0
+    image: quay.io/prometheuscommunity/elasticsearch-exporter:latest
     platform: linux/arm64
     container_name: haptitalk-elasticsearch-exporter
     restart: unless-stopped
@@ -504,26 +522,6 @@ services:
       - elasticsearch
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:9114/metrics"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Logstash Exporter
-  logstash-exporter:
-    image: bonniernews/logstash_exporter:v0.1.2
-    platform: linux/arm64
-    container_name: haptitalk-logstash-exporter
-    restart: unless-stopped
-    command:
-      - "--logstash.endpoint=http://logstash:9600"
-    ports:
-      - "${LOGSTASH_EXPORTER_PORT:-9304}:9304"
-    networks:
-      - haptitalk_network
-    depends_on:
-      - logstash
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9304/metrics"]
       interval: 10s
       timeout: 5s
       retries: 5

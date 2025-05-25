@@ -945,7 +945,7 @@ jobs:
           else
             echo "인프라 서비스 배포 중..." | tee -a $DEPLOY_LOG
             # 기본 인프라 서비스만 시작
-            docker-compose -f docker-compose.prod.yml up -d postgres mongodb redis zookeeper kafka kafka-ui kong static-web node-exporter kibana logstash mongodb-exporter postgres-exporter redis-exporter elasticsearch-exporter logstash-exporter kong-blackbox-exporter kibana-blackbox-exporter mongodb-blackbox-exporter
+            docker-compose -f docker-compose.prod.yml up -d postgres mongodb redis zookeeper kafka kafka-ui kong static-web node-exporter kibana logstash mongodb-exporter postgres-exporter redis-exporter elasticsearch-exporter kong-blackbox-exporter kibana-blackbox-exporter mongodb-blackbox-exporter
             
             echo "애플리케이션 서비스 배포 중..." | tee -a $DEPLOY_LOG
             # 각 서비스 개별 시작 (오류 격리)
@@ -1061,7 +1061,7 @@ jobs:
             
             # 인프라 서비스 시작 (먼저)
             echo '=== 인프라 서비스 시작 ==='
-            docker-compose -f docker-compose.prod.yml up -d postgres mongodb redis zookeeper kafka kafka-ui kong static-web node-exporter kibana logstash mongodb-exporter postgres-exporter redis-exporter elasticsearch-exporter logstash-exporter kong-blackbox-exporter kibana-blackbox-exporter mongodb-blackbox-exporter
+            docker-compose -f docker-compose.prod.yml up -d postgres mongodb redis zookeeper kafka kafka-ui kong static-web node-exporter kibana logstash mongodb-exporter postgres-exporter redis-exporter elasticsearch-exporter kong-blackbox-exporter kibana-blackbox-exporter mongodb-blackbox-exporter
             
             # 인프라 서비스 준비 대기
             echo '=== 인프라 서비스 준비 대기 ==='
@@ -1073,7 +1073,7 @@ jobs:
             
             # Exporters 시작
             echo '=== Exporters 시작 ==='
-            docker-compose -f docker-compose.prod.yml up -d mongodb-exporter postgres-exporter redis-exporter elasticsearch-exporter logstash-exporter
+            docker-compose -f docker-compose.prod.yml up -d mongodb-exporter postgres-exporter redis-exporter elasticsearch-exporter
             
             # Blackbox Exporters 시작
             echo '=== Blackbox Exporters 시작 ==='
@@ -1226,11 +1226,6 @@ jobs:
             • Redis Exporter: http://${{ secrets.RASPBERRY_PI_IP }}:9121/metrics
             • Elasticsearch Exporter: http://${{ secrets.RASPBERRY_PI_IP }}:9114/metrics
             • Logstash API: http://${{ secrets.RASPBERRY_PI_IP }}:9600
-            
-            *🔍 상태 모니터링:*
-            • Kong Blackbox: http://${{ secrets.RASPBERRY_PI_IP }}:9701
-            • Kibana Blackbox: http://${{ secrets.RASPBERRY_PI_IP }}:9702
-            • MongoDB Blackbox: http://${{ secrets.RASPBERRY_PI_IP }}:9703
           SLACK_FOOTER: 'HaptiTalk CI/CD - ARM64 Deployment Pipeline'
         continue-on-error: true
 
