@@ -158,7 +158,7 @@ services:
       - haptitalk_network
     restart: on-failure
 
-  # Kong API 게이트웨이 (설정 간소화)
+  # Kong API 게이트웨이 (더욱 간소화)
   kong:
     image: ${KONG_IMAGE:-kong/kong-gateway:3.4.2.0}
     platform: linux/arm64
@@ -166,26 +166,15 @@ services:
     restart: unless-stopped
     environment:
       KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /tmp/kong.yml
+      KONG_DECLARATIVE_CONFIG: /usr/local/kong/declarative/kong.yml
       KONG_PROXY_ACCESS_LOG: /dev/stdout
       KONG_ADMIN_ACCESS_LOG: /dev/stdout
       KONG_PROXY_ERROR_LOG: /dev/stderr
       KONG_ADMIN_ERROR_LOG: /dev/stderr
       KONG_ADMIN_LISTEN: 0.0.0.0:8001
       KONG_PLUGINS: bundled
-    command: >
-      sh -c '
-      cat > /tmp/kong.yml << EOF
-      _format_version: "3.0"
-      services:
-      - name: default
-        url: http://static-web
-        routes:
-        - name: default
-          paths: ["/"]
-      EOF
-      kong start --v
-      '
+    volumes:
+      - ./infrastructure/api-gateway/kong.yml:/usr/local/kong/declarative/kong.yml:ro
     ports:
       - "${KONG_PROXY_PORT}:8000"
       - "${KONG_HTTPS_PORT}:8443"
@@ -193,7 +182,7 @@ services:
     networks:
       - haptitalk_network
     healthcheck:
-      test: ["CMD", "kong", "health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8001/status"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -306,35 +295,46 @@ services:
       timeout: 10s
       retries: 5
 
-  # Filebeat - 로그 수집 (설정 간소화)
+  # Filebeat - 로그 수집 (완전 간소화)
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.8.0
     platform: linux/arm64
     container_name: haptitalk-filebeat
     restart: unless-stopped
     user: root
+    environment:
+      - LOGGING_LEVEL=info
     command: >
       sh -c '
-      cat > /usr/share/filebeat/filebeat.yml << EOF
+      cat > /usr/share/filebeat/filebeat.yml << "EOF"
       filebeat.inputs:
-      - type: container
-        paths: ["/var/lib/docker/containers/*/*.log"]
-        processors:
-        - add_docker_metadata:
-            host: "unix:///var/run/docker.sock"
+      - type: log
+        enabled: true
+        paths:
+          - /var/lib/docker/containers/*/*.log
+        json.keys_under_root: true
+        json.add_error_key: true
+        multiline.pattern: "^\\["
+        multiline.negate: true
+        multiline.match: after
       output.logstash:
         hosts: ["logstash:5044"]
-      logging.level: info
+      processors:
+      - add_docker_metadata: ~
+      logging:
+        level: info
+        to_stderr: true
       EOF
       chown root:root /usr/share/filebeat/filebeat.yml &&
       chmod 600 /usr/share/filebeat/filebeat.yml &&
-      filebeat -e
+      filebeat -e -strict.perms=false
       '
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
-      - logstash
+      logstash:
+        condition: service_healthy
     networks:
       - haptitalk_network
 
@@ -462,7 +462,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # PostgreSQL Exporter (환경 변수 방식으로 변경)
+  # PostgreSQL Exporter
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:latest
     platform: linux/arm64
@@ -485,7 +485,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis Exporter
+  # Redis Exporter (연결 방식 개선)
   redis-exporter:
     image: oliver006/redis_exporter:latest
     platform: linux/arm64
@@ -494,6 +494,7 @@ services:
     environment:
       - REDIS_ADDR=redis:6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_EXPORTER_LOG_FORMAT=txt
     ports:
       - "${REDIS_EXPORTER_PORT:-9121}:9121"
     networks:
@@ -503,9 +504,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:9121/metrics"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Elasticsearch Exporter
   elasticsearch-exporter:
@@ -868,16 +869,14 @@ services:
       timeout: 5s
       retries: 5
 
-  # MongoDB Exporter (인증 방식 개선)
+  # MongoDB Exporter (설정 개선)
   mongodb-exporter:
     image: percona/mongodb_exporter:0.39
     platform: linux/arm64
     container_name: haptitalk-mongodb-exporter
     restart: unless-stopped
-    command: 
-      - --mongodb.uri=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/admin
-      - --collect-all
-      - --compatible-mode
+    environment:
+      - MONGODB_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/admin?authSource=admin
     ports:
       - "${MONGODB_EXPORTER_PORT:-9216}:9216"
     networks:
@@ -887,9 +886,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:9216/metrics"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
   haptitalk_network:
