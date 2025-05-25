@@ -1164,8 +1164,8 @@ jobs:
       - name: Verify Deployment
         id: verify
         run: |
-          # 배포 검증 (디버깅 강화)
-          VERIFICATION=$(ssh raspberry-pi '
+          # 배포 검증 (타임아웃 추가)
+          VERIFICATION=$(timeout 180 ssh raspberry-pi '
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
             
             echo "===== 디버깅 정보 시작 ====="
@@ -1223,14 +1223,10 @@ jobs:
             # Docker Compose 서비스 상태
             echo "===== Docker Compose 서비스 상태 ====="
             if [ -f "docker-compose.prod.yml" ]; then
-              docker-compose -f docker-compose.prod.yml ps
+              timeout 30 docker-compose -f docker-compose.prod.yml ps || echo "docker-compose ps 타임아웃"
             else
               echo "docker-compose.prod.yml 파일 없음"
             fi
-            
-            # Docker 로그 확인 (간단히)
-            echo "===== Docker 시스템 이벤트 (최근 10개) ====="
-            docker system events --since="10m" | tail -10 || echo "이벤트 없음"
             
             # 디스크 공간 확인
             echo "===== 시스템 리소스 ====="
@@ -1243,7 +1239,7 @@ jobs:
             echo "===== 간단한 헬스체크 ====="
             
             # Docker Compose 서비스 상태 직접 확인
-            COMPOSE_PS_OUTPUT=$(docker-compose -f docker-compose.prod.yml ps)
+            COMPOSE_PS_OUTPUT=$(timeout 30 docker-compose -f docker-compose.prod.yml ps 2>/dev/null || echo "TIMEOUT")
             echo "Docker Compose 서비스 상태:"
             echo "$COMPOSE_PS_OUTPUT"
             
