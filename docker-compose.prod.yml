@@ -872,9 +872,9 @@ services:
       - MONGODB_PASSWORD=${MONGO_PASSWORD}
     command:
       - 'mongodb_exporter'
-      - '--mongodb.uri=$(MONGODB_URI)'
-      - '--mongodb.user=$(MONGODB_USER)'
-      - '--mongodb.password=$(MONGODB_PASSWORD)'
+      - '--mongodb.uri=${MONGODB_URI}'
+      - '--mongodb.user=${MONGODB_USER}'
+      - '--mongodb.password=${MONGODB_PASSWORD}'
       - '--collect-all'
     ports:
       - "${MONGODB_EXPORTER_PORT:-9216}:9216"

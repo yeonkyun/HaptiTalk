@@ -1230,7 +1230,7 @@ jobs:
             
             # Docker 로그 확인 (간단히)
             echo "===== Docker 시스템 이벤트 (최근 10개) ====="
-            docker system events --since="10m" --until="now" | tail -10 || echo "이벤트 없음"
+            docker system events --since="10m" | tail -10 || echo "이벤트 없음"
             
             # 디스크 공간 확인
             echo "===== 시스템 리소스 ====="
