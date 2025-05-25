@@ -158,7 +158,7 @@ services:
       - haptitalk_network
     restart: on-failure
 
-  # Kong API 게이트웨이 (더욱 간소화)
+  # Kong API 게이트웨이 (헬스체크 개선)
   kong:
     image: ${KONG_IMAGE:-kong/kong-gateway:3.4.2.0}
     platform: linux/arm64
@@ -182,7 +182,7 @@ services:
     networks:
       - haptitalk_network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/status"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -295,7 +295,7 @@ services:
       timeout: 10s
       retries: 5
 
-  # Filebeat - 로그 수집 (완전 간소화)
+  # Filebeat - 로그 수집 (최종 간소화)
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.8.0
     platform: linux/arm64
@@ -303,31 +303,22 @@ services:
     restart: unless-stopped
     user: root
     environment:
-      - LOGGING_LEVEL=info
+      - STRICT_PERMS=false
     command: >
       sh -c '
-      cat > /usr/share/filebeat/filebeat.yml << "EOF"
-      filebeat.inputs:
+      echo "filebeat.inputs:
       - type: log
         enabled: true
         paths:
           - /var/lib/docker/containers/*/*.log
         json.keys_under_root: true
         json.add_error_key: true
-        multiline.pattern: "^\\["
-        multiline.negate: true
-        multiline.match: after
       output.logstash:
-        hosts: ["logstash:5044"]
-      processors:
-      - add_docker_metadata: ~
+        hosts: [\"logstash:5044\"]
       logging:
         level: info
-        to_stderr: true
-      EOF
-      chown root:root /usr/share/filebeat/filebeat.yml &&
-      chmod 600 /usr/share/filebeat/filebeat.yml &&
-      filebeat -e -strict.perms=false
+        to_stderr: true" > /usr/share/filebeat/filebeat.yml &&
+      filebeat -e -strict.perms=false -c /usr/share/filebeat/filebeat.yml
       '
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
@@ -485,16 +476,16 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis Exporter (연결 방식 개선)
+  # Redis Exporter (완전 재설정)
   redis-exporter:
     image: oliver006/redis_exporter:latest
     platform: linux/arm64
     container_name: haptitalk-redis-exporter
     restart: unless-stopped
-    environment:
-      - REDIS_ADDR=redis:6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - REDIS_EXPORTER_LOG_FORMAT=txt
+    command: 
+      - '--redis.addr=redis:6379'
+      - '--redis.password=${REDIS_PASSWORD}'
+      - '--log-format=txt'
     ports:
       - "${REDIS_EXPORTER_PORT:-9121}:9121"
     networks:
@@ -869,14 +860,16 @@ services:
       timeout: 5s
       retries: 5
 
-  # MongoDB Exporter (설정 개선)
+  # MongoDB Exporter (이미지 변경)
   mongodb-exporter:
-    image: percona/mongodb_exporter:0.39
+    image: bitnami/mongodb-exporter:0.40.0
     platform: linux/arm64
     container_name: haptitalk-mongodb-exporter
     restart: unless-stopped
-    environment:
-      - MONGODB_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/admin?authSource=admin
+    command:
+      - --mongodb.uri=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/admin?authSource=admin
+      - --collect-all
+      - --compatible-mode
     ports:
       - "${MONGODB_EXPORTER_PORT:-9216}:9216"
     networks:
