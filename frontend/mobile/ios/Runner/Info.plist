@@ -49,9 +49,6 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>WKCompanionAppBundleIdentifier</key>
-	<string>com.eumgyeol.haptitalk</string>
-	<key>WKWatchKitApp</key>
-	<true/>
+
 </dict>
 </plist>

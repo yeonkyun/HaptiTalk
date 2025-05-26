@@ -1,10 +1,9 @@
 import Flutter
 import UIKit
-import WatchConnectivity
 
 @main
-@objc class AppDelegate: FlutterAppDelegate, WCSessionDelegate {
-  private var watchChannel: FlutterMethodChannel?
+@objc class AppDelegate: FlutterAppDelegate {
+  // private var watchChannel: FlutterMethodChannel? // Watch 기능 비활성화
   
   override func application(
     _ application: UIApplication,
@@ -12,21 +11,20 @@ import WatchConnectivity
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
     
+    // Watch 관련 기능 완전 비활성화 (키보드 문제 해결용)
     // Method Channel 설정
-    let controller = window?.rootViewController as! FlutterViewController
-    watchChannel = FlutterMethodChannel(name: "com.haptitalk/watch", 
-                                       binaryMessenger: controller.binaryMessenger)
+    // let controller = window?.rootViewController as! FlutterViewController
+    // watchChannel = FlutterMethodChannel(name: "com.haptitalk/watch", 
+    //                                    binaryMessenger: controller.binaryMessenger)
     
-    watchChannel?.setMethodCallHandler { [weak self] (call, result) in
-      self?.handleMethodCall(call: call, result: result)
-    }
-    
-    // WatchConnectivity 설정
-    setupWatchConnectivity()
+    // watchChannel?.setMethodCallHandler { [weak self] (call, result) in
+    //   self?.handleMethodCall(call: call, result: result)
+    // }
     
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
   
+  /*
   private func setupWatchConnectivity() {
     if WCSession.isSupported() {
       let session = WCSession.default
@@ -49,7 +47,10 @@ import WatchConnectivity
       print("iOS: WatchConnectivity not supported")
     }
   }
+  */
   
+  /*
+  // 모든 Watch 관련 메서드들 비활성화
   private func notifyWatchConnectionStatus() {
     let session = WCSession.default
     let status = [
@@ -195,4 +196,5 @@ import WatchConnectivity
       self?.watchChannel?.invokeMethod("watchMessage", arguments: applicationContext)
     }
   }
+  */
 }

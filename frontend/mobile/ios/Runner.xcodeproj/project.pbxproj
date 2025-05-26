@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 70;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -95,9 +95,39 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		72C403BD2DE50D6300C0E5E7 /* HaptiTalkWatch Watch App */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "HaptiTalkWatch Watch App"; sourceTree = "<group>"; };
-		72C403CB2DE50D6400C0E5E7 /* HaptiTalkWatch Watch AppTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "HaptiTalkWatch Watch AppTests"; sourceTree = "<group>"; };
-		72C403D52DE50D6400C0E5E7 /* HaptiTalkWatch Watch AppUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "HaptiTalkWatch Watch AppUITests"; sourceTree = "<group>"; };
+		72C403BD2DE50D6300C0E5E7 /* HaptiTalkWatch Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = "HaptiTalkWatch Watch App";
+			sourceTree = "<group>";
+		};
+		72C403CB2DE50D6400C0E5E7 /* HaptiTalkWatch Watch AppTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = "HaptiTalkWatch Watch AppTests";
+			sourceTree = "<group>";
+		};
+		72C403D52DE50D6400C0E5E7 /* HaptiTalkWatch Watch AppUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = "HaptiTalkWatch Watch AppUITests";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -262,8 +292,6 @@
 				72C403BD2DE50D6300C0E5E7 /* HaptiTalkWatch Watch App */,
 			);
 			name = "HaptiTalkWatch Watch App";
-			packageProductDependencies = (
-			);
 			productName = "HaptiTalkWatch Watch App";
 			productReference = 72C403BC2DE50D6300C0E5E7 /* HaptiTalkWatch Watch App.app */;
 			productType = "com.apple.product-type.application";
@@ -285,8 +313,6 @@
 				72C403CB2DE50D6400C0E5E7 /* HaptiTalkWatch Watch AppTests */,
 			);
 			name = "HaptiTalkWatch Watch AppTests";
-			packageProductDependencies = (
-			);
 			productName = "HaptiTalkWatch Watch AppTests";
 			productReference = 72C403C82DE50D6400C0E5E7 /* HaptiTalkWatch Watch AppTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -308,8 +334,6 @@
 				72C403D52DE50D6400C0E5E7 /* HaptiTalkWatch Watch AppUITests */,
 			);
 			name = "HaptiTalkWatch Watch AppUITests";
-			packageProductDependencies = (
-			);
 			productName = "HaptiTalkWatch Watch AppUITests";
 			productReference = 72C403D22DE50D6400C0E5E7 /* HaptiTalkWatch Watch AppUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -480,13 +504,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
