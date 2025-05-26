@@ -372,7 +372,7 @@ services:
       - ./infrastructure/monitoring/otel/otel-collector-config.yml:/etc/otel-collector-config.yml:ro
     ports:
       - "${OTEL_COLLECTOR_PORT:-4317}:4317"
-      - "${OTEL_COLLECTOR_HTTP_PORT:-4318}:4318"
+      - "${OTEL_COLLECTOR_HTTP_PORT:-4319}:4318"
       - "${OTEL_COLLECTOR_PROM_PORT:-8889}:8889"
       - "${OTEL_COLLECTOR_ZPAGES_PORT:-55679}:55679"
     depends_on:
@@ -624,7 +624,7 @@ services:
       - KAFKA_TOPIC_USER_ACTIVITY=${KAFKA_TOPIC_USER_ACTIVITY}
       # OpenTelemetry 트레이싱 설정
       - SERVICE_NAME=auth-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:4319/v1/traces
     ports:
       - "${AUTH_SERVICE_PORT}:${AUTH_SERVICE_PORT}"
     networks:
@@ -667,7 +667,7 @@ services:
       - KAFKA_TOPIC_FEEDBACK_COMMANDS=${KAFKA_TOPIC_FEEDBACK_COMMANDS}
       # OpenTelemetry 트레이싱 설정
       - SERVICE_NAME=realtime-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:4319/v1/traces
     ports:
       - "${REALTIME_SERVICE_PORT}:${REALTIME_SERVICE_PORT}"
     networks:
@@ -707,7 +707,7 @@ services:
       - KAFKA_TOPIC_SESSION_EVENTS=${KAFKA_TOPIC_SESSION_EVENTS}
       # OpenTelemetry 트레이싱 설정
       - SERVICE_NAME=session-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:4319/v1/traces
     ports:
       - "${SESSION_SERVICE_PORT}:${SESSION_SERVICE_PORT}"
     networks:
@@ -755,7 +755,7 @@ services:
       - KAFKA_TOPIC_ANALYSIS_RESULTS=${KAFKA_TOPIC_ANALYSIS_RESULTS}
       # OpenTelemetry 트레이싱 설정
       - SERVICE_NAME=feedback-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:4319/v1/traces
     ports:
       - "${FEEDBACK_SERVICE_PORT}:${FEEDBACK_SERVICE_PORT}"
     networks:
@@ -799,7 +799,7 @@ services:
       - KAFKA_TOPIC_USER_ACTIVITY=${KAFKA_TOPIC_USER_ACTIVITY}
       # OpenTelemetry 트레이싱 설정
       - SERVICE_NAME=user-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:4319/v1/traces
     ports:
       - "${USER_SERVICE_PORT}:${USER_SERVICE_PORT}"
     networks:
@@ -847,7 +847,7 @@ services:
       - KAFKA_TOPIC_ANALYSIS_RESULTS=${KAFKA_TOPIC_ANALYSIS_RESULTS}
       # OpenTelemetry 트레이싱 설정
       - SERVICE_NAME=report-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:${OTEL_COLLECTOR_PORT:-4318}/v1/traces
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://haptitalk-otel-collector:4319/v1/traces
     ports:
       - "${REPORT_SERVICE_PORT}:${REPORT_SERVICE_PORT}"
     networks:
