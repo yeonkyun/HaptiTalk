@@ -2,7 +2,7 @@
 //  HaptiTalkWatch_Watch_AppTests.swift
 //  HaptiTalkWatch Watch AppTests
 //
-//  Created by 이은범 on 5/15/25.
+//  Created by 이은범 on 5/27/25.
 //
 
 import Testing

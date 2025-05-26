@@ -35,7 +35,7 @@ struct SessionModeSelectionView: View {
                             .padding(.vertical, 12)
                             .background(
                                 RoundedRectangle(cornerRadius: 15)
-                                    .fill(Color(UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0))) // #212121
+                                    .fill(Color(.sRGB, red: 0.13, green: 0.13, blue: 0.13, opacity: 1.0)) // #212121
                             )
                     }
                     .buttonStyle(PlainButtonStyle())

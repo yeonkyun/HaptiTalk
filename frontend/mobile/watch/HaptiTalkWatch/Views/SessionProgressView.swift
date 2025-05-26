@@ -6,7 +6,9 @@
 //
 
 import SwiftUI
+#if os(watchOS)
 import WatchKit
+#endif
 
 struct SessionProgressView: View {
     @Environment(\.presentationMode) var presentationMode
@@ -14,21 +16,38 @@ struct SessionProgressView: View {
     @State private var sessionTimer: TimeInterval = 0
     @State private var sessionMode: String = "소개팅"
     @State private var formattedTime: String = "00:00:00"
-    @State private var emotionState: String = "긍정적"
-    @State private var emotionColor: Color = Color.green
-    @State private var speakingSpeed: Double = 0.75 // 0.0 ~ 1.0
-    @State private var feedbackMessage: String = "말하기 속도가 빨라지고 있어요. 좀 더 천천히 말해보세요."
-    @State private var showFeedback: Bool = true
     @State private var showHapticNotification: Bool = false
     @State private var hapticNotificationMessage: String = ""
     @State private var currentTime: String = ""
     @State private var showSessionSummary: Bool = false
-    @State private var likeabilityPercent: String = "88%"
-    @State private var coreFeedback: String = "여행 주제에서 높은 호감도를 보였으며, 경청하는 자세가 매우 효과적이었습니다."
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
     var recommendedTopics = ["여행 경험", "취미 활동", "좋아하는 음식"]
+    
+    // AppState에서 실시간 데이터 가져오기
+    var emotionState: String { appState.currentEmotion }
+    var emotionColor: Color {
+        switch appState.currentEmotion {
+        case "긍정적": return Color.green
+        case "부정적": return Color.red
+        case "중립적": return Color.yellow
+        case "흥미로운": return Color.blue
+        case "집중적": return Color.purple
+        default: return Color.gray
+        }
+    }
+    var speakingSpeed: Double { Double(appState.currentSpeakingSpeed) / 100.0 }
+    var feedbackMessage: String { appState.currentFeedback }
+    var showFeedback: Bool { !appState.currentFeedback.isEmpty }
+    var likeabilityPercent: String { "\(appState.currentLikability)%" }
+    var coreFeedback: String { 
+        if !appState.currentFeedback.isEmpty {
+            return appState.currentFeedback
+        } else {
+            return "여행 주제에서 높은 호감도를 보였으며, 경청하는 자세가 매우 효과적이었습니다."
+        }
+    }
     
     var body: some View {
         ZStack {
@@ -40,7 +59,7 @@ struct SessionProgressView: View {
                     HStack {
                         ZStack {
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(Color(UIColor(red: 0.91, green: 0.12, blue: 0.39, alpha: 1.0))) // #E91E63
+                                .fill(Color(.sRGB, red: 0.91, green: 0.12, blue: 0.39, opacity: 1.0)) // #E91E63
                                 .frame(width: 55, height: 21.5)
                             
                             HStack(spacing: 4) {
@@ -59,7 +78,7 @@ struct SessionProgressView: View {
                         
                         Text(formattedTime)
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
+                            .foregroundColor(Color(.sRGB, red: 0.88, green: 0.88, blue: 0.88, opacity: 1.0)) // #E0E0E0
                     }
                     .padding(.top, 5)
                     
@@ -74,7 +93,7 @@ struct SessionProgressView: View {
                             HStack {
                                 Text("감정 상태")
                                     .font(.system(size: 10))
-                                    .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
+                                    .foregroundColor(Color(.sRGB, red: 0.88, green: 0.88, blue: 0.88, opacity: 1.0)) // #E0E0E0
                                 
                                 Spacer()
                                 
@@ -94,7 +113,7 @@ struct SessionProgressView: View {
                             VStack(spacing: 4) {
                                 Text("말하기 속도")
                                     .font(.system(size: 10))
-                                    .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
+                                    .foregroundColor(Color(.sRGB, red: 0.88, green: 0.88, blue: 0.88, opacity: 1.0)) // #E0E0E0
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                 
                                 ZStack(alignment: .leading) {
@@ -104,8 +123,14 @@ struct SessionProgressView: View {
                                         .cornerRadius(2)
                                     
                                     Rectangle()
-                                        .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
-                                        .frame(width: WKInterfaceDevice.current().screenBounds.width * 0.75 * speakingSpeed, height: 4)
+                                        .fill(Color(.sRGB, red: 0.25, green: 0.32, blue: 0.71, opacity: 1.0)) // #3F51B5
+                                        .frame(width: {
+                                            #if os(watchOS)
+                                            return WKInterfaceDevice.current().screenBounds.width * 0.75 * speakingSpeed
+                                            #else
+                                            return 120 * speakingSpeed // fallback for iOS
+                                            #endif
+                                        }(), height: 4)
                                         .cornerRadius(2)
                                 }
                             }
@@ -118,12 +143,12 @@ struct SessionProgressView: View {
                     if showFeedback {
                         ZStack {
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 0.15))) // #3F51B5 with opacity
+                                .fill(Color(.sRGB, red: 0.25, green: 0.32, blue: 0.71, opacity: 0.15)) // #3F51B5 with opacity
                                 .frame(height: 44)
                             
                             Text(feedbackMessage)
                                 .font(.system(size: 10))
-                                .foregroundColor(Color(UIColor(red: 0.56, green: 0.79, blue: 0.98, alpha: 1.0))) // #90CAF9
+                                .foregroundColor(Color(.sRGB, red: 0.56, green: 0.79, blue: 0.98, opacity: 1.0)) // #90CAF9
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 8)
                         }
@@ -134,7 +159,7 @@ struct SessionProgressView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("추천 대화 주제")
                             .font(.system(size: 10))
-                            .foregroundColor(Color(UIColor(red: 0.62, green: 0.62, blue: 0.62, alpha: 1.0))) // #9E9E9E
+                            .foregroundColor(Color(.sRGB, red: 0.62, green: 0.62, blue: 0.62, opacity: 1.0)) // #9E9E9E
                         
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
@@ -146,8 +171,8 @@ struct SessionProgressView: View {
                                         .padding(.vertical, 6)
                                         .background(
                                             RoundedRectangle(cornerRadius: 8)
-                                                .fill(Color(UIColor(red: 0.3, green: 0.69, blue: 0.31, alpha: 0.3))) // #4CAF50 with opacity
-                                                .stroke(Color(UIColor(red: 0.3, green: 0.69, blue: 0.31, alpha: 1.0)), lineWidth: 1)
+                                                .fill(Color(.sRGB, red: 0.3, green: 0.69, blue: 0.31, opacity: 0.3)) // #4CAF50 with opacity
+                                                .stroke(Color(.sRGB, red: 0.3, green: 0.69, blue: 0.31, opacity: 1.0), lineWidth: 1)
                                         )
                                 }
                             }
@@ -172,7 +197,7 @@ struct SessionProgressView: View {
                             .padding(.vertical, 12)
                             .background(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color(UIColor(red: 0.96, green: 0.26, blue: 0.21, alpha: 1.0))) // #F44336
+                                    .fill(Color(.sRGB, red: 0.96, green: 0.26, blue: 0.21, opacity: 1.0)) // #F44336
                             )
                     }
                 }
@@ -196,7 +221,7 @@ struct SessionProgressView: View {
             updateTimer()
             updateCurrentTime()
         }
-        .onChange(of: appState.showHapticFeedback) { newValue in
+        .onChange(of: appState.showHapticFeedback) { _, newValue in
             if newValue {
                 showHapticNotification(message: appState.hapticFeedbackMessage)
                 appState.showHapticFeedback = false

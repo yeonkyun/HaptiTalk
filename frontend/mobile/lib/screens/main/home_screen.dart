@@ -22,7 +22,7 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(),
+                _buildHeader(context),
                 const SizedBox(height: 20),
                 _buildPremiumBanner(),
                 const SizedBox(height: 25),
@@ -41,7 +41,7 @@ class HomeScreen extends StatelessWidget {
   }
 
   // 상단 헤더 (앱 타이틀 및 설정 버튼)
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 15.0),
       child: Row(
@@ -55,18 +55,38 @@ class HomeScreen extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.lightGrayColor,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.notifications_none,
-                  color: AppColors.textColor),
-              onPressed: () {},
-            ),
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.lightGrayColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: IconButton(
+                  icon:
+                      const Icon(Icons.bug_report, color: AppColors.textColor),
+                  onPressed: () {
+                    Navigator.pushNamed(context, AppRoutes.watchDebug);
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.lightGrayColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.notifications_none,
+                      color: AppColors.textColor),
+                  onPressed: () {},
+                ),
+              ),
+            ],
           ),
         ],
       ),

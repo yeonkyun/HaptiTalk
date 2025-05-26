@@ -2,7 +2,7 @@
 //  HaptiTalkWatch_Watch_AppUITests.swift
 //  HaptiTalkWatch Watch AppUITests
 //
-//  Created by 이은범 on 5/15/25.
+//  Created by 이은범 on 5/27/25.
 //
 
 import XCTest

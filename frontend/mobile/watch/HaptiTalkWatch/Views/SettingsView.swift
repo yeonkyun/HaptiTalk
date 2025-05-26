@@ -1,5 +1,7 @@
 import SwiftUI
+#if os(watchOS)
 import WatchKit
+#endif
 
 struct SettingsView: View {
     @Environment(\.presentationMode) var presentationMode
@@ -18,7 +20,13 @@ struct SettingsView: View {
     @State private var showHapticFeedbackMessage: Bool = false
     
     // 화면 너비 계산
-    private let screenWidth = WKInterfaceDevice.current().screenBounds.width
+    private let screenWidth: CGFloat = {
+        #if os(watchOS)
+        return WKInterfaceDevice.current().screenBounds.width
+        #else
+        return 200 // fallback for iOS
+        #endif
+    }()
     
     enum NotificationStyle: String, CaseIterable {
         case icon = "아이콘"

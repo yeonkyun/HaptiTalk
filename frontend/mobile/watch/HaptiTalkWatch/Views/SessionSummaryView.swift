@@ -44,7 +44,7 @@ struct SessionSummaryView: View {
                         
                         Text(sessionMode)
                             .font(.system(size: 11))
-                            .foregroundColor(Color(UIColor.lightGray))
+                            .foregroundColor(Color(.gray))
                     }
                     .padding(.top, 15)
                     
@@ -59,7 +59,7 @@ struct SessionSummaryView: View {
                             HStack {
                                 Text("총 시간")
                                     .font(.system(size: 11))
-                                    .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
+                                    .foregroundColor(Color(.sRGB, red: 0.88, green: 0.88, blue: 0.88, opacity: 1.0)) // #E0E0E0
                                 
                                 Spacer()
                                 
@@ -72,7 +72,7 @@ struct SessionSummaryView: View {
                             HStack {
                                 Text("주요 감정")
                                     .font(.system(size: 11))
-                                    .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
+                                    .foregroundColor(Color(.sRGB, red: 0.88, green: 0.88, blue: 0.88, opacity: 1.0)) // #E0E0E0
                                 
                                 Spacer()
                                 
@@ -91,7 +91,7 @@ struct SessionSummaryView: View {
                             HStack {
                                 Text("호감도")
                                     .font(.system(size: 11))
-                                    .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
+                                    .foregroundColor(Color(.sRGB, red: 0.88, green: 0.88, blue: 0.88, opacity: 1.0)) // #E0E0E0
                                 
                                 Spacer()
                                 
@@ -108,17 +108,17 @@ struct SessionSummaryView: View {
                     // 핵심 피드백
                     ZStack {
                         RoundedRectangle(cornerRadius: 14)
-                            .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 0.15))) // #3F51B5 with opacity
+                            .fill(Color(.sRGB, red: 0.25, green: 0.32, blue: 0.71, opacity: 0.15)) // #3F51B5 with opacity
                             .frame(height: 88.5)
                         
                         VStack(alignment: .leading, spacing: 6) {
                             Text("핵심 피드백")
                                 .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(Color(UIColor(red: 0.56, green: 0.79, blue: 0.98, alpha: 1.0))) // #90CAF9
+                                .foregroundColor(Color(.sRGB, red: 0.56, green: 0.79, blue: 0.98, opacity: 1.0)) // #90CAF9
                             
                             Text(coreFeedback)
                                 .font(.system(size: 10))
-                                .foregroundColor(Color(UIColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0))) // #E0E0E0
+                                .foregroundColor(Color(.sRGB, red: 0.88, green: 0.88, blue: 0.88, opacity: 1.0)) // #E0E0E0
                                 .lineSpacing(2)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -144,7 +144,7 @@ struct SessionSummaryView: View {
                             .padding(.vertical, 12)
                             .background(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
+                                    .fill(Color(.sRGB, red: 0.25, green: 0.32, blue: 0.71, opacity: 1.0)) // #3F51B5
                             )
                     }
                     .buttonStyle(PlainButtonStyle())

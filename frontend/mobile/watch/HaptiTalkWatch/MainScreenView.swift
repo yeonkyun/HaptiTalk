@@ -7,6 +7,7 @@
 
 import SwiftUI
 
+@available(watchOS 6.0, *)
 struct MainScreenView: View {
     @EnvironmentObject var appState: AppState
     @State private var showSessionModeSelection = false
@@ -23,7 +24,7 @@ struct MainScreenView: View {
                 VStack(spacing: 2) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 10)
-                            .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
+                            .fill(Color(.sRGB, red: 0.25, green: 0.32, blue: 0.71, opacity: 1.0)) // #3F51B5
                             .frame(width: 40, height: 40)
                         
                         Text("H")
@@ -37,12 +38,12 @@ struct MainScreenView: View {
                 if appState.isConnected {
                     HStack(spacing: 4) {
                         Circle()
-                            .fill(Color(UIColor(red: 0.3, green: 0.69, blue: 0.31, alpha: 1.0))) // #4CAF50
+                            .fill(Color(.sRGB, red: 0.3, green: 0.69, blue: 0.31, opacity: 1.0)) // #4CAF50
                             .frame(width: 6, height: 6)
                         
                         Text(appState.connectedDevice)
                             .font(.system(size: 11))
-                            .foregroundColor(Color(UIColor(red: 0.3, green: 0.69, blue: 0.31, alpha: 1.0))) // #4CAF50
+                            .foregroundColor(Color(.sRGB, red: 0.3, green: 0.69, blue: 0.31, opacity: 1.0)) // #4CAF50
                             .lineLimit(1)
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -78,7 +79,7 @@ struct MainScreenView: View {
                         .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 20)
-                                .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
+                                .fill(Color(.sRGB, red: 0.25, green: 0.32, blue: 0.71, opacity: 1.0)) // #3F51B5
                         )
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -99,7 +100,7 @@ struct MainScreenView: View {
                     .padding(.vertical, 9)
                     .background(
                         RoundedRectangle(cornerRadius: 15)
-                            .fill(Color(UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0))) // #212121
+                            .fill(Color(.sRGB, red: 0.13, green: 0.13, blue: 0.13, opacity: 1.0)) // #212121
                     )
                 }
                 .padding(.bottom, 5)

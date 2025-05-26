@@ -6,8 +6,11 @@
 //
 
 import SwiftUI
+#if os(watchOS)
 import WatchKit
+#endif
 
+@available(watchOS 6.0, *)
 struct ConnectionStatusView: View {
     @EnvironmentObject var appState: AppState
     @State private var showDisconnectAlert = false
@@ -25,11 +28,11 @@ struct ConnectionStatusView: View {
                     // 연결 아이콘
                     ZStack {
                         Circle()
-                            .fill(Color(UIColor(red: 0.3, green: 0.69, blue: 0.31, alpha: 0.2))) // #4CAF50 with opacity
+                            .fill(Color(.sRGB, red: 0.3, green: 0.69, blue: 0.31, opacity: 0.2)) // #4CAF50 with opacity
                             .frame(width: 50, height: 50)
                         
                         Circle()
-                            .fill(Color(UIColor(red: 0.3, green: 0.69, blue: 0.31, alpha: 1.0))) // #4CAF50
+                            .fill(Color(.sRGB, red: 0.3, green: 0.69, blue: 0.31, opacity: 1.0)) // #4CAF50
                             .frame(width: 30, height: 30)
                         
                         Image(systemName: "arrow.triangle.2.circlepath")
@@ -45,7 +48,7 @@ struct ConnectionStatusView: View {
                         
                         Text(appState.connectedDevice)
                             .font(.system(size: 11))
-                            .foregroundColor(Color(UIColor(red: 0.3, green: 0.69, blue: 0.31, alpha: 1.0))) // #4CAF50
+                            .foregroundColor(Color(.sRGB, red: 0.3, green: 0.69, blue: 0.31, opacity: 1.0)) // #4CAF50
                     }
                 }
                 
@@ -64,13 +67,15 @@ struct ConnectionStatusView: View {
                             .padding(.vertical, 10)
                             .background(
                                 RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color(UIColor(red: 0.25, green: 0.32, blue: 0.71, alpha: 1.0))) // #3F51B5
+                                    .fill(Color(.sRGB, red: 0.25, green: 0.32, blue: 0.71, opacity: 1.0)) // #3F51B5
                             )
                     }
                     
                     Button(action: {
                         // 햅틱 테스트 액션
+                        #if os(watchOS)
                         WKInterfaceDevice.current().play(.success)
+                        #endif
                     }) {
                         Text("햅틱 테스트")
                             .font(.system(size: 12, weight: .semibold))
@@ -79,7 +84,7 @@ struct ConnectionStatusView: View {
                             .padding(.vertical, 10)
                             .background(
                                 RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color(UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0))) // #212121
+                                    .fill(Color(.sRGB, red: 0.13, green: 0.13, blue: 0.13, opacity: 1.0)) // #212121
                             )
                     }
                     
@@ -94,7 +99,7 @@ struct ConnectionStatusView: View {
                             .padding(.vertical, 10)
                             .background(
                                 RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color(UIColor(red: 0.13, green: 0.13, blue: 0.13, alpha: 1.0))) // #212121
+                                    .fill(Color(.sRGB, red: 0.13, green: 0.13, blue: 0.13, opacity: 1.0)) // #212121
                             )
                     }
                 }
