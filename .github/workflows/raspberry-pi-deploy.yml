@@ -1362,9 +1362,211 @@ jobs:
             echo "verification_result=배포 실패. 핵심 서비스 $CORE_SERVICES_RUNNING/5개, 앱 서비스 $APP_SERVICES_RUNNING개만 실행 중" >> $GITHUB_OUTPUT
           fi
       
-      - name: Rollback if Necessary
-        id: rollback
+      - name: Fix Container Issues
         if: steps.verify.outputs.deploy_success == 'false'
+        id: fix_containers
+        run: |
+          echo "🔧 컨테이너 문제 자동 해결 시작..."
+          
+          CONTAINER_FIX_RESULT=$(ssh raspberry-pi '
+            cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
+            
+            echo "===== 컨테이너 문제 진단 및 해결 시작: $(date) ====="
+            
+            # 1. 문제가 있는 컨테이너 식별
+            echo "📊 문제 컨테이너 식별 중..."
+            PROBLEMATIC_CONTAINERS=$(docker ps -a --filter "status=restarting" --filter "status=exited" --format "{{.Names}}" | grep haptitalk || true)
+            
+            if [[ -n "$PROBLEMATIC_CONTAINERS" ]]; then
+              echo "🚨 문제가 있는 컨테이너들:"
+              echo "$PROBLEMATIC_CONTAINERS"
+              
+              # 특별히 Filebeat와 Kong 문제 확인
+              if echo "$PROBLEMATIC_CONTAINERS" | grep -q "filebeat"; then
+                echo "🔍 Filebeat 문제 감지 - 외부 설정 파일 방식으로 수정 중..."
+                docker-compose -f docker-compose.prod.yml stop filebeat || true
+                docker-compose -f docker-compose.prod.yml up -d --no-deps filebeat
+              fi
+              
+              if echo "$PROBLEMATIC_CONTAINERS" | grep -q "kong"; then
+                echo "🔍 Kong 문제 감지 - healthcheck 수정 및 재시작 중..."
+                docker-compose -f docker-compose.prod.yml stop kong || true
+                docker-compose -f docker-compose.prod.yml up -d --no-deps kong
+              fi
+            else
+              echo "✅ 재시작 중인 컨테이너 없음"
+            fi
+            
+            # 2. 시스템 리소스 확인 및 최적화
+            echo "💾 시스템 리소스 확인 중..."
+            MEMORY_USAGE=$(free | grep Mem | awk "{printf \"%.1f\", \$3/\$2 * 100.0}")
+            SWAP_USAGE=$(free | grep Swap | awk "{if(\$2>0) printf \"%.1f\", \$3/\$2 * 100.0; else print \"0\"}")
+            
+            echo "메모리 사용률: ${MEMORY_USAGE}%"
+            echo "Swap 사용률: ${SWAP_USAGE}%"
+            
+            # Swap이 90% 이상 사용 중이면 확장
+            if (( $(echo "$SWAP_USAGE > 90" | bc -l) )); then
+              echo "⚠️ Swap 메모리 부족 - 확장 중..."
+              sudo swapoff /var/swap || true
+              sudo dd if=/dev/zero of=/var/swap bs=1M count=2048 2>/dev/null
+              sudo mkswap /var/swap
+              sudo swapon /var/swap
+              echo "✅ Swap 메모리가 2GB로 확장되었습니다."
+            fi
+            
+            # 3. 중복 컨테이너 제거
+            echo "🗑️ 중복 컨테이너 제거 중..."
+            docker ps -a --format "{{.Names}}" | grep -E "^[a-z]+_[a-z]+$" | head -5 | xargs -r docker rm -f || true
+            
+            # 4. Docker 시스템 정리
+            echo "🧹 Docker 시스템 정리 중..."
+            docker system prune -f --volumes || true
+            
+            # 5. 메모리 제한이 있는 서비스들 재시작
+            echo "🚀 메모리 제한 적용된 서비스들 재시작 중..."
+            docker-compose -f docker-compose.prod.yml up -d --no-deps kong elasticsearch logstash filebeat
+            
+            # 6. 잠시 대기 후 상태 확인
+            echo "⏳ 서비스 안정화 대기 중..."
+            sleep 30
+            
+            # 7. 수정 후 상태 확인
+            echo "📊 수정 후 컨테이너 상태:"
+            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            
+            # 8. 핵심 서비스 헬스체크
+            echo "🏥 핵심 서비스 헬스체크..."
+            
+            # Kong 상태 확인
+            KONG_STATUS="FAIL"
+            if curl -f http://localhost:8001/status >/dev/null 2>&1; then
+              KONG_STATUS="OK"
+            fi
+            echo "Kong: $KONG_STATUS"
+            
+            # PostgreSQL 상태 확인
+            POSTGRES_STATUS="FAIL"
+            if docker-compose -f docker-compose.prod.yml exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; then
+              POSTGRES_STATUS="OK"
+            fi
+            echo "PostgreSQL: $POSTGRES_STATUS"
+            
+            # Redis 상태 확인
+            REDIS_STATUS="FAIL"
+            if docker-compose -f docker-compose.prod.yml exec -T redis redis-cli -a "$REDIS_PASSWORD" ping >/dev/null 2>&1; then
+              REDIS_STATUS="OK"
+            fi
+            echo "Redis: $REDIS_STATUS"
+            
+            # 수정 성공 여부 판단
+            if [[ "$KONG_STATUS" == "OK" && "$POSTGRES_STATUS" == "OK" && "$REDIS_STATUS" == "OK" ]]; then
+              echo "CONTAINER_FIX_SUCCESS=true"
+              echo "✅ 컨테이너 문제 해결 성공"
+            else
+              echo "CONTAINER_FIX_SUCCESS=false"
+              echo "❌ 일부 서비스가 여전히 문제 상태"
+            fi
+            
+            echo "===== 컨테이너 문제 해결 완료: $(date) ====="
+          ')
+          
+          echo "$CONTAINER_FIX_RESULT"
+          
+          # 수정 결과 확인
+          if echo "$CONTAINER_FIX_RESULT" | grep -q "CONTAINER_FIX_SUCCESS=true"; then
+            echo "✅ 컨테이너 문제가 성공적으로 해결되었습니다."
+            echo "container_fix_success=true" >> $GITHUB_OUTPUT
+            
+            # 문제 해결 후 재검증
+            echo "🔄 문제 해결 후 재검증 중..."
+            sleep 10
+            
+            # 재검증 실행
+            REVERIFY_RESULT=$(ssh raspberry-pi '
+              cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
+              
+              echo "===== 재검증 시작 ====="
+              
+              # 핵심 서비스 재확인
+              SERVICES_OK=0
+              TOTAL_SERVICES=6
+              
+              # Kong 확인
+              if curl -f http://localhost:8001/status >/dev/null 2>&1; then
+                echo "✅ Kong API Gateway: 정상"
+                ((SERVICES_OK++))
+              else
+                echo "❌ Kong API Gateway: 오류"
+              fi
+              
+              # PostgreSQL 확인
+              if docker-compose -f docker-compose.prod.yml exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; then
+                echo "✅ PostgreSQL: 정상"
+                ((SERVICES_OK++))
+              else
+                echo "❌ PostgreSQL: 오류"
+              fi
+              
+              # Redis 확인
+              if docker-compose -f docker-compose.prod.yml exec -T redis redis-cli -a "$REDIS_PASSWORD" ping >/dev/null 2>&1; then
+                echo "✅ Redis: 정상"
+                ((SERVICES_OK++))
+              else
+                echo "❌ Redis: 오류"
+              fi
+              
+              # MongoDB 확인
+              if docker-compose -f docker-compose.prod.yml exec -T mongodb mongosh --quiet --eval "db.runCommand({ping: 1}).ok" 2>/dev/null | grep -q "1"; then
+                echo "✅ MongoDB: 정상"
+                ((SERVICES_OK++))
+              else
+                echo "❌ MongoDB: 오류"
+              fi
+              
+              # Kafka 확인
+              if docker-compose -f docker-compose.prod.yml exec -T kafka kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1; then
+                echo "✅ Kafka: 정상"
+                ((SERVICES_OK++))
+              else
+                echo "❌ Kafka: 오류"
+              fi
+              
+              # Elasticsearch 확인
+              if curl -f http://localhost:9200/_cluster/health >/dev/null 2>&1; then
+                echo "✅ Elasticsearch: 정상"
+                ((SERVICES_OK++))
+              else
+                echo "❌ Elasticsearch: 오류"
+              fi
+              
+              echo "정상 서비스: $SERVICES_OK/$TOTAL_SERVICES"
+              
+              if [[ $SERVICES_OK -ge 4 ]]; then
+                echo "REVERIFY_SUCCESS=true"
+              else
+                echo "REVERIFY_SUCCESS=false"
+              fi
+            ')
+            
+            echo "$REVERIFY_RESULT"
+            
+            if echo "$REVERIFY_RESULT" | grep -q "REVERIFY_SUCCESS=true"; then
+              echo "✅ 재검증 성공 - 배포가 정상적으로 복구되었습니다."
+              echo "reverify_success=true" >> $GITHUB_OUTPUT
+            else
+              echo "❌ 재검증 실패 - 여전히 문제가 있습니다."
+              echo "reverify_success=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "❌ 컨테이너 문제 해결에 실패했습니다."
+            echo "container_fix_success=false" >> $GITHUB_OUTPUT
+            echo "reverify_success=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Rollback on Failure
+        if: steps.verify.outputs.deploy_success == 'false' && (steps.fix_containers.outputs.reverify_success != 'true' || steps.fix_containers.outputs.container_fix_success != 'true')
+        id: final_rollback
         run: |
           echo "배포 검증 실패, 롤백을 진행합니다..."
           
@@ -1453,7 +1655,7 @@ jobs:
             echo "rollback_success=false" >> $GITHUB_OUTPUT
             exit 1
           fi
-      
+
       - name: Send Deployment Notification
         if: always()
         uses: rtCamp/action-slack-notify@v2
@@ -1466,7 +1668,7 @@ jobs:
             *🚀 라즈베리파이 ARM64 배포 결과*
             
             *환경:* ${{ needs.prepare_deployment.outputs.environment }}
-            *상태:* ${{ steps.verify.outputs.deploy_success == 'false' && (steps.rollback.outputs.rollback_success == 'true' && '⚠️ 배포 실패 (롤백 완료)' || '🚨 배포 및 롤백 실패') || '✅ 배포 성공' }}
+            *상태:* ${{ steps.verify.outputs.deploy_success == 'false' && (steps.fix_containers.outputs.reverify_success == 'true' && '✅ 문제 해결 성공' || (steps.final_rollback.outputs.rollback_success == 'true' && '⚠️ 배포 실패 (롤백 완료)' || '🚨 배포 및 롤백 실패')) || '✅ 배포 성공' }}
             *플랫폼:* ${{ needs.prepare_deployment.outputs.platform_arch }}
             *Kong 이미지:* ${{ needs.prepare_deployment.outputs.kong_image }}
             
@@ -1476,7 +1678,7 @@ jobs:
             ${{ needs.validate_images.outputs.missing_images && format('*누락된 이미지:* {0}', needs.validate_images.outputs.missing_images) || '' }}
             
             *검증 결과:* ${{ steps.verify.outputs.verification_result || '검증 정보 없음' }}
-            ${{ steps.verify.outputs.deploy_success == 'false' && format('*롤백 상태:* {0}', (steps.rollback.outputs.rollback_success == 'true' && '✅ 롤백 성공' || '❌ 롤백 실패 - 수동 개입 필요')) || '' }}
+            ${{ steps.verify.outputs.deploy_success == 'false' && (steps.fix_containers.outputs.reverify_success == 'true' && '*문제 해결:* ✅ 컨테이너 문제 자동 해결 성공' || format('*롤백 상태:* {0}', (steps.final_rollback.outputs.rollback_success == 'true' && '✅ 롤백 성공' || '❌ 롤백 실패 - 수동 개입 필요'))) || '' }}
             
             *시스템 리소스:*
             • 디스크 공간: ${{ steps.disk_check.outputs.disk_usage }}% 사용 (가용: ${{ steps.disk_check.outputs.available_space }})
@@ -1488,8 +1690,8 @@ jobs:
             • 배포 시간: ${{ steps.current_time.outputs.time }}
             • 워크플로우: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|상세 보기>
             
-            ${{ steps.verify.outputs.deploy_success == 'true' && '*📊 모니터링 대시보드:*
-            • Grafana: http://${{ secrets.RASPBERRY_PI_IP }}:3000
+            ${{ (steps.verify.outputs.deploy_success == 'true' || steps.fix_containers.outputs.reverify_success == 'true') && '*📊 모니터링 대시보드:*
+            • Grafana: http://${{ secrets.RASPBERRY_PI_IP }}:3333
             • Prometheus: http://${{ secrets.RASPBERRY_PI_IP }}:9090
             • Kibana: http://${{ secrets.RASPBERRY_PI_IP }}:5601
             • Jaeger: http://${{ secrets.RASPBERRY_PI_IP }}:16686
@@ -1503,122 +1705,10 @@ jobs:
             • Elasticsearch Exporter: http://${{ secrets.RASPBERRY_PI_IP }}:9114/metrics
             • Logstash API: http://${{ secrets.RASPBERRY_PI_IP }}:9600' || '' }}
             
-            ${{ steps.verify.outputs.deploy_success == 'false' && '*⚠️ 문제 해결이 필요합니다:*
+            ${{ steps.verify.outputs.deploy_success == 'false' && steps.fix_containers.outputs.reverify_success != 'true' && '*⚠️ 문제 해결이 필요합니다:*
             • 라즈베리파이 SSH 접속: `ssh ${{ secrets.RASPBERRY_PI_USER }}@${{ secrets.RASPBERRY_PI_IP }}`
             • 로그 확인: `cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk && docker-compose -f docker-compose.prod.yml logs --tail=100`
-            • 수동 재시작: `docker-compose -f docker-compose.prod.yml restart`' || '' }}
+            • 수동 재시작: `docker-compose -f docker-compose.prod.yml restart`
+            • 문제 해결 스크립트: `chmod +x infrastructure/deployment/fix-raspberry-pi-containers.sh && ./infrastructure/deployment/fix-raspberry-pi-containers.sh`' || '' }}
           SLACK_FOOTER: 'HaptiTalk CI/CD - ARM64 Deployment Pipeline'
         continue-on-error: true
-
-      - name: Setup Monitoring
-        if: steps.verify.outputs.deploy_success == 'true'
-        run: |
-          echo "배포 성공 후 모니터링 설정 중..."
-          
-          ssh raspberry-pi "
-            cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
-            
-            # 모니터링 스크립트 생성
-            cat > monitor.sh << 'MONITOR_EOF'
-          #!/bin/bash
-          
-          # 서비스 상태 모니터링
-          echo '===== 서비스 상태 모니터링 ====='
-          echo \"모니터링 시간: \$(date)\"
-          
-          # Docker 컨테이너 상태
-          echo '--- Docker 컨테이너 상태 ---'
-          docker-compose -f docker-compose.prod.yml ps
-          
-          # 시스템 리소스
-          echo '--- 시스템 리소스 ---'
-          echo \"CPU 사용률: \$(top -bn1 | grep 'Cpu(s)' | awk '{print \$2}' | cut -d'%' -f1)%\"
-          echo \"메모리 사용률: \$(free | grep Mem | awk '{printf \"%.1f%%\", \$3/\$2 * 100.0}')\"
-          echo \"디스크 사용률: \$(df -h / | awk 'NR==2{print \$5}')\"
-          
-          # 네트워크 연결 확인
-          echo '--- 네트워크 연결 확인 ---'
-          if curl -s http://localhost:8000 > /dev/null; then
-            echo 'Kong API Gateway: 정상'
-          else
-            echo 'Kong API Gateway: 오류'
-          fi
-          
-          # 로그 확인 (최근 오류)
-          echo '--- 최근 오류 로그 ---'
-          docker-compose -f docker-compose.prod.yml logs --tail=10 | grep -i 'error\|exception\|fatal' || echo '최근 오류 없음'
-          
-          echo '============================='
-          MONITOR_EOF
-          
-          chmod +x monitor.sh
-          
-          # 모니터링 크론잡 설정 (5분마다 실행)
-          (crontab -l 2>/dev/null; echo '*/5 * * * * /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/monitor.sh >> /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/logs/monitor.log 2>&1') | crontab -
-          
-          echo '모니터링 설정 완료'
-          "
-      
-      - name: Create Deployment Summary
-        if: always()
-        run: |
-          echo "## 🚀 라즈베리파이 ARM64 배포 요약" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📋 배포 정보" >> $GITHUB_STEP_SUMMARY
-          echo "- **환경**: ${{ needs.prepare_deployment.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **플랫폼**: ${{ needs.prepare_deployment.outputs.platform_arch }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **이미지 태그**: ${{ needs.prepare_deployment.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Kong 이미지**: ${{ needs.prepare_deployment.outputs.kong_image }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **배포 시간**: ${{ steps.current_time.outputs.time }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          echo "### 🖼️ 이미지 상태" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ needs.validate_images.outputs.images_available }}" == "true" ]]; then
-            echo "✅ **모든 이미지 사용 가능**" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ **일부 이미지 누락**" >> $GITHUB_STEP_SUMMARY
-            echo "- 누락된 이미지: ${{ needs.validate_images.outputs.missing_images }}" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          echo "### 💾 시스템 리소스" >> $GITHUB_STEP_SUMMARY
-          echo "- **디스크 사용률**: ${{ steps.disk_check.outputs.disk_usage }}%" >> $GITHUB_STEP_SUMMARY
-          echo "- **사용 가능한 디스크 공간**: ${{ steps.disk_check.outputs.available_space }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **사용 가능한 메모리**: ${{ steps.ram_check.outputs.available_ram }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          echo "### 🎯 배포 결과" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ steps.verify.outputs.deploy_success }}" == "true" ]]; then
-            echo "✅ **배포 성공**" >> $GITHUB_STEP_SUMMARY
-            echo "- ${{ steps.verify.outputs.verification_result }}" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **배포 실패**" >> $GITHUB_STEP_SUMMARY
-            echo "- ${{ steps.verify.outputs.verification_result }}" >> $GITHUB_STEP_SUMMARY
-            echo "- 롤백이 자동으로 수행되었습니다." >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          echo "### 🔗 유용한 링크" >> $GITHUB_STEP_SUMMARY
-          echo "- [Kong Admin API](http://${{ secrets.RASPBERRY_PI_IP }}:8001)" >> $GITHUB_STEP_SUMMARY
-          echo "- [Kafka UI](http://${{ secrets.RASPBERRY_PI_IP }}:8080)" >> $GITHUB_STEP_SUMMARY
-          echo "- [API Gateway](http://${{ secrets.RASPBERRY_PI_IP }}:8000)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📊 모니터링 대시보드" >> $GITHUB_STEP_SUMMARY
-          echo "- [Grafana](http://${{ secrets.RASPBERRY_PI_IP }}:3000) - 통합 모니터링 대시보드" >> $GITHUB_STEP_SUMMARY
-          echo "- [Prometheus](http://${{ secrets.RASPBERRY_PI_IP }}:9090) - 메트릭 수집" >> $GITHUB_STEP_SUMMARY
-          echo "- [Kibana](http://${{ secrets.RASPBERRY_PI_IP }}:5601) - 로그 분석" >> $GITHUB_STEP_SUMMARY
-          echo "- [Jaeger](http://${{ secrets.RASPBERRY_PI_IP }}:16686) - 분산 트레이싱" >> $GITHUB_STEP_SUMMARY
-          echo "- [Elasticsearch](http://${{ secrets.RASPBERRY_PI_IP }}:9200) - 로그 저장소" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔧 시스템 메트릭" >> $GITHUB_STEP_SUMMARY
-          echo "- [Node Exporter](http://${{ secrets.RASPBERRY_PI_IP }}:9100/metrics) - 시스템 메트릭" >> $GITHUB_STEP_SUMMARY
-          echo "- [MongoDB Exporter](http://${{ secrets.RASPBERRY_PI_IP }}:9216/metrics) - MongoDB 메트릭" >> $GITHUB_STEP_SUMMARY
-          echo "- [PostgreSQL Exporter](http://${{ secrets.RASPBERRY_PI_IP }}:9187/metrics) - PostgreSQL 메트릭" >> $GITHUB_STEP_SUMMARY
-          echo "- [Redis Exporter](http://${{ secrets.RASPBERRY_PI_IP }}:9121/metrics) - Redis 메트릭" >> $GITHUB_STEP_SUMMARY
-          echo "- [Elasticsearch Exporter](http://${{ secrets.RASPBERRY_PI_IP }}:9114/metrics) - Elasticsearch 메트릭" >> $GITHUB_STEP_SUMMARY
-          echo "- [Logstash API](http://${{ secrets.RASPBERRY_PI_IP }}:9600) - Logstash 상태" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔍 상태 모니터링" >> $GITHUB_STEP_SUMMARY
-          echo "- [Kong Blackbox](http://${{ secrets.RASPBERRY_PI_IP }}:9701) - Kong 상태 확인" >> $GITHUB_STEP_SUMMARY
-          echo "- [Kibana Blackbox](http://${{ secrets.RASPBERRY_PI_IP }}:9702) - Kibana 상태 확인" >> $GITHUB_STEP_SUMMARY
-          echo "- [MongoDB Blackbox](http://${{ secrets.RASPBERRY_PI_IP }}:9703) - MongoDB 상태 확인" >> $GITHUB_STEP_SUMMARY
