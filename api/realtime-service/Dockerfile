@@ -4,16 +4,16 @@ FROM node:18-alpine
 WORKDIR /app
 
 # 의존성 파일 복사
-COPY package*.json ./
+COPY api/realtime-service/package*.json ./
 
 # 의존성 설치
 RUN npm install
 
-# 앱 소스 복사
-COPY . .
+# 공유 모듈 복사 (먼저)
+COPY api/shared /app/api/shared
 
-# shared 디렉토리 생성 (볼륨 마운트용)
-RUN mkdir -p /app/api/shared
+# 앱 소스 복사
+COPY api/realtime-service .
 
 # 포트 설정
 EXPOSE ${PORT}

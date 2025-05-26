@@ -19,10 +19,6 @@ API 문서는 다음 URL을 통해 접근할 수 있습니다:
 http://localhost:8000/api-docs/
 ```
 
-**인증 정보**:
-- 사용자명: `apidocs` (기본값, 환경 변수 `API_DOCS_USERNAME`으로 변경 가능)
-- 비밀번호: `haptitalk-docs-password` (기본값, 환경 변수 `API_DOCS_PASSWORD`로 변경 가능)
-
 특정 서비스의 API 문서에 직접 접근하려면:
 
 ```
@@ -72,7 +68,6 @@ infrastructure/
    - Kong API Gateway와 static-web 서비스가 실행 중인지 확인
    - `docker-compose ps` 명령으로 컨테이너 상태 확인
    - Kong 로그 확인: `docker logs haptitalk-kong`
-   - 인증 정보가 올바른지 확인 (기본 사용자명: `apidocs`, 기본 비밀번호: `haptitalk-docs-password`)
 
 2. API 스펙 파일이 로드되지 않는 경우:
    - 파일 경로와 이름이 올바른지 확인
@@ -83,23 +78,7 @@ infrastructure/
    - Kong API Gateway의 CSP 헤더 설정 확인
    - 외부 리소스 의존성 최소화 
 
-4. 인증 오류 (401 Unauthorized)가 발생하는 경우:
-   - Kong 설정파일의 환경 변수 치환이 제대로 되었는지 확인
-   - 컨테이너 재시작 후 로그 확인: `docker-compose restart kong && docker logs haptitalk-kong`
-   - entrypoint.sh 스크립트가 실행 권한을 가지고 있는지 확인: `chmod +x infrastructure/api-gateway/entrypoint.sh`
-
-## 환경 변수 설정
-
-API 문서 접근 인증 정보는 다음 환경 변수를 통해 변경할 수 있습니다:
-
-```
-# .env 파일 또는 환경 변수로 설정
-API_DOCS_USERNAME=원하는_사용자명
-API_DOCS_PASSWORD=원하는_비밀번호
-```
-
-환경 변수 설정 후에는 Kong 서비스를 재시작해야 합니다:
-
-```
-docker-compose restart kong
-``` 
+4. API 호출 실패 (503 Service Unavailable)가 발생하는 경우:
+   - 백엔드 서비스들이 정상적으로 실행 중인지 확인
+   - Kong 서비스 라우팅 설정 검토
+   - 컨테이너 재시작 후 로그 확인: `docker-compose restart kong && docker logs haptitalk-kong` 

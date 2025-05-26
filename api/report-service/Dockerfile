@@ -10,7 +10,7 @@ RUN apk add --no-cache \
     pkgconf
 
 # 패키지 파일 복사
-COPY package*.json ./
+COPY api/report-service/package*.json ./
 
 # package.json 수정하여 chart.js와 canvas 의존성 제거
 RUN sed -i 's/"chart.js": ".*",//g' package.json && \
@@ -19,12 +19,18 @@ RUN sed -i 's/"chart.js": ".*",//g' package.json && \
 # 필수 패키지만 설치
 RUN npm install --production morgan prom-client express winston cors helmet jsonwebtoken ioredis pg sequelize
 
+# 공유 모듈 복사 (먼저)
+COPY api/shared /app/api/shared
+
 # 소스 코드 복사
-COPY . .
+COPY api/report-service .
 
 # 헬스체크 및 시작 스크립트
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD wget -qO- http://localhost:${PORT:-3005}/health || exit 1
+
+# 포트 설정
+EXPOSE ${PORT}
 
 # 시작 명령어
 CMD ["node", "src/app.js"]

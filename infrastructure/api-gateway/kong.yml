@@ -45,7 +45,7 @@ plugins:
       headers:
       - "X-Content-Type-Options:nosniff"
       - "X-XSS-Protection:1; mode=block"
-      - "Content-Security-Policy:default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; script-src-elem 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'"
+      - "Content-Security-Policy:default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; script-src-elem 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src-elem 'self' 'unsafe-inline'; img-src 'self' data: https://validator.swagger.io; font-src 'self' data:; connect-src 'self'"
       - "X-Frame-Options:SAMEORIGIN"
       - "Strict-Transport-Security:max-age=31536000; includeSubDomains"
 
@@ -354,21 +354,27 @@ services:
           policy: local
           fault_tolerant: true
   
-  # 통합 Swagger UI 서비스
+  # 통합 Swagger UI 서비스 (docs.eumgyeol.com에서만 접근)
   - name: api-docs-aggregator
-    url: http://haptitalk-static-web:80
+    url: http://static-web:80
     routes:
       - name: api-docs-aggregator-route
+        hosts:
+          - docs.eumgyeol.com
         paths:
           - /api-docs
         strip_path: false
         preserve_host: true
+      - name: swagger-specs-route
+        hosts:
+          - docs.eumgyeol.com
+        paths:
+          - /swagger-specs
+        strip_path: false
+        preserve_host: true
+        regex_priority: 100
     plugins:
       - name: cors
-      # API 문서 접근 제어를 위한 기본 인증(Basic Auth) 추가
-      - name: basic-auth
-        config:
-          hide_credentials: true
       # 속도 제한 설정
       - name: rate-limiting
         config:
@@ -377,22 +383,6 @@ services:
           day: 6000
           policy: local
           fault_tolerant: true
-
-  # Swagger 스펙 파일 서비스
-  - name: swagger-specs-service
-    url: http://haptitalk-static-web:80
-    routes:
-      - name: swagger-specs-route
-        paths:
-          - /swagger-specs
-        strip_path: false
-        preserve_host: true
-    plugins:
-      - name: cors
-      # API 문서 스펙 접근 제어를 위한 기본 인증(Basic Auth) 추가
-      - name: basic-auth
-        config:
-          hide_credentials: true
 
 # Kong 소비자 및 JWT 구성
 consumers:

@@ -9,17 +9,17 @@ RUN apk update && \
     apk add --no-cache make gcc g++ python3 linux-headers
 
 # Copy package.json and package-lock.json
-COPY package*.json ./
+COPY api/auth-service/package*.json ./
 
 # Install dependencies
 RUN npm ci --production && \
     npm install morgan prom-client
 
-# Copy source code
-COPY . .
+# Copy shared modules first
+COPY api/shared /app/api/shared
 
-# Create shared directory structure if it doesn't exist
-RUN mkdir -p /app/api/shared
+# Copy source code
+COPY api/auth-service .
 
 # Create logs directory
 RUN mkdir -p logs
