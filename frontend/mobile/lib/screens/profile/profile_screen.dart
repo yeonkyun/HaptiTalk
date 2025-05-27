@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
-import '../../constants/assets.dart';
 import '../../config/routes.dart';
 import '../../services/navigation_service.dart';
 
@@ -372,6 +371,7 @@ class ProfileScreen extends StatelessWidget {
                       GestureDetector(
                         onTap: () {
                           // 통계 상세 보기
+                          NavigationService.navigateTo(AppRoutes.statisticsDetail);
                         },
                         child: Text(
                           '보기',
@@ -396,31 +396,11 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 children: [
                   _buildSettingItem(
-                    icon: Icons.notifications_outlined,
-                    title: '알림 설정',
-                    onTap: () {
-                      // 알림 설정으로 이동
-                    },
-                  ),
-                  _buildSettingItem(
-                    icon: Icons.data_usage_outlined,
-                    title: '데이터 관리',
-                    onTap: () {
-                      // 데이터 관리로 이동
-                    },
-                  ),
-                  _buildSettingItem(
                     icon: Icons.help_outline,
                     title: '도움말 및 지원',
                     onTap: () {
                       // 도움말 및 지원으로 이동
-                    },
-                  ),
-                  _buildSettingItem(
-                    icon: Icons.settings_outlined,
-                    title: '앱 설정',
-                    onTap: () {
-                      // 앱 설정으로 이동
+                      NavigationService.navigateTo(AppRoutes.helpSupport);
                     },
                   ),
                   ListTile(
@@ -497,8 +477,10 @@ class ProfileScreen extends StatelessWidget {
               ),
               onPressed: () {
                 // 실제 로그아웃 로직 구현
-                Navigator.of(context).pop();
-                // Navigator.of(context).pushNamedAndRemoveUntil('/auth/login', (route) => false);
+                // 로그아웃 로직 구현 (토큰 삭제 등)
+                // 여기서는 간단히 로그인 화면으로 이동하는 것으로 구현
+                Navigator.of(context).pop(); // 다이얼로그 닫기
+                Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
               },
             ),
           ],

@@ -8,6 +8,7 @@ import '../../models/analysis/analysis_result.dart';
 import '../../models/session/session_model.dart';
 import '../../providers/analysis_provider.dart';
 import '../../providers/session_provider.dart';
+import '../../services/watch_service.dart';
 import '../../widgets/analysis/metrics_card.dart';
 import '../analysis/analysis_summary_screen.dart';
 
@@ -23,8 +24,12 @@ class RealtimeAnalysisScreen extends StatefulWidget {
 
 class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
   late Timer _timer;
+  late Timer _watchSyncTimer;
+  final WatchService _watchService = WatchService();
+
   int _seconds = 0;
   bool _isRecording = true;
+  bool _isWatchConnected = false;
   String _transcription = '';
   String _feedback = '';
   List<String> _suggestedTopics = [];
@@ -40,6 +45,8 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     super.initState();
     _startTimer();
     _startAnalysis();
+    _checkWatchConnection();
+    _startWatchSync();
 
     // 초기 추천 주제 설정
     _suggestedTopics = ['여행 경험', '좋아하는 여행지', '사진 취미', '역사적 장소', '제주도 명소'];
@@ -48,6 +55,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
   @override
   void dispose() {
     _timer.cancel();
+    _watchSyncTimer.cancel();
     super.dispose();
   }
 
@@ -59,6 +67,49 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     });
   }
 
+  // Watch 연결 상태 확인
+  Future<void> _checkWatchConnection() async {
+    try {
+      final isConnected = await _watchService.isWatchConnected();
+      setState(() {
+        _isWatchConnected = isConnected;
+      });
+    } catch (e) {
+      print('Watch 연결 상태 확인 실패: $e');
+    }
+  }
+
+  // Watch와 주기적 동기화
+  void _startWatchSync() {
+    _watchSyncTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      _syncWithWatch();
+    });
+  }
+
+  // Watch에 실시간 데이터 전송
+  Future<void> _syncWithWatch() async {
+    if (!_isWatchConnected) return;
+
+    try {
+      // 실시간 분석 데이터를 구조화된 형태로 전송
+      await _watchService.sendRealtimeAnalysis(
+        likability: _likability,
+        interest: _interest,
+        speakingSpeed: _speakingSpeed,
+        emotion: _emotionState,
+        feedback: _feedback,
+        elapsedTime: _formatTime(_seconds),
+      );
+
+      // 중요한 피드백이 있을 때만 별도 햅틱 알림
+      if (_feedback.isNotEmpty && _feedback.contains('속도')) {
+        await _watchService.sendHapticFeedback(_feedback);
+      }
+    } catch (e) {
+      print('Watch 동기화 실패: $e');
+    }
+  }
+
   void _startAnalysis() {
     // 실제 앱에서는 여기서 음성 인식 및 실시간 분석 시작
     // 예시 데이터로 대체
@@ -67,6 +118,31 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
         _transcription =
             '저는 평소에 여행을 좋아해서 시간이 날 때마다\n이곳저곳 다니는 편이에요. 사진 찍는 것도 좋\n아해서 여행지에서 사진을 많이 찍어요. 특히\n자연 경관이 아름다운 곳이나 역사적인 장소를\n방문하는 걸 좋아합니다. 최근에는 제주도에 다\n녀왔는데, 정말 예뻤어요. 다음에는 어디로 여\n행 가보셨나요?';
         _feedback = '말하기 속도가 빨라지고 있어요. 좀 더 천천히 말해보세요.';
+      });
+
+      // Watch에 피드백 전송
+      _syncWithWatch();
+    });
+
+    // 주기적으로 분석 데이터 업데이트 시뮬레이션
+    Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      setState(() {
+        // 랜덤하게 지표 변경 (실제로는 AI 분석 결과)
+        _likability =
+            (_likability + (DateTime.now().millisecond % 10 - 5)).clamp(0, 100);
+        _interest =
+            (_interest + (DateTime.now().millisecond % 8 - 4)).clamp(0, 100);
+        _speakingSpeed = (_speakingSpeed + (DateTime.now().millisecond % 6 - 3))
+            .clamp(50, 150);
+
+        // 감정 상태 변경
+        final emotions = ['긍정적', '중립적', '부정적', '흥미로운', '집중적'];
+        _emotionState = emotions[DateTime.now().millisecond % emotions.length];
       });
     });
   }
@@ -84,15 +160,27 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     });
   }
 
-  void _endSession() {
+  void _endSession() async {
     _timer.cancel();
-    // 세션 종료 및 결과 화면으로 이동
-    Navigator.pushReplacement(
+    _watchSyncTimer.cancel();
+
+    // Watch에 세션 종료 알림
+    try {
+      await _watchService.stopSession();
+    } catch (e) {
+      print('Watch 세션 종료 알림 실패: $e');
+    }
+
+    // 세션 종료 및 분석 결과 저장
+    Provider.of<AnalysisProvider>(context, listen: false)
+        .stopAnalysis(widget.sessionId);
+
+    // 메인 화면의 분석 탭으로 이동 (인덱스 1)
+    Navigator.pushNamedAndRemoveUntil(
       context,
-      MaterialPageRoute(
-        builder: (context) =>
-            AnalysisSummaryScreen(sessionId: widget.sessionId),
-      ),
+      '/main',
+      (route) => false,
+      arguments: {'initialTabIndex': 1},
     );
   }
 
@@ -171,6 +259,25 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
           const Spacer(),
           Row(
             children: [
+              // Watch 연결 상태
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _isWatchConnected ? Colors.green : Colors.grey,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                'Watch',
+                style: TextStyle(
+                  color: AppColors.lightText,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(width: 15),
+              // 녹음 상태
               Container(
                 width: 8,
                 height: 8,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:haptitalk/constants/colors.dart';
 import 'package:haptitalk/config/routes.dart';
 import 'package:haptitalk/services/navigation_service.dart';
+import 'package:haptitalk/services/watch_service.dart';
 import 'package:haptitalk/widgets/common/buttons/primary_button.dart';
 
 class NewSessionScreen extends StatefulWidget {
@@ -291,7 +292,10 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
+                      // Watch에 세션 시작 알림
+                      await WatchService().startSession(_selectedSessionMode);
+
                       // 실시간 분석 화면으로 이동
                       NavigationService.navigateTo(
                         AppRoutes.realtimeAnalysis,

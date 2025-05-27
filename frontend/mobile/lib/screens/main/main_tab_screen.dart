@@ -3,6 +3,7 @@ import 'package:haptitalk/constants/colors.dart';
 import 'package:haptitalk/screens/main/home_screen.dart';
 import 'package:haptitalk/screens/history/history_screen.dart';
 import 'package:haptitalk/screens/profile/profile_screen.dart';
+import 'package:haptitalk/screens/analysis/analysis_screen.dart';
 
 class MainTabScreen extends StatefulWidget {
   const MainTabScreen({super.key});
@@ -16,9 +17,9 @@ class _MainTabScreenState extends State<MainTabScreen> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    const Center(child: Text('분석 화면')), // 임시 - 나중에 AnalysisScreen으로 교체
-    const HistoryScreen(), // 세션 기록 화면
-    const ProfileScreen(), // 프로필 화면
+    const AnalysisScreen(),
+    const HistoryScreen(),
+    const ProfileScreen(),
   ];
 
   @override
@@ -32,6 +33,27 @@ class _MainTabScreenState extends State<MainTabScreen> {
         });
       }
     };
+
+    // 1프레임 후에 인자 확인 (화면이 빌드된 후)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handleArguments();
+    });
+  }
+
+  // 인자 처리 함수
+  void _handleArguments() {
+    final arguments = ModalRoute.of(context)?.settings.arguments;
+    if (arguments != null && arguments is Map<String, dynamic>) {
+      final initialIndex = arguments['initialTabIndex'];
+      if (initialIndex != null &&
+          initialIndex is int &&
+          initialIndex >= 0 &&
+          initialIndex < _screens.length) {
+        setState(() {
+          _currentIndex = initialIndex;
+        });
+      }
+    }
   }
 
   @override
@@ -97,3 +119,6 @@ class _MainTabScreenState extends State<MainTabScreen> {
     );
   }
 }
+
+// 전역 콜백 변수
+Function(int)? onMainTabIndexChange;
