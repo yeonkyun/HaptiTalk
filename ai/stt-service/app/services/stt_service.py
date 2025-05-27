@@ -65,31 +65,32 @@ class STTProcessor:
                 
                 raise RuntimeError(f"모델 로딩 실패: {str(e)}")
     
-    def _prepare_transcribe_params(self, language: str, return_timestamps: bool) -> Dict[str, Any]:
+    def _prepare_transcribe_params(self, language: str, scenario: str, return_timestamps: bool) -> Dict[str, Any]:
         """
-        Transcribe 매개변수 준비
+        시나리오별 Transcribe 매개변수 준비
         
         Args:
             language: 인식할 언어 코드
+            scenario: 시나리오 타입 (dating, interview, presentation)
             return_timestamps: 단어별 타임스탬프 반환 여부
             
         Returns:
             설정된 매개변수 딕셔너리
         """
+        # 시나리오별 VAD 파라미터 적용
+        vad_params = settings.SCENARIO_VAD_PARAMS.get(scenario, settings.TRANSCRIBE_PARAMS["vad_parameters"])
+        
         transcribe_params = {
             "language": language,
-            "beam_size": settings.TRANSCRIBE_PARAMS.get("beam_size", 5),
+            "beam_size": 5 if scenario != "interview" else 10,  # 면접은 더 정확하게
             "word_timestamps": return_timestamps,
             "vad_filter": settings.TRANSCRIBE_PARAMS.get("vad_filter", True),
             "task": settings.TRANSCRIBE_PARAMS.get("task", "transcribe"),
             "condition_on_previous_text": settings.TRANSCRIBE_PARAMS.get("condition_on_previous_text", True),
+            "vad_parameters": vad_params
         }
-            
-        # VAD 파라미터가 설정되어 있으면 추가
-        if "vad_parameters" in settings.TRANSCRIBE_PARAMS:
-            transcribe_params["vad_parameters"] = settings.TRANSCRIBE_PARAMS["vad_parameters"]
         
-        logger.debug(f"Transcribe 매개변수: {transcribe_params}")
+        logger.debug(f"Transcribe 매개변수 (시나리오: {scenario}): {transcribe_params}")
         return transcribe_params
     
     def _extract_word_timestamps(self, segments_list) -> List[TimestampedWord]:
@@ -136,6 +137,7 @@ class STTProcessor:
         self, 
         audio_file: UploadFile, 
         language: Optional[str] = "ko",
+        scenario: str = "presentation",
         return_timestamps: bool = False,
         compute_type: Optional[str] = None
     ) -> STTResponse:
@@ -145,6 +147,7 @@ class STTProcessor:
         Args:
             audio_file: 오디오 파일 객체
             language: 인식할 언어 코드 (기본값: ko)
+            scenario: 시나리오 타입 (dating, interview, presentation)
             return_timestamps: 단어별 타임스탬프 반환 여부
             compute_type: 연산 타입 (float16, float32 등)
             
@@ -174,7 +177,7 @@ class STTProcessor:
             logger.info(f"오디오 로드 완료. 오디오 길이: {len(audio) / whisperx.audio.SAMPLE_RATE:.2f}초")
             
             # transcribe 매개변수 준비
-            transcribe_params = self._prepare_transcribe_params(language, return_timestamps)
+            transcribe_params = self._prepare_transcribe_params(language, scenario, return_timestamps)
             
             # 모델 추론
             segments, info = self.model.transcribe(audio, **transcribe_params)
