@@ -165,6 +165,7 @@ jobs:
       
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
+        timeout-minutes: 30
         with:
           context: .
           file: ./api/${{ matrix.service }}/Dockerfile
@@ -175,4 +176,3 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             NODE_ENV=production
-          timeout-minutes: 30
