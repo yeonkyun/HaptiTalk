@@ -89,9 +89,8 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
         self.isConnected = session.activationState == .activated && session.isReachable
         
         #if os(watchOS)
-        if let deviceName = WKInterfaceDevice.current().name {
-            self.connectedDevice = self.isConnected ? "연결됨: \(deviceName)" : "연결 안됨"
-        }
+        let deviceName = WKInterfaceDevice.current().name
+        self.connectedDevice = self.isConnected ? "연결됨: \(deviceName)" : "연결 안됨"
         #endif
         
         print("Watch: Connection status updated - isConnected: \(self.isConnected), device: \(self.connectedDevice)")

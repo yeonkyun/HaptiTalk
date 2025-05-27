@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -95,39 +95,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		72C403BD2DE50D6300C0E5E7 /* HaptiTalkWatch Watch App */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = "HaptiTalkWatch Watch App";
-			sourceTree = "<group>";
-		};
-		72C403CB2DE50D6400C0E5E7 /* HaptiTalkWatch Watch AppTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = "HaptiTalkWatch Watch AppTests";
-			sourceTree = "<group>";
-		};
-		72C403D52DE50D6400C0E5E7 /* HaptiTalkWatch Watch AppUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = "HaptiTalkWatch Watch AppUITests";
-			sourceTree = "<group>";
-		};
+		72C403BD2DE50D6300C0E5E7 /* HaptiTalkWatch Watch App */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "HaptiTalkWatch Watch App"; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -209,8 +177,6 @@
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
 				72C403BD2DE50D6300C0E5E7 /* HaptiTalkWatch Watch App */,
-				72C403CB2DE50D6400C0E5E7 /* HaptiTalkWatch Watch AppTests */,
-				72C403D52DE50D6400C0E5E7 /* HaptiTalkWatch Watch AppUITests */,
 				97C146EF1CF9000F007C117D /* Products */,
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				52D45614CF7E4FE10294C6A5 /* Pods */,
@@ -309,9 +275,6 @@
 			dependencies = (
 				72C403CA2DE50D6400C0E5E7 /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				72C403CB2DE50D6400C0E5E7 /* HaptiTalkWatch Watch AppTests */,
-			);
 			name = "HaptiTalkWatch Watch AppTests";
 			productName = "HaptiTalkWatch Watch AppTests";
 			productReference = 72C403C82DE50D6400C0E5E7 /* HaptiTalkWatch Watch AppTests.xctest */;
@@ -329,9 +292,6 @@
 			);
 			dependencies = (
 				72C403D42DE50D6400C0E5E7 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				72C403D52DE50D6400C0E5E7 /* HaptiTalkWatch Watch AppUITests */,
 			);
 			name = "HaptiTalkWatch Watch AppUITests";
 			productName = "HaptiTalkWatch Watch AppUITests";
@@ -504,9 +464,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -697,7 +661,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = eumgyeol.HaptiTalkWatch;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eumgyeol.haptitalk;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -778,7 +742,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = HaptiTalkWatch;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.eumgyeol.haptitalk";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -787,7 +751,7 @@
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = eumgyeol.HaptiTalkWatch.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eumgyeol.haptitalk.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -820,7 +784,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = HaptiTalkWatch;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.eumgyeol.haptitalk";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -828,7 +792,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = eumgyeol.HaptiTalkWatch;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eumgyeol.haptitalk.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -859,7 +823,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = HaptiTalkWatch;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.eumgyeol.haptitalk";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -867,7 +831,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = eumgyeol.HaptiTalkWatch;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eumgyeol.haptitalk.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -1186,7 +1150,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = eumgyeol.HaptiTalkWatch;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eumgyeol.haptitalk;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -1209,7 +1173,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = eumgyeol.HaptiTalkWatch;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eumgyeol.haptitalk;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
