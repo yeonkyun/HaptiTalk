@@ -1104,103 +1104,48 @@ jobs:
             echo '=== 3단계: API 게이트웨이 및 웹 서버 시작 ==='
             docker-compose -f docker-compose.prod.yml up -d kong static-web
             
-            # 4단계: 모니터링 시스템 시작 (포트 충돌 해결 개선)
+            # 4단계: 모니터링 시스템 시작 (최소한의 포트 충돌 해결)
             echo '=== 4단계: 모니터링 시스템 시작 ==='
             
-            # Elasticsearch 먼저 시작
-            echo 'Elasticsearch 시작 중...'
+            # OTEL Collector 포트 충돌만 해결 (최소한으로)
+            echo '=== OTEL Collector 포트 4318 충돌 해결 ==='
+            
+            # 포트 4318만 확인하고 정리 (다른 포트는 건드리지 않음)
+            PIDS_4318=$(lsof -ti:4318 2>/dev/null || true)
+            if [[ -n "$PIDS_4318" ]]; then
+              echo "포트 4318 사용 프로세스 정리: $PIDS_4318"
+              for pid in $PIDS_4318; do
+                # 프로세스 이름 확인 후 OTEL/Jaeger 관련만 종료
+                PROCESS_NAME=$(ps -p $pid -o comm= 2>/dev/null || echo "Unknown")
+                if [[ "$PROCESS_NAME" =~ (otel|jaeger|collector) ]]; then
+                  echo "OTEL/Jaeger 관련 프로세스 종료: PID=$pid, NAME=$PROCESS_NAME"
+                  kill -TERM $pid 2>/dev/null || true
+                else
+                  echo "다른 프로세스는 유지: PID=$pid, NAME=$PROCESS_NAME"
+                fi
+              done
+              sleep 2
+            fi
+            
+            # 기존 OTEL/Jaeger 컨테이너만 정리 (다른 컨테이너는 건드리지 않음)
+            docker-compose -f docker-compose.prod.yml stop otel-collector jaeger 2>/dev/null || true
+            docker-compose -f docker-compose.prod.yml rm -f otel-collector jaeger 2>/dev/null || true
+            
+            # 원래 방식대로 모니터링 서비스 시작
+            echo '모니터링 서비스 시작 중...'
             docker-compose -f docker-compose.prod.yml up -d elasticsearch
             sleep 20
-            
-            # ELK 스택 계속 시작
-            echo 'Kibana, Logstash, Filebeat 시작 중...'
             docker-compose -f docker-compose.prod.yml up -d kibana logstash filebeat
             sleep 15
             
-            # 포트 충돌 해결 스크립트 실행 (Jaeger/OTEL Collector 전에)
-            echo '=== 포트 충돌 해결 시작 ==='
-            
-            # 스크립트 실행 권한 확인
-            if [ -f "infrastructure/automation/fix-port-conflicts.sh" ]; then
-              chmod +x infrastructure/automation/fix-port-conflicts.sh
-              echo 'OTEL Collector 포트 충돌 해결 중...'
-              
-              # 포트 상황 확인
-              echo '현재 포트 4317-4320, 8889, 55679 사용 상황:'
-              netstat -tulpn | grep -E ':(4317|4318|4319|4320|8889|55679) ' || echo '충돌 포트 없음'
-              
-              # 기존 OTEL/Jaeger 컨테이너 정리
-              echo 'OTEL/Jaeger 관련 컨테이너 정리 중...'
-              docker-compose -f docker-compose.prod.yml stop otel-collector jaeger 2>/dev/null || echo '중지할 컨테이너 없음'
-              docker-compose -f docker-compose.prod.yml rm -f otel-collector jaeger 2>/dev/null || echo '제거할 컨테이너 없음'
-              
-              # 포트를 사용하는 프로세스 강제 종료
-              echo '포트 4318을 사용하는 프로세스 확인 및 정리...'
-              PIDS_4318=$(lsof -ti:4318 2>/dev/null || true)
-              if [[ -n "$PIDS_4318" ]]; then
-                echo "포트 4318 사용 프로세스: $PIDS_4318"
-                for pid in $PIDS_4318; do
-                  PROCESS_NAME=$(ps -p $pid -o comm= 2>/dev/null || echo "Unknown")
-                  echo "종료 중: PID=$pid, NAME=$PROCESS_NAME"
-                  kill -TERM $pid 2>/dev/null || kill -KILL $pid 2>/dev/null || echo "프로세스 종료 실패"
-                done
-                sleep 3
-              else
-                echo '포트 4318는 사용 중이지 않습니다.'
-              fi
-              
-              # 포트 4319도 확인
-              PIDS_4319=$(lsof -ti:4319 2>/dev/null || true)
-              if [[ -n "$PIDS_4319" ]]; then
-                echo "포트 4319 사용 프로세스: $PIDS_4319"
-                for pid in $PIDS_4319; do
-                  kill -TERM $pid 2>/dev/null || kill -KILL $pid 2>/dev/null || echo "프로세스 종료 실패"
-                done
-                sleep 3
-              fi
-              
-              # Docker 시스템 정리
-              echo 'Docker 시스템 정리 중...'
-              docker system prune -f || echo 'Docker 정리 완료'
-              
-              # 네트워크 재생성
-              docker network rm haptitalk_network 2>/dev/null || echo '기존 네트워크 제거 완료'
-              docker network create haptitalk_network || echo '네트워크 생성 완료'
-              
-              echo '포트 충돌 해결 완료'
-            else
-              echo '포트 충돌 해결 스크립트가 없습니다. 기본 방식으로 진행합니다.'
-            fi
-            
-            # Jaeger 먼저 개별 시작
-            echo '=== Jaeger 시작 ==='
+            # Jaeger와 OTEL Collector를 순차적으로 시작 (더 짧은 대기시간)
+            echo 'Jaeger 시작 중...'
             docker-compose -f docker-compose.prod.yml up -d jaeger
-            echo 'Jaeger 시작 대기 (30초)...'
-            sleep 30
+            sleep 10
             
-            # Jaeger 상태 확인
-            if curl -f http://localhost:16686 >/dev/null 2>&1; then
-              echo '✅ Jaeger가 성공적으로 시작되었습니다.'
-            else
-              echo '⚠️ Jaeger가 아직 완전히 준비되지 않았을 수 있습니다.'
-            fi
-            
-            # OTEL Collector 시작 (Jaeger 의존성 후)
-            echo '=== OTEL Collector 시작 ==='
+            echo 'OTEL Collector 시작 중...'
             docker-compose -f docker-compose.prod.yml up -d otel-collector
-            echo 'OTEL Collector 시작 대기 (20초)...'
-            sleep 20
-            
-            # OTEL Collector 상태 확인
-            if curl -f http://localhost:55679/debug/servicez >/dev/null 2>&1; then
-              echo '✅ OTEL Collector가 성공적으로 시작되었습니다.'
-            else
-              echo '⚠️ OTEL Collector가 아직 완전히 준비되지 않았을 수 있습니다.'
-              
-              # 로그 확인
-              echo 'OTEL Collector 로그 확인:'
-              docker-compose -f docker-compose.prod.yml logs --tail=20 otel-collector || echo 'OTEL Collector 로그 없음'
-            fi
+            sleep 10
             
             # 나머지 모니터링 서비스 시작
             echo '=== 나머지 모니터링 서비스 시작 ==='
@@ -1244,6 +1189,80 @@ jobs:
                   echo \"건너뛰기: \$service (이미지 누락)\"
                 fi
               done
+            fi
+            
+            # 애플리케이션 서비스 시작 후 즉시 상태 확인 및 복구
+            echo '=== 애플리케이션 서비스 상태 확인 및 자동 복구 ==='
+            sleep 20  # 서비스 시작 대기
+            
+            # 실패한 애플리케이션 서비스 확인
+            FAILED_APPS=()
+            APP_SERVICES=(auth-service session-service user-service feedback-service report-service realtime-service)
+            
+            for service in \"${APP_SERVICES[@]}\"; do
+              if ! docker-compose -f docker-compose.prod.yml ps \$service | grep -q \"Up\"; then
+                FAILED_APPS+=(\"\$service\")
+                echo \"❌ \$service: 시작 실패\"
+              else
+                echo \"✅ \$service: 정상 시작\"
+              fi
+            done
+            
+            # 실패한 서비스가 있으면 즉시 복구 시도
+            if [ \${#FAILED_APPS[@]} -gt 0 ]; then
+              echo \"🚨 실패한 애플리케이션 서비스 \${#FAILED_APPS[@]}개 감지: \${FAILED_APPS[*]}\"
+              echo \"즉시 자동 복구를 시도합니다...\"
+              
+              # GitHub Container Registry 인증 정보 설정
+              export GHCR_PAT=\"${{ secrets.GHCR_PAT }}\"
+              export GITHUB_REPOSITORY_OWNER=\"${{ github.repository_owner }}\"
+              export IMAGE_TAG=\"${{ needs.prepare_deployment.outputs.image_tag }}\"
+              
+              # 복구 스크립트 실행
+              if [ -f \"infrastructure/automation/fix-app-services.sh\" ]; then
+                echo \"📋 종합 복구 스크립트 실행 중...\"
+                chmod +x infrastructure/automation/fix-app-services.sh
+                ./infrastructure/automation/fix-app-services.sh || echo \"종합 복구 실패\"
+              elif [ -f \"infrastructure/automation/quick-fix-app-services.sh\" ]; then
+                echo \"📋 빠른 복구 스크립트 실행 중...\"
+                chmod +x infrastructure/automation/quick-fix-app-services.sh
+                ./infrastructure/automation/quick-fix-app-services.sh || echo \"빠른 복구 실패\"
+              else
+                echo \"⚠️ 복구 스크립트를 찾을 수 없습니다. 수동 복구를 시도합니다...\"
+                
+                # 수동 복구 시도
+                for failed_service in \"\${FAILED_APPS[@]}\"; do
+                  echo \"수동 복구 시도: \$failed_service\"
+                  docker-compose -f docker-compose.prod.yml stop \$failed_service || true
+                  docker-compose -f docker-compose.prod.yml rm -f \$failed_service || true
+                  docker-compose -f docker-compose.prod.yml up -d \$failed_service || echo \"수동 복구 실패: \$failed_service\"
+                  sleep 10
+                done
+              fi
+              
+              # 복구 후 재확인
+              echo \"🔄 복구 후 애플리케이션 서비스 재확인...\"
+              sleep 15
+              
+              RECOVERED_COUNT=0
+              for service in \"\${APP_SERVICES[@]}\"; do
+                if docker-compose -f docker-compose.prod.yml ps \$service | grep -q \"Up\"; then
+                  ((RECOVERED_COUNT++))
+                  echo \"✅ \$service: 복구 성공\"
+                else
+                  echo \"❌ \$service: 복구 실패\"
+                fi
+              done
+              
+              echo \"복구 결과: \$RECOVERED_COUNT/6개 애플리케이션 서비스가 실행 중입니다.\"
+              
+              if [ \$RECOVERED_COUNT -ge 4 ]; then
+                echo \"🎉 애플리케이션 서비스 복구 성공!\"
+              else
+                echo \"⚠️ 애플리케이션 서비스 복구가 완전하지 않습니다.\"
+              fi
+            else
+              echo \"✅ 모든 애플리케이션 서비스가 정상적으로 시작되었습니다.\"
             fi
             
             # 최종 상태 확인
@@ -1489,51 +1508,11 @@ jobs:
                 docker-compose -f docker-compose.prod.yml up -d --no-deps kong
               fi
               
-              # OTEL Collector 및 Jaeger 포트 충돌 문제 해결
+              # OTEL Collector 및 Jaeger 간단 재시작 (문제 있을 때만)
               if echo "$PROBLEMATIC_CONTAINERS" | grep -q "otel-collector\|jaeger"; then
-                echo "🔍 OTEL Collector 또는 Jaeger 문제 감지 - 포트 충돌 해결 중..."
-                
-                # 기존 컨테이너 중지 및 제거
-                docker-compose -f docker-compose.prod.yml stop otel-collector jaeger || true
-                docker-compose -f docker-compose.prod.yml rm -f otel-collector jaeger || true
-                
-                # 포트 충돌 해결 (4317, 4318, 4319, 4320, 8889, 55679)
-                echo "포트 충돌 해결 중..."
-                for port in 4317 4318 4319 4320 8889 55679; do
-                  PIDS=$(lsof -ti:$port 2>/dev/null || true)
-                  if [[ -n "$PIDS" ]]; then
-                    echo "포트 $port 사용 프로세스 종료: $PIDS"
-                    for pid in $PIDS; do
-                      PROCESS_NAME=$(ps -p $pid -o comm= 2>/dev/null || echo "Unknown")
-                      echo "종료 중: PID=$pid, NAME=$PROCESS_NAME"
-                      kill -TERM $pid 2>/dev/null || kill -KILL $pid 2>/dev/null || true
-                    done
-                  fi
-                done
-                
-                # 3초 대기 후 순차적 재시작
-                sleep 3
-                
-                echo "Jaeger 재시작 중..."
-                docker-compose -f docker-compose.prod.yml up -d jaeger
-                sleep 15
-                
-                echo "OTEL Collector 재시작 중..."
-                docker-compose -f docker-compose.prod.yml up -d otel-collector
+                echo "🔍 OTEL/Jaeger 문제 감지 - 간단 재시작"
+                docker-compose -f docker-compose.prod.yml restart otel-collector jaeger || true
                 sleep 10
-                
-                # 상태 확인
-                if curl -f http://localhost:16686 >/dev/null 2>&1; then
-                  echo "✅ Jaeger 재시작 성공"
-                else
-                  echo "⚠️ Jaeger 재시작 실패"
-                fi
-                
-                if curl -f http://localhost:55679/debug/servicez >/dev/null 2>&1; then
-                  echo "✅ OTEL Collector 재시작 성공"
-                else
-                  echo "⚠️ OTEL Collector 재시작 실패"
-                fi
               fi
             else
               echo "✅ 재시작 중인 컨테이너 없음"
@@ -1561,9 +1540,9 @@ jobs:
             echo "🗑️ 중복 컨테이너 제거 중..."
             docker ps -a --format "{{.Names}}" | grep -E "^[a-z]+_[a-z]+$" | head -5 | xargs -r docker rm -f || true
             
-            # 4. Docker 시스템 정리
+            # 4. Docker 시스템 정리 (볼륨 보존)
             echo "🧹 Docker 시스템 정리 중..."
-            docker system prune -f --volumes || true
+            docker system prune -f || true
             
             # 5. 메모리 제한이 있는 서비스들 재시작
             echo "🚀 메모리 제한 적용된 서비스들 재시작 중..."
@@ -1614,6 +1593,85 @@ jobs:
               JAEGER_STATUS="OK"
             fi
             echo "Jaeger: $JAEGER_STATUS"
+            
+            # 애플리케이션 서비스 실패 확인 및 자동 복구
+            echo "🔍 애플리케이션 서비스 상태 확인 및 복구..."
+            
+            # 실패한 애플리케이션 서비스 수 계산
+            FAILED_APP_SERVICES=0
+            for app_service in auth-service session-service user-service feedback-service report-service realtime-service; do
+              if ! docker-compose -f docker-compose.prod.yml ps $app_service | grep -q "Up"; then
+                ((FAILED_APP_SERVICES++))
+                echo "❌ $app_service: 실행 중이 아님"
+              else
+                echo "✅ $app_service: 정상 실행 중"
+              fi
+            done
+            
+            # 실패한 애플리케이션 서비스가 3개 이상인 경우 자동 복구 스크립트 실행
+            if [[ $FAILED_APP_SERVICES -ge 3 ]]; then
+              echo "🚨 애플리케이션 서비스 $FAILED_APP_SERVICES개 실패 감지 - 자동 복구 시작"
+              
+              # fix-app-services.sh 스크립트 실행
+              if [ -f "infrastructure/automation/fix-app-services.sh" ]; then
+                echo "📋 자동 복구 스크립트 실행 중..."
+                chmod +x infrastructure/automation/fix-app-services.sh
+                
+                # GitHub Container Registry 인증 정보 추가
+                export GHCR_PAT="${{ secrets.GHCR_PAT }}"
+                export GITHUB_REPOSITORY_OWNER="${{ github.repository_owner }}"
+                export IMAGE_TAG="${{ needs.prepare_deployment.outputs.image_tag }}"
+                
+                # 복구 스크립트 실행
+                if ./infrastructure/automation/fix-app-services.sh; then
+                  echo "✅ 애플리케이션 서비스 자동 복구 성공"
+                  
+                  # 복구 후 재확인
+                  echo "🔄 복구 후 애플리케이션 서비스 재확인..."
+                  sleep 15
+                  
+                  RECOVERED_SERVICES=0
+                  for app_service in auth-service session-service user-service feedback-service report-service realtime-service; do
+                    if docker-compose -f docker-compose.prod.yml ps $app_service | grep -q "Up"; then
+                      ((RECOVERED_SERVICES++))
+                      echo "✅ $app_service: 복구됨"
+                    else
+                      echo "❌ $app_service: 여전히 실패"
+                    fi
+                  done
+                  
+                  echo "복구된 애플리케이션 서비스: $RECOVERED_SERVICES/6개"
+                  
+                  if [[ $RECOVERED_SERVICES -ge 4 ]]; then
+                    echo "🎉 애플리케이션 서비스 복구 성공 ($RECOVERED_SERVICES/6개)"
+                  else
+                    echo "⚠️ 애플리케이션 서비스 일부만 복구됨 ($RECOVERED_SERVICES/6개)"
+                  fi
+                else
+                  echo "❌ 애플리케이션 서비스 자동 복구 실패"
+                fi
+              else
+                echo "⚠️ 애플리케이션 복구 스크립트를 찾을 수 없습니다: infrastructure/automation/fix-app-services.sh"
+                
+                # 빠른 복구 스크립트 시도
+                if [ -f "infrastructure/automation/quick-fix-app-services.sh" ]; then
+                  echo "📋 빠른 복구 스크립트로 시도..."
+                  chmod +x infrastructure/automation/quick-fix-app-services.sh
+                  ./infrastructure/automation/quick-fix-app-services.sh || echo "빠른 복구 실패"
+                fi
+              fi
+            elif [[ $FAILED_APP_SERVICES -gt 0 ]]; then
+              echo "⚠️ 애플리케이션 서비스 $FAILED_APP_SERVICES개 실패 - 빠른 복구 시도"
+              
+              # 일부 서비스만 실패한 경우 빠른 복구 스크립트 사용
+              if [ -f "infrastructure/automation/quick-fix-app-services.sh" ]; then
+                chmod +x infrastructure/automation/quick-fix-app-services.sh
+                echo "📋 빠른 복구 스크립트 실행 중..."
+                ./infrastructure/automation/quick-fix-app-services.sh || echo "빠른 복구 실패"
+              fi
+            else
+              echo "✅ 모든 애플리케이션 서비스가 정상입니다"
+            fi
             
             # 수정 성공 여부 판단 (핵심 서비스 + 모니터링 서비스)
             CORE_OK=0
