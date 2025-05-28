@@ -1071,6 +1071,17 @@ jobs:
             echo '=== 기존 컨테이너 정리 중 ==='
             docker-compose -f docker-compose.prod.yml down --remove-orphans || echo '기존 컨테이너 정리 완료'
             
+            # .env 파일 명시적 로드
+            echo '=== 환경 변수 로드 ==='
+            if [ -f \".env\" ]; then
+              set -a  # 환경 변수 자동 export 활성화
+              source .env
+              set +a  # 환경 변수 자동 export 비활성화
+              echo \".env 파일 로드 완료\"
+            else
+              echo \"⚠️ .env 파일이 없습니다!\"
+            fi
+            
             # 환경 변수 확인
             echo '=== 환경 변수 확인 ==='
             echo \"POSTGRES_USER: \${POSTGRES_USER:+설정됨}\"
@@ -1112,12 +1123,12 @@ jobs:
             
             # 포트 4318만 확인하고 정리 (다른 포트는 건드리지 않음)
             PIDS_4318=$(lsof -ti:4318 2>/dev/null || true)
-            if [[ -n "$PIDS_4318" ]]; then
+            if [ -n "$PIDS_4318" ]; then
               echo "포트 4318 사용 프로세스 정리: $PIDS_4318"
               for pid in $PIDS_4318; do
                 # 프로세스 이름 확인 후 OTEL/Jaeger 관련만 종료
                 PROCESS_NAME=$(ps -p $pid -o comm= 2>/dev/null || echo "Unknown")
-                if [[ "$PROCESS_NAME" =~ (otel|jaeger|collector) ]]; then
+                if echo "$PROCESS_NAME" | grep -q "otel|jaeger|collector"; then
                   echo "OTEL/Jaeger 관련 프로세스 종료: PID=$pid, NAME=$PROCESS_NAME"
                   kill -TERM $pid 2>/dev/null || true
                 else
@@ -1180,74 +1191,76 @@ jobs:
             echo '=== 애플리케이션 서비스 상태 확인 및 자동 복구 ==='
             sleep 20  # 서비스 시작 대기
             
-            # 실패한 애플리케이션 서비스 확인
-            FAILED_APPS=()
-            APP_SERVICES=(auth-service session-service user-service feedback-service report-service realtime-service)
+            # 실패한 애플리케이션 서비스 확인 (POSIX 호환)
+            FAILED_APPS=\"\"
+            FAILED_COUNT=0
+            APP_SERVICES=\"auth-service session-service user-service feedback-service report-service realtime-service\"
             
-            for service in "${APP_SERVICES[@]}"; do
-              if ! docker-compose -f docker-compose.prod.yml ps $service | grep -q "Up"; then
-                FAILED_APPS+=("$service")
-                echo "❌ $service: 시작 실패"
+            for service in \$APP_SERVICES; do
+              if ! docker-compose -f docker-compose.prod.yml ps \$service | grep -q \"Up\"; then
+                FAILED_APPS=\"\$FAILED_APPS \$service\"
+                FAILED_COUNT=\$((FAILED_COUNT + 1))
+                echo \"❌ \$service: 시작 실패\"
               else
-                echo "✅ $service: 정상 시작"
+                echo \"✅ \$service: 정상 시작\"
               fi
             done
             
             # 실패한 서비스가 있으면 즉시 복구 시도
-            if [ "${#FAILED_APPS[@]}" -gt 0 ]; then
-              echo "🚨 실패한 애플리케이션 서비스 ${#FAILED_APPS[@]}개 감지: ${FAILED_APPS[*]}"
-              echo "즉시 자동 복구를 시도합니다..."
+            if [ \$FAILED_COUNT -gt 0 ]; then
+              echo \"🚨 실패한 애플리케이션 서비스 \$FAILED_COUNT개 감지: \$FAILED_APPS\"
+              echo \"즉시 자동 복구를 시도합니다...\"
               
               # GitHub Container Registry 인증 정보 설정
-              export GHCR_PAT="${{ secrets.GHCR_PAT }}"
-              export GITHUB_REPOSITORY_OWNER="${{ github.repository_owner }}"
-              export IMAGE_TAG="${{ needs.prepare_deployment.outputs.image_tag }}"
+              export GHCR_PAT=\"\${{ secrets.GHCR_PAT }}\"
+              export GITHUB_REPOSITORY_OWNER=\"\${{ github.repository_owner }}\"
+              export IMAGE_TAG=\"\${{ needs.prepare_deployment.outputs.image_tag }}\"
               
               # 복구 스크립트 실행
-              if [ -f "infrastructure/automation/fix-app-services.sh" ]; then
-                echo "📋 종합 복구 스크립트 실행 중..."
+              if [ -f \"infrastructure/automation/fix-app-services.sh\" ]; then
+                echo \"📋 종합 복구 스크립트 실행 중...\"
                 chmod +x infrastructure/automation/fix-app-services.sh
-                ./infrastructure/automation/fix-app-services.sh || echo "종합 복구 실패"
-              elif [ -f "infrastructure/automation/quick-fix-app-services.sh" ]; then
-                echo "📋 빠른 복구 스크립트 실행 중..."
+                ./infrastructure/automation/fix-app-services.sh || echo \"종합 복구 실패\"
+              elif [ -f \"infrastructure/automation/quick-fix-app-services.sh\" ]; then
+                echo \"📋 빠른 복구 스크립트 실행 중...\"
                 chmod +x infrastructure/automation/quick-fix-app-services.sh
-                ./infrastructure/automation/quick-fix-app-services.sh || echo "빠른 복구 실패"
+                ./infrastructure/automation/quick-fix-app-services.sh || echo \"빠른 복구 실패\"
               else
-                echo "⚠️ 복구 스크립트를 찾을 수 없습니다. 수동 복구를 시도합니다..."
+                echo \"⚠️ 복구 스크립트를 찾을 수 없습니다. 수동 복구를 시도합니다...\"
                 
                 # 수동 복구 시도
-                for failed_service in "${FAILED_APPS[@]}"; do
-                  echo "수동 복구 시도: $failed_service"
-                  docker-compose -f docker-compose.prod.yml stop $failed_service || true
-                  docker-compose -f docker-compose.prod.yml rm -f $failed_service || true
-                  docker-compose -f docker-compose.prod.yml up -d $failed_service || echo "수동 복구 실패: $failed_service"
+                for failed_service in \$FAILED_APPS; do
+                  echo \"수동 복구 시도: \$failed_service\"
+                  docker-compose -f docker-compose.prod.yml stop \$failed_service || true
+                  docker-compose -f docker-compose.prod.yml rm -f \$failed_service || true
+                  docker-compose -f docker-compose.prod.yml up -d \$failed_service || echo \"수동 복구 실패: \$failed_service\"
                   sleep 10
                 done
               fi
               
               # 복구 후 재확인
-              echo "🔄 복구 후 애플리케이션 서비스 재확인..."
+              echo \"🔄 복구 후 애플리케이션 서비스 재확인...\"
               sleep 15
               
               RECOVERED_COUNT=0
-              for service in "${APP_SERVICES[@]}"; do
-                if docker-compose -f docker-compose.prod.yml ps $service | grep -q "Up"; then
-                  ((RECOVERED_COUNT++))
-                  echo "✅ $service: 복구 성공"
+              for service in \$APP_SERVICES; do
+                if docker-compose -f docker-compose.prod.yml ps \$service | grep -q \"Up\"; then
+                  RECOVERED_COUNT=\$((RECOVERED_COUNT + 1))
+                  echo \"✅ \$service: 복구 성공\"
                 else
-                  echo "❌ $service: 복구 실패"
+                  echo \"❌ \$service: 복구 실패\"
                 fi
               done
               
-              echo "복구 결과: $RECOVERED_COUNT/6개 애플리케이션 서비스가 실행 중입니다."
+              echo \"복구 결과: \$RECOVERED_COUNT/6개 애플리케이션 서비스가 실행 중입니다.\"
               
-              if [ $RECOVERED_COUNT -ge 4 ]; then
-                echo "🎉 애플리케이션 서비스 복구 성공!"
+              if [ \$RECOVERED_COUNT -ge 4 ]; then
+                echo \"🎉 애플리케이션 서비스 복구 성공!\"
               else
-                echo "⚠️ 애플리케이션 서비스 복구가 완전하지 않습니다."
+                echo \"⚠️ 애플리케이션 서비스 복구가 완전하지 않습니다.\"
               fi
             else
-              echo "✅ 모든 애플리케이션 서비스가 정상적으로 시작되었습니다."
+              echo \"✅ 모든 애플리케이션 서비스가 정상적으로 시작되었습니다.\"
             fi
             
             # 최종 상태 확인
