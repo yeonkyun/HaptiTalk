@@ -87,6 +87,15 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
             label: '프로필',
           ),
         ],
+        onTap: (index) {
+          // 메인 탭 화면으로 돌아가고 해당 탭 선택
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/main',
+            (route) => false,
+            arguments: {'initialTabIndex': index},
+          );
+        },
       ),
     );
   }

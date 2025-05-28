@@ -13,13 +13,15 @@ router = APIRouter()
 @router.post("/transcribe", response_model=STTResponse)
 async def transcribe_audio(
     audio_file: UploadFile = File(...),
-    request: STTRequest = Depends()
+    request: STTRequest = Depends(),
+    scenario: str = Query("presentation", description="시나리오 타입 (dating, interview, presentation)")
 ) -> STTResponse:
     """
     오디오 파일을 텍스트로 변환
     
     - **audio_file**: 업로드할 오디오 파일 (WAV, MP3, OGG, FLAC)
     - **language**: 인식할 언어 코드 (기본값: ko)
+    - **scenario**: 시나리오 타입 (dating, interview, presentation)
     - **return_timestamps**: 단어별 타임스탬프 반환 여부
     - **compute_type**: 연산 타입 (float16, float32 등)
     
@@ -40,11 +42,15 @@ async def transcribe_audio(
             detail=f"지원하지 않는 파일 형식입니다: {file_ext}. 지원되는 형식: wav, mp3, ogg, flac"
         )
     
+    logger.info(f"STT 요청 수신 - 파일: {audio_file.filename}, 크기: {audio_file.size} bytes, 타입: {audio_file.content_type}")
+    logger.info(f"STT 요청 파라미터 - 언어: {request.language}, 시나리오: {scenario}, 타임스탬프 반환: {request.return_timestamps}, 연산 타입: {request.compute_type}")
+    
     try:
         # STT 처리
         result = await stt_processor.process_audio(
             audio_file=audio_file,
             language=request.language,
+            scenario=scenario,
             return_timestamps=request.return_timestamps,
             compute_type=request.compute_type
         )
@@ -60,7 +66,8 @@ async def transcribe_audio(
 @router.websocket("/stream")
 async def websocket_endpoint(
     websocket: WebSocket,
-    language: str = Query("ko", description="인식할 언어 코드 (예: ko, en)")
+    language: str = Query("ko", description="인식할 언어 코드 (예: ko, en)"),
+    scenario: str = Query("presentation", description="시나리오 타입 (dating, interview, presentation)")
 ):
     """
     실시간 음성 인식을 위한 WebSocket 엔드포인트
@@ -81,4 +88,4 @@ async def websocket_endpoint(
     - {"type": "transcription", "text": "...", "is_final": bool, "segment_id": int}
     - {"type": "error", "message": "..."}
     """
-    await websocket_manager.handle_connection(websocket, language) 
+    await websocket_manager.handle_connection(websocket, language, scenario) 

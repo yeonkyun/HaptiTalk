@@ -11,9 +11,7 @@ import 'package:haptitalk/providers/analysis_provider.dart';
 import 'package:haptitalk/providers/session_provider.dart';
 import 'package:haptitalk/repositories/analysis_repository.dart';
 import 'package:haptitalk/repositories/session_repository.dart';
-import 'package:haptitalk/screens/auth/login_screen.dart';
-import 'package:haptitalk/screens/auth/signup_screen.dart';
-import 'package:haptitalk/screens/main/main_tab_screen.dart';
+// 미사용 import 제거
 import 'package:haptitalk/services/api_service.dart';
 import 'package:haptitalk/services/local_storage_service.dart';
 import 'package:haptitalk/services/navigation_service.dart';
@@ -160,7 +158,7 @@ class StartScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
                       AppStrings.orLoginWith,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: AppColors.hintTextColor,
                         fontSize: 14,
                       ),

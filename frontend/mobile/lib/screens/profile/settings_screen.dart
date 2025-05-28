@@ -236,7 +236,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 20),
               child: const Text(
-                'HaptiTalk © 2024 All Rights Reserved',
+                'HaptiTalk © 2025 All Rights Reserved',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
