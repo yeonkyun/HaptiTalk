@@ -874,6 +874,8 @@ jobs:
           # 인프라스트럭처 디렉토리 전송 (존재하는 경우에만)
           if [ -d "infrastructure" ]; then
             scp -o StrictHostKeyChecking=no -r infrastructure raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+            # infrastructure/automation 폴더의 모든 .sh 파일에 실행 권한 부여
+            ssh raspberry-pi "find /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure -name '*.sh' -type f -exec chmod +x {} \;"
           else
             echo "infrastructure 디렉토리가 존재하지 않습니다. 원격에서 생성합니다."
             # 원격에서 필요한 디렉토리 구조 생성
@@ -883,6 +885,7 @@ jobs:
               mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/database/redis/init
               mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/api-gateway
               mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/static-web/html
+              mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/automation
           REMOTE_SCRIPT2
           fi
           
@@ -1565,7 +1568,7 @@ jobs:
           fi
 
       - name: Rollback on Failure
-        if: steps.verify.outputs.deploy_success == 'false' && (steps.fix_containers.outputs.reverify_success != 'true' || steps.fix_containers.outputs.container_fix_success != 'true')
+        if: steps.verify.outputs.deploy_success == 'false'
         id: final_rollback
         run: |
           echo "배포 검증 실패, 롤백을 진행합니다..."
