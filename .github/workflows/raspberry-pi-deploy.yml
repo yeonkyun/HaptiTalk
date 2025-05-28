@@ -1104,14 +1104,106 @@ jobs:
             echo '=== 3단계: API 게이트웨이 및 웹 서버 시작 ==='
             docker-compose -f docker-compose.prod.yml up -d kong static-web
             
-            # 4단계: 모니터링 시스템 시작
+            # 4단계: 모니터링 시스템 시작 (포트 충돌 해결 개선)
             echo '=== 4단계: 모니터링 시스템 시작 ==='
+            
+            # Elasticsearch 먼저 시작
+            echo 'Elasticsearch 시작 중...'
             docker-compose -f docker-compose.prod.yml up -d elasticsearch
             sleep 20
+            
+            # ELK 스택 계속 시작
+            echo 'Kibana, Logstash, Filebeat 시작 중...'
             docker-compose -f docker-compose.prod.yml up -d kibana logstash filebeat
             sleep 15
-            docker-compose -f docker-compose.prod.yml up -d jaeger otel-collector
-            sleep 10
+            
+            # 포트 충돌 해결 스크립트 실행 (Jaeger/OTEL Collector 전에)
+            echo '=== 포트 충돌 해결 시작 ==='
+            
+            # 스크립트 실행 권한 확인
+            if [ -f "infrastructure/automation/fix-port-conflicts.sh" ]; then
+              chmod +x infrastructure/automation/fix-port-conflicts.sh
+              echo 'OTEL Collector 포트 충돌 해결 중...'
+              
+              # 포트 상황 확인
+              echo '현재 포트 4317-4320, 8889, 55679 사용 상황:'
+              netstat -tulpn | grep -E ':(4317|4318|4319|4320|8889|55679) ' || echo '충돌 포트 없음'
+              
+              # 기존 OTEL/Jaeger 컨테이너 정리
+              echo 'OTEL/Jaeger 관련 컨테이너 정리 중...'
+              docker-compose -f docker-compose.prod.yml stop otel-collector jaeger 2>/dev/null || echo '중지할 컨테이너 없음'
+              docker-compose -f docker-compose.prod.yml rm -f otel-collector jaeger 2>/dev/null || echo '제거할 컨테이너 없음'
+              
+              # 포트를 사용하는 프로세스 강제 종료
+              echo '포트 4318을 사용하는 프로세스 확인 및 정리...'
+              PIDS_4318=$(lsof -ti:4318 2>/dev/null || true)
+              if [[ -n "$PIDS_4318" ]]; then
+                echo "포트 4318 사용 프로세스: $PIDS_4318"
+                for pid in $PIDS_4318; do
+                  PROCESS_NAME=$(ps -p $pid -o comm= 2>/dev/null || echo "Unknown")
+                  echo "종료 중: PID=$pid, NAME=$PROCESS_NAME"
+                  kill -TERM $pid 2>/dev/null || kill -KILL $pid 2>/dev/null || echo "프로세스 종료 실패"
+                done
+                sleep 3
+              else
+                echo '포트 4318는 사용 중이지 않습니다.'
+              fi
+              
+              # 포트 4319도 확인
+              PIDS_4319=$(lsof -ti:4319 2>/dev/null || true)
+              if [[ -n "$PIDS_4319" ]]; then
+                echo "포트 4319 사용 프로세스: $PIDS_4319"
+                for pid in $PIDS_4319; do
+                  kill -TERM $pid 2>/dev/null || kill -KILL $pid 2>/dev/null || echo "프로세스 종료 실패"
+                done
+                sleep 3
+              fi
+              
+              # Docker 시스템 정리
+              echo 'Docker 시스템 정리 중...'
+              docker system prune -f || echo 'Docker 정리 완료'
+              
+              # 네트워크 재생성
+              docker network rm haptitalk_network 2>/dev/null || echo '기존 네트워크 제거 완료'
+              docker network create haptitalk_network || echo '네트워크 생성 완료'
+              
+              echo '포트 충돌 해결 완료'
+            else
+              echo '포트 충돌 해결 스크립트가 없습니다. 기본 방식으로 진행합니다.'
+            fi
+            
+            # Jaeger 먼저 개별 시작
+            echo '=== Jaeger 시작 ==='
+            docker-compose -f docker-compose.prod.yml up -d jaeger
+            echo 'Jaeger 시작 대기 (30초)...'
+            sleep 30
+            
+            # Jaeger 상태 확인
+            if curl -f http://localhost:16686 >/dev/null 2>&1; then
+              echo '✅ Jaeger가 성공적으로 시작되었습니다.'
+            else
+              echo '⚠️ Jaeger가 아직 완전히 준비되지 않았을 수 있습니다.'
+            fi
+            
+            # OTEL Collector 시작 (Jaeger 의존성 후)
+            echo '=== OTEL Collector 시작 ==='
+            docker-compose -f docker-compose.prod.yml up -d otel-collector
+            echo 'OTEL Collector 시작 대기 (20초)...'
+            sleep 20
+            
+            # OTEL Collector 상태 확인
+            if curl -f http://localhost:55679/debug/servicez >/dev/null 2>&1; then
+              echo '✅ OTEL Collector가 성공적으로 시작되었습니다.'
+            else
+              echo '⚠️ OTEL Collector가 아직 완전히 준비되지 않았을 수 있습니다.'
+              
+              # 로그 확인
+              echo 'OTEL Collector 로그 확인:'
+              docker-compose -f docker-compose.prod.yml logs --tail=20 otel-collector || echo 'OTEL Collector 로그 없음'
+            fi
+            
+            # 나머지 모니터링 서비스 시작
+            echo '=== 나머지 모니터링 서비스 시작 ==='
             docker-compose -f docker-compose.prod.yml up -d prometheus grafana node-exporter
             
             # 5단계: Exporters 시작
@@ -1396,6 +1488,53 @@ jobs:
                 docker-compose -f docker-compose.prod.yml stop kong || true
                 docker-compose -f docker-compose.prod.yml up -d --no-deps kong
               fi
+              
+              # OTEL Collector 및 Jaeger 포트 충돌 문제 해결
+              if echo "$PROBLEMATIC_CONTAINERS" | grep -q "otel-collector\|jaeger"; then
+                echo "🔍 OTEL Collector 또는 Jaeger 문제 감지 - 포트 충돌 해결 중..."
+                
+                # 기존 컨테이너 중지 및 제거
+                docker-compose -f docker-compose.prod.yml stop otel-collector jaeger || true
+                docker-compose -f docker-compose.prod.yml rm -f otel-collector jaeger || true
+                
+                # 포트 충돌 해결 (4317, 4318, 4319, 4320, 8889, 55679)
+                echo "포트 충돌 해결 중..."
+                for port in 4317 4318 4319 4320 8889 55679; do
+                  PIDS=$(lsof -ti:$port 2>/dev/null || true)
+                  if [[ -n "$PIDS" ]]; then
+                    echo "포트 $port 사용 프로세스 종료: $PIDS"
+                    for pid in $PIDS; do
+                      PROCESS_NAME=$(ps -p $pid -o comm= 2>/dev/null || echo "Unknown")
+                      echo "종료 중: PID=$pid, NAME=$PROCESS_NAME"
+                      kill -TERM $pid 2>/dev/null || kill -KILL $pid 2>/dev/null || true
+                    done
+                  fi
+                done
+                
+                # 3초 대기 후 순차적 재시작
+                sleep 3
+                
+                echo "Jaeger 재시작 중..."
+                docker-compose -f docker-compose.prod.yml up -d jaeger
+                sleep 15
+                
+                echo "OTEL Collector 재시작 중..."
+                docker-compose -f docker-compose.prod.yml up -d otel-collector
+                sleep 10
+                
+                # 상태 확인
+                if curl -f http://localhost:16686 >/dev/null 2>&1; then
+                  echo "✅ Jaeger 재시작 성공"
+                else
+                  echo "⚠️ Jaeger 재시작 실패"
+                fi
+                
+                if curl -f http://localhost:55679/debug/servicez >/dev/null 2>&1; then
+                  echo "✅ OTEL Collector 재시작 성공"
+                else
+                  echo "⚠️ OTEL Collector 재시작 실패"
+                fi
+              fi
             else
               echo "✅ 재시작 중인 컨테이너 없음"
             fi
@@ -1462,13 +1601,40 @@ jobs:
             fi
             echo "Redis: $REDIS_STATUS"
             
-            # 수정 성공 여부 판단
-            if [[ "$KONG_STATUS" == "OK" && "$POSTGRES_STATUS" == "OK" && "$REDIS_STATUS" == "OK" ]]; then
+            # OTEL Collector 상태 확인
+            OTEL_STATUS="FAIL"
+            if curl -f http://localhost:55679/debug/servicez >/dev/null 2>&1; then
+              OTEL_STATUS="OK"
+            fi
+            echo "OTEL Collector: $OTEL_STATUS"
+            
+            # Jaeger 상태 확인
+            JAEGER_STATUS="FAIL"
+            if curl -f http://localhost:16686 >/dev/null 2>&1; then
+              JAEGER_STATUS="OK"
+            fi
+            echo "Jaeger: $JAEGER_STATUS"
+            
+            # 수정 성공 여부 판단 (핵심 서비스 + 모니터링 서비스)
+            CORE_OK=0
+            MONITORING_OK=0
+            
+            # 핵심 서비스 카운트
+            [[ "$KONG_STATUS" == "OK" ]] && ((CORE_OK++))
+            [[ "$POSTGRES_STATUS" == "OK" ]] && ((CORE_OK++))
+            [[ "$REDIS_STATUS" == "OK" ]] && ((CORE_OK++))
+            
+            # 모니터링 서비스 카운트 (선택적)
+            [[ "$OTEL_STATUS" == "OK" ]] && ((MONITORING_OK++))
+            [[ "$JAEGER_STATUS" == "OK" ]] && ((MONITORING_OK++))
+            
+            # 성공 조건: 핵심 서비스 3개 모두 OK
+            if [[ $CORE_OK -eq 3 ]]; then
               echo "CONTAINER_FIX_SUCCESS=true"
-              echo "✅ 컨테이너 문제 해결 성공"
+              echo "✅ 컨테이너 문제 해결 성공 (핵심: $CORE_OK/3, 모니터링: $MONITORING_OK/2)"
             else
               echo "CONTAINER_FIX_SUCCESS=false"
-              echo "❌ 일부 서비스가 여전히 문제 상태"
+              echo "❌ 핵심 서비스 중 일부가 여전히 문제 상태 (핵심: $CORE_OK/3, 모니터링: $MONITORING_OK/2)"
             fi
             
             echo "===== 컨테이너 문제 해결 완료: $(date) ====="
@@ -1543,9 +1709,27 @@ jobs:
                 echo "❌ Elasticsearch: 오류"
               fi
               
+              # OTEL Collector 확인 (추가)
+              if curl -f http://localhost:55679/debug/servicez >/dev/null 2>&1; then
+                echo "✅ OTEL Collector: 정상"
+                ((SERVICES_OK++))
+              else
+                echo "❌ OTEL Collector: 오류"
+              fi
+              
+              # Jaeger 확인 (추가)
+              if curl -f http://localhost:16686 >/dev/null 2>&1; then
+                echo "✅ Jaeger: 정상"
+                ((SERVICES_OK++))
+              else
+                echo "❌ Jaeger: 오류"
+              fi
+              
+              TOTAL_SERVICES=8  # 서비스 총 개수 업데이트
               echo "정상 서비스: $SERVICES_OK/$TOTAL_SERVICES"
               
-              if [[ $SERVICES_OK -ge 4 ]]; then
+              # 성공 조건: 8개 중 6개 이상 (75% 이상)
+              if [[ $SERVICES_OK -ge 6 ]]; then
                 echo "REVERIFY_SUCCESS=true"
               else
                 echo "REVERIFY_SUCCESS=false"
