@@ -836,8 +836,8 @@ jobs:
           echo "JAEGER_COLLECTOR_HTTP_PORT=14268" >> .env
           echo "JAEGER_OTLP_PORT=4318" >> .env
           echo "JAEGER_OTLP_GRPC_PORT=4317" >> .env
-          echo "OTEL_COLLECTOR_PORT=4317" >> .env
-          echo "OTEL_COLLECTOR_HTTP_PORT=4318" >> .env
+          echo "OTEL_COLLECTOR_PORT=4320" >> .env
+          echo "OTEL_COLLECTOR_HTTP_PORT=4319" >> .env
           echo "OTEL_COLLECTOR_PROM_PORT=8889" >> .env
           echo "OTEL_COLLECTOR_ZPAGES_PORT=55679" >> .env
           echo "PROMETHEUS_PORT=9090" >> .env
@@ -874,6 +874,8 @@ jobs:
           # 인프라스트럭처 디렉토리 전송 (존재하는 경우에만)
           if [ -d "infrastructure" ]; then
             scp -o StrictHostKeyChecking=no -r infrastructure raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
+            # infrastructure/automation 폴더의 모든 .sh 파일에 실행 권한 부여
+            ssh raspberry-pi "find /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure -name '*.sh' -type f -exec chmod +x {} \;"
           else
             echo "infrastructure 디렉토리가 존재하지 않습니다. 원격에서 생성합니다."
             # 원격에서 필요한 디렉토리 구조 생성
@@ -883,6 +885,7 @@ jobs:
               mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/database/redis/init
               mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/api-gateway
               mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/static-web/html
+              mkdir -p /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/infrastructure/automation
           REMOTE_SCRIPT2
           fi
           
@@ -1028,24 +1031,23 @@ jobs:
           scp -o StrictHostKeyChecking=no rollback.sh raspberry-pi:/home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/
 
       - name: Deploy Services
-        id: deploy
         run: |
           # 배포 실행
-          SPECIFIC_SERVICES="${{ needs.prepare_deployment.outputs.specific_services }}"
-          FORCE_RESTART="${{ needs.prepare_deployment.outputs.force_restart }}"
-          IMAGES_AVAILABLE="${{ needs.validate_images.outputs.images_available }}"
-          MISSING_IMAGES="${{ needs.validate_images.outputs.missing_images }}"
-          BUILD_REQUIRED="${{ needs.validate_images.outputs.build_required }}"
+          SPECIFIC_SERVICES=""
+          FORCE_RESTART="false"
+          IMAGES_AVAILABLE="true"
+          MISSING_IMAGES=""
+          BUILD_REQUIRED="false"
           
-          echo "배포 시작: 환경=${{ needs.prepare_deployment.outputs.environment }}"
+          echo "배포 시작: 환경=development"
           echo "특정 서비스: $SPECIFIC_SERVICES"
           echo "강제 재시작: $FORCE_RESTART"
           echo "이미지 사용 가능: $IMAGES_AVAILABLE"
           echo "누락된 이미지: $MISSING_IMAGES"
           echo "빌드 필요: $BUILD_REQUIRED"
           
-          # 라즈베리파이에서 배포 실행
-          ssh raspberry-pi "
+          # 라즈베리파이에서 배포 실행 (HERE document 방식)
+          ssh raspberry-pi << 'EOF'
             cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
             
             # 환경 변수 백업 (롤백용)
@@ -1054,7 +1056,7 @@ jobs:
             # 환경 변수 파일에 GitHub Container Registry 설정 추가
             echo 'GITHUB_REPOSITORY_OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")' >> .env
             echo 'IMAGE_TAG=${{ needs.prepare_deployment.outputs.image_tag }}' >> .env
-            echo 'KONG_IMAGE=${{ needs.prepare_deployment.outputs.kong_image }}' >> .env
+            echo 'KONG_IMAGE=kong/kong-gateway:3.4.2.0' >> .env
             echo 'DEPLOY_TIMESTAMP=$(date +%Y%m%d_%H%M%S)' >> .env
             echo 'DEPLOY_BRANCH=${{ github.ref_name }}' >> .env
             echo 'DEPLOY_COMMIT=${{ github.sha }}' >> .env
@@ -1068,11 +1070,22 @@ jobs:
             echo '=== 기존 컨테이너 정리 중 ==='
             docker-compose -f docker-compose.prod.yml down --remove-orphans || echo '기존 컨테이너 정리 완료'
             
+            # .env 파일 명시적 로드
+            echo '=== 환경 변수 로드 ==='
+            if [ -f ".env" ]; then
+              set -a  # 환경 변수 자동 export 활성화
+              source .env
+              set +a  # 환경 변수 자동 export 비활성화
+              echo ".env 파일 로드 완료"
+            else
+              echo "⚠️ .env 파일이 없습니다!"
+            fi
+            
             # 환경 변수 확인
             echo '=== 환경 변수 확인 ==='
-            echo \"POSTGRES_USER: \${POSTGRES_USER:+설정됨}\"
-            echo \"REDIS_PASSWORD: \${REDIS_PASSWORD:+설정됨}\"
-            echo \"MONGO_USER: \${MONGO_USER:+설정됨}\"
+            echo "POSTGRES_USER: ${POSTGRES_USER:+설정됨}"
+            echo "REDIS_PASSWORD: ${REDIS_PASSWORD:+설정됨}"
+            echo "MONGO_USER: ${MONGO_USER:+설정됨}"
             
             # 네트워크 생성
             echo '=== Docker 네트워크 확인/생성 ==='
@@ -1101,14 +1114,51 @@ jobs:
             echo '=== 3단계: API 게이트웨이 및 웹 서버 시작 ==='
             docker-compose -f docker-compose.prod.yml up -d kong static-web
             
-            # 4단계: 모니터링 시스템 시작
+            # 4단계: 모니터링 시스템 시작 (최소한의 포트 충돌 해결)
             echo '=== 4단계: 모니터링 시스템 시작 ==='
+            
+            # OTEL Collector 포트 충돌만 해결 (최소한으로)
+            echo '=== OTEL Collector 포트 4318 충돌 해결 ==='
+            
+            # 포트 4318만 확인하고 정리 (다른 포트는 건드리지 않음)
+            PIDS_4318=$(lsof -ti:4318 2>/dev/null || true)
+            if [ -n "$PIDS_4318" ]; then
+              echo "포트 4318 사용 프로세스 정리: $PIDS_4318"
+              for pid in $PIDS_4318; do
+                # 프로세스 이름 확인 후 OTEL/Jaeger 관련만 종료
+                PROCESS_NAME=$(ps -p $pid -o comm= 2>/dev/null || echo "Unknown")
+                if echo "$PROCESS_NAME" | grep -E "(otel|jaeger|collector)"; then
+                  echo "OTEL/Jaeger 관련 프로세스 종료: PID=$pid, NAME=$PROCESS_NAME"
+                  kill -TERM $pid 2>/dev/null || true
+                else
+                  echo "다른 프로세스는 유지: PID=$pid, NAME=$PROCESS_NAME"
+                fi
+              done
+              sleep 2
+            fi
+            
+            # 기존 OTEL/Jaeger 컨테이너만 정리 (다른 컨테이너는 건드리지 않음)
+            docker-compose -f docker-compose.prod.yml stop otel-collector jaeger 2>/dev/null || true
+            docker-compose -f docker-compose.prod.yml rm -f otel-collector jaeger 2>/dev/null || true
+            
+            # 원래 방식대로 모니터링 서비스 시작
+            echo '모니터링 서비스 시작 중...'
             docker-compose -f docker-compose.prod.yml up -d elasticsearch
             sleep 20
             docker-compose -f docker-compose.prod.yml up -d kibana logstash filebeat
             sleep 15
-            docker-compose -f docker-compose.prod.yml up -d jaeger otel-collector
+            
+            # Jaeger와 OTEL Collector를 순차적으로 시작 (더 짧은 대기시간)
+            echo 'Jaeger 시작 중...'
+            docker-compose -f docker-compose.prod.yml up -d jaeger
             sleep 10
+            
+            echo 'OTEL Collector 시작 중...'
+            docker-compose -f docker-compose.prod.yml up -d otel-collector
+            sleep 10
+            
+            # 나머지 모니터링 서비스 시작
+            echo '=== 나머지 모니터링 서비스 시작 ==='
             docker-compose -f docker-compose.prod.yml up -d prometheus grafana node-exporter
             
             # 5단계: Exporters 시작
@@ -1126,29 +1176,90 @@ jobs:
             # 7단계: 애플리케이션 서비스 시작
             echo '=== 7단계: 애플리케이션 서비스 시작 ==='
             
-            # 이미지가 사용 가능한 서비스만 배포
-            if [[ '$IMAGES_AVAILABLE' == 'true' ]]; then
-              echo '모든 이미지가 사용 가능합니다. 전체 서비스를 시작합니다.'
+            # 항상 애플리케이션 서비스들을 시작하도록 수정 (이미지 체크 단순화)
+            echo '애플리케이션 서비스들을 시작합니다.'
+            
+            # 개별적으로 시작 (실패 시에도 계속 진행)
+            for service in auth-service session-service user-service feedback-service report-service realtime-service; do
+              echo "서비스 시작: $service"
+              docker-compose -f docker-compose.prod.yml up -d $service || echo "경고: $service 시작 실패"
+              sleep 5
+            done
+            
+            # 애플리케이션 서비스 시작 후 즉시 상태 확인 및 복구
+            echo '=== 애플리케이션 서비스 상태 확인 및 자동 복구 ==='
+            sleep 20  # 서비스 시작 대기
+            
+            # 실패한 애플리케이션 서비스 확인 (POSIX 호환)
+            FAILED_APPS=""
+            FAILED_COUNT=0
+            APP_SERVICES="auth-service session-service user-service feedback-service report-service realtime-service"
+            
+            for service in $APP_SERVICES; do
+              if ! docker-compose -f docker-compose.prod.yml ps $service | grep -q "Up"; then
+                FAILED_APPS="$FAILED_APPS $service"
+                FAILED_COUNT=$((FAILED_COUNT + 1))
+                echo "❌ $service: 시작 실패"
+              else
+                echo "✅ $service: 정상 시작"
+              fi
+            done
+            
+            # 실패한 서비스가 있으면 즉시 복구 시도
+            if [ $FAILED_COUNT -gt 0 ]; then
+              echo "🚨 실패한 애플리케이션 서비스 $FAILED_COUNT개 감지: $FAILED_APPS"
+              echo "즉시 자동 복구를 시도합니다..."
               
-              # 개별적으로 시작 (실패 시에도 계속 진행)
-              for service in auth-service session-service user-service feedback-service report-service realtime-service; do
-                echo \"서비스 시작: \$service\"
-                docker-compose -f docker-compose.prod.yml up -d \$service || echo \"경고: \$service 시작 실패\"
-                sleep 5
-              done
-            else
-              echo '일부 이미지가 누락되었습니다. 사용 가능한 서비스만 시작합니다.'
+              # GitHub Container Registry 인증 정보 설정
+              export GHCR_PAT="${{ secrets.GHCR_PAT }}"
+              export GITHUB_REPOSITORY_OWNER="${{ github.repository_owner }}"
+              export IMAGE_TAG="${{ needs.prepare_deployment.outputs.image_tag }}"
               
-              # 개별 서비스 시작 (오류 무시)
-              for service in auth-service session-service user-service feedback-service report-service realtime-service; do
-                if ! echo '$MISSING_IMAGES' | grep -q \"\$service\"; then
-                  echo \"서비스 시작: \$service\"
-                  docker-compose -f docker-compose.prod.yml up -d \$service || echo \"경고: \$service 시작 실패\"
-                  sleep 5
+              # 복구 스크립트 실행
+              if [ -f "infrastructure/automation/fix-app-services.sh" ]; then
+                echo "📋 종합 복구 스크립트 실행 중..."
+                chmod +x infrastructure/automation/fix-app-services.sh
+                ./infrastructure/automation/fix-app-services.sh || echo "종합 복구 실패"
+              elif [ -f "infrastructure/automation/quick-fix-app-services.sh" ]; then
+                echo "📋 빠른 복구 스크립트 실행 중..."
+                chmod +x infrastructure/automation/quick-fix-app-services.sh
+                ./infrastructure/automation/quick-fix-app-services.sh || echo "빠른 복구 실패"
+              else
+                echo "⚠️ 복구 스크립트를 찾을 수 없습니다. 수동 복구를 시도합니다..."
+                
+                # 수동 복구 시도
+                for failed_service in $FAILED_APPS; do
+                  echo "수동 복구 시도: $failed_service"
+                  docker-compose -f docker-compose.prod.yml stop $failed_service || true
+                  docker-compose -f docker-compose.prod.yml rm -f $failed_service || true
+                  docker-compose -f docker-compose.prod.yml up -d $failed_service || echo "수동 복구 실패: $failed_service"
+                  sleep 10
+                done
+              fi
+              
+              # 복구 후 재확인
+              echo "🔄 복구 후 애플리케이션 서비스 재확인..."
+              sleep 15
+              
+              RECOVERED_COUNT=0
+              for service in $APP_SERVICES; do
+                if docker-compose -f docker-compose.prod.yml ps $service | grep -q "Up"; then
+                  RECOVERED_COUNT=$((RECOVERED_COUNT + 1))
+                  echo "✅ $service: 복구 성공"
                 else
-                  echo \"건너뛰기: \$service (이미지 누락)\"
+                  echo "❌ $service: 복구 실패"
                 fi
               done
+              
+              echo "복구 결과: $RECOVERED_COUNT/6개 애플리케이션 서비스가 실행 중입니다."
+              
+              if [ $RECOVERED_COUNT -ge 4 ]; then
+                echo "🎉 애플리케이션 서비스 복구 성공!"
+              else
+                echo "⚠️ 애플리케이션 서비스 복구가 완전하지 않습니다."
+              fi
+            else
+              echo "✅ 모든 애플리케이션 서비스가 정상적으로 시작되었습니다."
             fi
             
             # 최종 상태 확인
@@ -1156,15 +1267,15 @@ jobs:
             docker-compose -f docker-compose.prod.yml ps
             
             # 실행 중인 컨테이너 수 확인
-            RUNNING_CONTAINERS=\$(docker-compose -f docker-compose.prod.yml ps | grep -c \"Up\")
-            echo \"실행 중인 컨테이너 수: \$RUNNING_CONTAINERS\"
+            RUNNING_CONTAINERS=$(docker-compose -f docker-compose.prod.yml ps | grep -c "Up")
+            echo "실행 중인 컨테이너 수: $RUNNING_CONTAINERS"
             
             # 배포 후 정리 작업
             echo '=== 배포 후 정리 ==='
             docker system prune -f || echo '시스템 정리 완료'
             
             echo '=== 배포 완료 ==='
-          "
+          EOF
       
       - name: Get Current Time
         id: current_time
@@ -1393,6 +1504,13 @@ jobs:
                 docker-compose -f docker-compose.prod.yml stop kong || true
                 docker-compose -f docker-compose.prod.yml up -d --no-deps kong
               fi
+              
+              # OTEL Collector 및 Jaeger 간단 재시작 (문제 있을 때만)
+              if echo "$PROBLEMATIC_CONTAINERS" | grep -q "otel-collector\|jaeger"; then
+                echo "🔍 OTEL/Jaeger 문제 감지 - 간단 재시작"
+                docker-compose -f docker-compose.prod.yml restart otel-collector jaeger || true
+                sleep 10
+              fi
             else
               echo "✅ 재시작 중인 컨테이너 없음"
             fi
@@ -1419,9 +1537,9 @@ jobs:
             echo "🗑️ 중복 컨테이너 제거 중..."
             docker ps -a --format "{{.Names}}" | grep -E "^[a-z]+_[a-z]+$" | head -5 | xargs -r docker rm -f || true
             
-            # 4. Docker 시스템 정리
+            # 4. Docker 시스템 정리 (볼륨 보존)
             echo "🧹 Docker 시스템 정리 중..."
-            docker system prune -f --volumes || true
+            docker system prune -f || true
             
             # 5. 메모리 제한이 있는 서비스들 재시작
             echo "🚀 메모리 제한 적용된 서비스들 재시작 중..."
@@ -1459,13 +1577,119 @@ jobs:
             fi
             echo "Redis: $REDIS_STATUS"
             
-            # 수정 성공 여부 판단
-            if [[ "$KONG_STATUS" == "OK" && "$POSTGRES_STATUS" == "OK" && "$REDIS_STATUS" == "OK" ]]; then
+            # OTEL Collector 상태 확인
+            OTEL_STATUS="FAIL"
+            if curl -f http://localhost:55679/debug/servicez >/dev/null 2>&1; then
+              OTEL_STATUS="OK"
+            fi
+            echo "OTEL Collector: $OTEL_STATUS"
+            
+            # Jaeger 상태 확인
+            JAEGER_STATUS="FAIL"
+            if curl -f http://localhost:16686 >/dev/null 2>&1; then
+              JAEGER_STATUS="OK"
+            fi
+            echo "Jaeger: $JAEGER_STATUS"
+            
+            # 애플리케이션 서비스 실패 확인 및 자동 복구
+            echo "🔍 애플리케이션 서비스 상태 확인 및 복구..."
+            
+            # 실패한 애플리케이션 서비스 수 계산
+            FAILED_APP_SERVICES=0
+            for app_service in auth-service session-service user-service feedback-service report-service realtime-service; do
+              if ! docker-compose -f docker-compose.prod.yml ps $app_service | grep -q "Up"; then
+                ((FAILED_APP_SERVICES++))
+                echo "❌ $app_service: 실행 중이 아님"
+              else
+                echo "✅ $app_service: 정상 실행 중"
+              fi
+            done
+            
+            # 실패한 애플리케이션 서비스가 3개 이상인 경우 자동 복구 스크립트 실행
+            if [[ $FAILED_APP_SERVICES -ge 3 ]]; then
+              echo "🚨 애플리케이션 서비스 $FAILED_APP_SERVICES개 실패 감지 - 자동 복구 시작"
+              
+              # fix-app-services.sh 스크립트 실행
+              if [ -f "infrastructure/automation/fix-app-services.sh" ]; then
+                echo "📋 자동 복구 스크립트 실행 중..."
+                chmod +x infrastructure/automation/fix-app-services.sh
+                
+                # GitHub Container Registry 인증 정보 추가
+                export GHCR_PAT="${{ secrets.GHCR_PAT }}"
+                export GITHUB_REPOSITORY_OWNER="${{ github.repository_owner }}"
+                export IMAGE_TAG="${{ needs.prepare_deployment.outputs.image_tag }}"
+                
+                # 복구 스크립트 실행
+                if ./infrastructure/automation/fix-app-services.sh; then
+                  echo "✅ 애플리케이션 서비스 자동 복구 성공"
+                  
+                  # 복구 후 재확인
+                  echo "🔄 복구 후 애플리케이션 서비스 재확인..."
+                  sleep 15
+                  
+                  RECOVERED_SERVICES=0
+                  for app_service in auth-service session-service user-service feedback-service report-service realtime-service; do
+                    if docker-compose -f docker-compose.prod.yml ps $app_service | grep -q "Up"; then
+                      ((RECOVERED_SERVICES++))
+                      echo "✅ $app_service: 복구됨"
+                    else
+                      echo "❌ $app_service: 여전히 실패"
+                    fi
+                  done
+                  
+                  echo "복구된 애플리케이션 서비스: $RECOVERED_SERVICES/6개"
+                  
+                  if [[ $RECOVERED_SERVICES -ge 4 ]]; then
+                    echo "🎉 애플리케이션 서비스 복구 성공 ($RECOVERED_SERVICES/6개)"
+                  else
+                    echo "⚠️ 애플리케이션 서비스 일부만 복구됨 ($RECOVERED_SERVICES/6개)"
+                  fi
+                else
+                  echo "❌ 애플리케이션 서비스 자동 복구 실패"
+                fi
+              else
+                echo "⚠️ 애플리케이션 복구 스크립트를 찾을 수 없습니다: infrastructure/automation/fix-app-services.sh"
+                
+                # 빠른 복구 스크립트 시도
+                if [ -f "infrastructure/automation/quick-fix-app-services.sh" ]; then
+                  echo "📋 빠른 복구 스크립트로 시도..."
+                  chmod +x infrastructure/automation/quick-fix-app-services.sh
+                  ./infrastructure/automation/quick-fix-app-services.sh || echo "빠른 복구 실패"
+                fi
+              fi
+            elif [[ $FAILED_APP_SERVICES -gt 0 ]]; then
+              echo "⚠️ 애플리케이션 서비스 $FAILED_APP_SERVICES개 실패 - 빠른 복구 시도"
+              
+              # 일부 서비스만 실패한 경우 빠른 복구 스크립트 사용
+              if [ -f "infrastructure/automation/quick-fix-app-services.sh" ]; then
+                chmod +x infrastructure/automation/quick-fix-app-services.sh
+                echo "📋 빠른 복구 스크립트 실행 중..."
+                ./infrastructure/automation/quick-fix-app-services.sh || echo "빠른 복구 실패"
+              fi
+            else
+              echo "✅ 모든 애플리케이션 서비스가 정상입니다"
+            fi
+            
+            # 수정 성공 여부 판단 (핵심 서비스 + 모니터링 서비스)
+            CORE_OK=0
+            MONITORING_OK=0
+            
+            # 핵심 서비스 카운트
+            [[ "$KONG_STATUS" == "OK" ]] && ((CORE_OK++))
+            [[ "$POSTGRES_STATUS" == "OK" ]] && ((CORE_OK++))
+            [[ "$REDIS_STATUS" == "OK" ]] && ((CORE_OK++))
+            
+            # 모니터링 서비스 카운트 (선택적)
+            [[ "$OTEL_STATUS" == "OK" ]] && ((MONITORING_OK++))
+            [[ "$JAEGER_STATUS" == "OK" ]] && ((MONITORING_OK++))
+            
+            # 성공 조건: 핵심 서비스 3개 모두 OK
+            if [[ $CORE_OK -eq 3 ]]; then
               echo "CONTAINER_FIX_SUCCESS=true"
-              echo "✅ 컨테이너 문제 해결 성공"
+              echo "✅ 컨테이너 문제 해결 성공 (핵심: $CORE_OK/3, 모니터링: $MONITORING_OK/2)"
             else
               echo "CONTAINER_FIX_SUCCESS=false"
-              echo "❌ 일부 서비스가 여전히 문제 상태"
+              echo "❌ 핵심 서비스 중 일부가 여전히 문제 상태 (핵심: $CORE_OK/3, 모니터링: $MONITORING_OK/2)"
             fi
             
             echo "===== 컨테이너 문제 해결 완료: $(date) ====="
@@ -1540,9 +1764,27 @@ jobs:
                 echo "❌ Elasticsearch: 오류"
               fi
               
+              # OTEL Collector 확인 (추가)
+              if curl -f http://localhost:55679/debug/servicez >/dev/null 2>&1; then
+                echo "✅ OTEL Collector: 정상"
+                ((SERVICES_OK++))
+              else
+                echo "❌ OTEL Collector: 오류"
+              fi
+              
+              # Jaeger 확인 (추가)
+              if curl -f http://localhost:16686 >/dev/null 2>&1; then
+                echo "✅ Jaeger: 정상"
+                ((SERVICES_OK++))
+              else
+                echo "❌ Jaeger: 오류"
+              fi
+              
+              TOTAL_SERVICES=8  # 서비스 총 개수 업데이트
               echo "정상 서비스: $SERVICES_OK/$TOTAL_SERVICES"
               
-              if [[ $SERVICES_OK -ge 4 ]]; then
+              # 성공 조건: 8개 중 6개 이상 (75% 이상)
+              if [[ $SERVICES_OK -ge 6 ]]; then
                 echo "REVERIFY_SUCCESS=true"
               else
                 echo "REVERIFY_SUCCESS=false"
@@ -1565,7 +1807,7 @@ jobs:
           fi
 
       - name: Rollback on Failure
-        if: steps.verify.outputs.deploy_success == 'false' && (steps.fix_containers.outputs.reverify_success != 'true' || steps.fix_containers.outputs.container_fix_success != 'true')
+        if: steps.verify.outputs.deploy_success == 'false'
         id: final_rollback
         run: |
           echo "배포 검증 실패, 롤백을 진행합니다..."

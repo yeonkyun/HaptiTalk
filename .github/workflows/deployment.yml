@@ -23,8 +23,10 @@ jobs:
       environment: ${{ steps.set_env.outputs.environment }}
     steps:
       - id: set_env
+        env:
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
-          if [[ "${{ github.event.workflow_run.head_branch }}" == "main" ]]; then
+          if [[ "$HEAD_BRANCH" == "main" ]]; then
             echo "environment=production" >> $GITHUB_OUTPUT
           else
             echo "environment=development" >> $GITHUB_OUTPUT

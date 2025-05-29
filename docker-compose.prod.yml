@@ -16,6 +16,10 @@ services:
       - "${POSTGRES_PORT}:5432"
     networks:
       - haptitalk_network
+    logging:
+      options:
+        max-size: "20m"     # 파일당 최대 20MB
+        max-file: "3"       # 최대 3개 파일 (총 60MB)
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -39,6 +43,10 @@ services:
       - "${MONGO_PORT}:27017"
     networks:
       - haptitalk_network
+    logging:
+      options:
+        max-size: "20m"     # 파일당 최대 20MB
+        max-file: "3"       # 최대 3개 파일 (총 60MB)
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 10s
@@ -67,6 +75,10 @@ services:
       - "${REDIS_PORT}:6379"
     networks:
       - haptitalk_network
+    logging:
+      options:
+        max-size: "20m"     # 파일당 최대 20MB
+        max-file: "3"       # 최대 3개 파일 (총 60MB)
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
@@ -114,6 +126,10 @@ services:
       - KAFKA_HEAP_OPTS=-Xmx512m -Xms256m
     networks:
       - haptitalk_network
+    logging:
+      options:
+        max-size: "25m"     # 파일당 최대 25MB
+        max-file: "3"       # 최대 3개 파일 (총 75MB)
     healthcheck:
       test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list"]
       interval: 30s
@@ -226,6 +242,10 @@ services:
       - elasticsearch_data:/usr/share/elasticsearch/data
     networks:
       - haptitalk_network
+    logging:
+      options:
+        max-size: "30m"     # 파일당 최대 30MB
+        max-file: "3"       # 최대 3개 파일 (총 90MB)
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
       interval: 30s
@@ -301,6 +321,10 @@ services:
       - elasticsearch
     networks:
       - haptitalk_network
+    logging:
+      options:
+        max-size: "30m"     # 파일당 최대 30MB
+        max-file: "3"       # 최대 3개 파일 (총 90MB)
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9600"]
       interval: 30s
@@ -379,6 +403,10 @@ services:
       - jaeger
     networks:
       - haptitalk_network
+    logging:
+      options:
+        max-size: "50m"     # 파일당 최대 50MB
+        max-file: "3"       # 최대 3개 파일 (총 150MB)
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:55679/debug/servicez"]
       interval: 30s
@@ -636,6 +664,10 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    logging:
+      options:
+        max-size: "10m"     # 파일당 최대 10MB
+        max-file: "3"       # 최대 3개 파일 (총 30MB)
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:${AUTH_SERVICE_PORT}/health"]
       interval: 10s
@@ -677,6 +709,10 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    logging:
+      options:
+        max-size: "10m"     # 파일당 최대 10MB
+        max-file: "3"       # 최대 3개 파일 (총 30MB)
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:${REALTIME_SERVICE_PORT}/health"]
       interval: 10s
@@ -719,6 +755,10 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    logging:
+      options:
+        max-size: "10m"     # 파일당 최대 10MB
+        max-file: "3"       # 최대 3개 파일 (총 30MB)
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:${SESSION_SERVICE_PORT}/health"]
       interval: 10s
@@ -769,6 +809,10 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    logging:
+      options:
+        max-size: "10m"     # 파일당 최대 10MB
+        max-file: "3"       # 최대 3개 파일 (총 30MB)
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:${FEEDBACK_SERVICE_PORT}/health"]
       interval: 10s
@@ -811,6 +855,10 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    logging:
+      options:
+        max-size: "10m"     # 파일당 최대 10MB
+        max-file: "3"       # 최대 3개 파일 (총 30MB)
     healthcheck:
       test: [ "CMD", "wget", "-qO-", "http://localhost:${USER_SERVICE_PORT}/health" ]
       interval: 10s
@@ -861,6 +909,10 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    logging:
+      options:
+        max-size: "10m"     # 파일당 최대 10MB
+        max-file: "3"       # 최대 3개 파일 (총 30MB)
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:${REPORT_SERVICE_PORT}/health"]
       interval: 10s
