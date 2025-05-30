@@ -45,6 +45,9 @@ class WatchService {
   Stream<Map<String, dynamic>> get watchMessages =>
       _watchMessageController.stream;
 
+  // Timer 관리
+  Timer? _periodicTimer;
+
   // 싱글톤 패턴
   static final WatchService _instance = WatchService._internal();
   factory WatchService() => _instance;
@@ -53,6 +56,8 @@ class WatchService {
     _setupMessageHandler();
     // 초기 연결 상태 확인
     _checkConnectionStatus();
+    // 주기적 연결 상태 모니터링 (10초마다)
+    _startPeriodicConnectionCheck();
   }
 
   // Watch에서 오는 메시지 처리
@@ -72,31 +77,64 @@ class WatchService {
   }
 
   void _handleWatchMessage(dynamic message) {
-    if (message is! Map<String, dynamic>) {
-      print('잘못된 워치 메시지 형식: $message');
+    // Map으로 변환 처리 개선
+    Map<String, dynamic> messageMap;
+    
+    if (message is Map<String, dynamic>) {
+      messageMap = message;
+    } else if (message is Map) {
+      // 다른 타입의 Map을 String, dynamic으로 변환
+      messageMap = Map<String, dynamic>.from(message);
+    } else {
+      print('잘못된 워치 메시지 형식: $message (타입: ${message.runtimeType})');
       return;
     }
 
-    print('Watch 메시지 처리: $message');
-    _watchMessageController.add(message);
+    // watchReady 필드 타입 변환 처리
+    if (messageMap.containsKey('watchReady')) {
+      final watchReadyValue = messageMap['watchReady'];
+      if (watchReadyValue is int) {
+        messageMap['watchReady'] = watchReadyValue == 1;
+      } else if (watchReadyValue is String) {
+        messageMap['watchReady'] = watchReadyValue.toLowerCase() == 'true' || watchReadyValue == '1';
+      }
+      // bool인 경우는 그대로 유지
+    }
+
+    print('Watch 메시지 처리: $messageMap');
+    // StreamController가 닫혔는지 확인
+    if (!_watchMessageController.isClosed) {
+      _watchMessageController.add(messageMap);
+    }
   }
 
   void _handleConnectionStatus(dynamic status) {
-    if (status is! Map<String, dynamic>) {
-      print('잘못된 연결 상태 형식: $status');
+    // Map으로 변환 처리
+    Map<String, dynamic> statusMap;
+    
+    if (status is Map<String, dynamic>) {
+      statusMap = status;
+    } else if (status is Map) {
+      // 다른 타입의 Map을 String, dynamic으로 변환
+      statusMap = Map<String, dynamic>.from(status);
+    } else {
+      print('지원되지 않는 연결 상태 형식: $status (타입: ${status.runtimeType})');
       return;
     }
 
     final connectionStatus = WatchConnectionStatus(
-      isSupported: status['isSupported'] ?? false,
-      isPaired: status['isPaired'] ?? false,
-      isWatchAppInstalled: status['isWatchAppInstalled'] ?? false,
-      isReachable: status['isReachable'] ?? false,
-      activationState: status['activationState'] ?? 0,
+      isSupported: statusMap['isSupported'] ?? false,
+      isPaired: statusMap['isPaired'] ?? false,
+      isWatchAppInstalled: statusMap['isWatchAppInstalled'] ?? false,
+      isReachable: statusMap['isReachable'] ?? false,
+      activationState: statusMap['activationState'] ?? 0,
     );
 
     print('Watch 연결 상태 업데이트: $connectionStatus');
-    _connectionStatusController.add(connectionStatus);
+    // StreamController가 닫혔는지 확인
+    if (!_connectionStatusController.isClosed) {
+      _connectionStatusController.add(connectionStatus);
+    }
   }
 
   // 연결 상태 확인
@@ -106,13 +144,16 @@ class WatchService {
       _handleConnectionStatus(result);
     } catch (e) {
       print('연결 상태 확인 실패: $e');
-      _handleConnectionStatus({
-        'isSupported': false,
-        'isPaired': false,
-        'isWatchAppInstalled': false,
-        'isReachable': false,
-        'activationState': 0,
-      });
+      // StreamController가 닫혔는지 확인
+      if (!_connectionStatusController.isClosed) {
+        _handleConnectionStatus({
+          'isSupported': false,
+          'isPaired': false,
+          'isWatchAppInstalled': false,
+          'isReachable': false,
+          'activationState': 0,
+        });
+      }
     }
   }
 
@@ -198,9 +239,37 @@ class WatchService {
     }
   }
 
+  // WCSession 강제 재연결
+  Future<void> forceReconnect() async {
+    try {
+      final result = await _channel.invokeMethod('forceReconnect');
+      print('🔄 강제 재연결 시도: $result');
+      
+      // 재연결 후 잠시 대기하고 상태 확인
+      await Future.delayed(const Duration(seconds: 6));
+      await _checkConnectionStatus();
+    } catch (e) {
+      print('❌ 강제 재연결 실패: $e');
+      rethrow;
+    }
+  }
+
+  // 주기적 연결 상태 확인 (자동 재연결 로직)
+  void _startPeriodicConnectionCheck() {
+    _periodicTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
+      try {
+        await _checkConnectionStatus();
+        print('🔄 주기적 연결 상태 확인 완료');
+      } catch (e) {
+        print('❌ 주기적 연결 확인 실패: $e');
+      }
+    });
+  }
+
   // 리소스 정리
   void dispose() {
     _connectionStatusController.close();
     _watchMessageController.close();
+    _periodicTimer?.cancel();
   }
 }

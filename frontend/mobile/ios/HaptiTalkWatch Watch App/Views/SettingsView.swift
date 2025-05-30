@@ -1,8 +1,8 @@
-import SwiftUI
 #if os(watchOS)
+import SwiftUI
 import WatchKit
-#endif
 
+@available(watchOS 6.0, *)
 struct SettingsView: View {
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var appState: AppState
@@ -21,11 +21,7 @@ struct SettingsView: View {
     
     // 화면 너비 계산
     private let screenWidth: CGFloat = {
-        #if os(watchOS)
         return WKInterfaceDevice.current().screenBounds.width
-        #else
-        return 200 // fallback for iOS
-        #endif
     }()
     
     enum NotificationStyle: String, CaseIterable {
@@ -205,6 +201,7 @@ struct SettingsView: View {
 }
 
 // 햅틱 강도 설정 카드
+@available(watchOS 6.0, *)
 struct HapticIntensityCard: View {
     @Binding var hapticIntensity: String
     let options: [String]
@@ -251,6 +248,7 @@ struct HapticIntensityCard: View {
 }
 
 // 햅틱 횟수 설정 카드
+@available(watchOS 6.0, *)
 struct HapticCountCard: View {
     @Binding var hapticCount: Int
     
@@ -295,6 +293,7 @@ struct HapticCountCard: View {
 }
 
 // 알림 표시 방식 카드
+@available(watchOS 6.0, *)
 struct NotificationStyleCard: View {
     @Binding var notificationStyle: SettingsView.NotificationStyle
     
@@ -340,6 +339,7 @@ struct NotificationStyleCard: View {
 }
 
 // 토글 설정 카드
+@available(watchOS 6.0, *)
 struct ToggleSettingCard: View {
     let title: String
     @Binding var isOn: Bool
@@ -361,6 +361,7 @@ struct ToggleSettingCard: View {
 }
 
 // 설정 카드 기본 뷰
+@available(watchOS 6.0, *)
 struct SettingCardView<Content: View>: View {
     let content: Content
     
@@ -383,4 +384,5 @@ struct SettingCardView<Content: View>: View {
 #Preview {
     SettingsView()
         .environmentObject(AppState())
-} 
+}
+#endif 

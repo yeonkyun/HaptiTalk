@@ -10,12 +10,20 @@ import SwiftUI
 @available(watchOS 7.0, *)
 @main
 struct HaptiTalkWatch_Watch_AppApp: App {
+    #if os(watchOS)
     @StateObject private var appState = AppState()
+    #endif
     
     var body: some Scene {
+        #if os(watchOS)
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
         }
+        #else
+        WindowGroup {
+            EmptyView()
+        }
+        #endif
     }
 }

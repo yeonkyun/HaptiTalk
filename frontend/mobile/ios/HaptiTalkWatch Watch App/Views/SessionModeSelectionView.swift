@@ -5,8 +5,10 @@
 //  Created on 5/13/25.
 //
 
+#if os(watchOS)
 import SwiftUI
 
+@available(watchOS 6.0, *)
 struct SessionModeSelectionView: View {
     @Environment(\.presentationMode) var presentationMode
     var onModeSelected: ((_ mode: String) -> Void)?
@@ -48,8 +50,10 @@ struct SessionModeSelectionView: View {
     }
 }
 
+@available(watchOS 6.0, *)
 struct SessionModeSelectionView_Previews: PreviewProvider {
     static var previews: some View {
         SessionModeSelectionView()
     }
-} 
+}
+#endif 

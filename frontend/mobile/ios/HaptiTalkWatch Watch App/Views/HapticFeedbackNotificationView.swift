@@ -1,5 +1,7 @@
+#if os(watchOS)
 import SwiftUI
 
+@available(watchOS 6.0, *)
 struct HapticFeedbackNotificationView: View {
     let sessionType: String
     let elapsedTime: String
@@ -125,4 +127,5 @@ struct HapticFeedbackNotificationView: View {
         message: "상대방의 호감도가 상\n승했습니다.\n현재 대화 주제를 이어\n가세요.",
         currentTime: "16:05"
     )
-} 
+}
+#endif 

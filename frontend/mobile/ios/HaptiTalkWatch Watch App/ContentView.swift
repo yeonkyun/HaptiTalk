@@ -5,6 +5,7 @@
 //  Created by 이은범 on 5/13/25.
 //
 
+#if os(watchOS)
 import SwiftUI
 
 @available(watchOS 6.0, *)
@@ -38,3 +39,4 @@ struct ContentView_Previews: PreviewProvider {
             .environmentObject(AppState())
     }
 }
+#endif
