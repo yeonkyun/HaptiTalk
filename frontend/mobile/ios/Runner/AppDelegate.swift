@@ -52,16 +52,19 @@ import WatchConnectivity
   
   private func notifyWatchConnectionStatus() {
     let session = WCSession.default
+    
+    // ⚠️ isWatchAppInstalled는 Apple 버그로 인해 부정확할 수 있음
+    // Watch의 실제 응답으로만 연결 상태 판단
     let status = [
       "isSupported": WCSession.isSupported(),
       "isPaired": session.isPaired,
-      "isWatchAppInstalled": session.isWatchAppInstalled,
+      "isWatchAppInstalled": session.isPaired, // 🔧 임시로 isPaired 값 사용
       "isReachable": session.isReachable,
       "activationState": session.activationState.rawValue
     ] as [String : Any]
     
     watchChannel?.invokeMethod("watchConnectionStatus", arguments: status)
-    print("iOS: Notified connection status - \(status)")
+    print("iOS: ⚠️ isWatchAppInstalled 우회 - Notified connection status - \(status)")
   }
   
   private func handleMethodCall(call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -108,11 +111,15 @@ import WatchConnectivity
       let status = [
         "isSupported": WCSession.isSupported(),
         "isPaired": session.isPaired,
-        "isWatchAppInstalled": session.isWatchAppInstalled,
+        "isWatchAppInstalled": session.isPaired, // 🔧 isWatchAppInstalled 우회
         "isReachable": session.isReachable,
         "activationState": session.activationState.rawValue
       ] as [String : Any]
       result(status)
+    case "forceReconnect":
+      // WCSession 강제 재시작
+      forceWatchReconnection()
+      result("Reconnection attempted")
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -122,25 +129,27 @@ import WatchConnectivity
     let session = WCSession.default
     print("iOS: Attempting to send message - \(message)")
     
-    // 연결 상태 전체 체크
+    // 기본적인 연결 상태만 체크 (isWatchAppInstalled 제외)
     guard session.activationState == .activated,
-          session.isPaired,
-          session.isWatchAppInstalled else {
-      print("iOS: Watch is not properly connected - activationState: \(session.activationState.rawValue), isPaired: \(session.isPaired), isWatchAppInstalled: \(session.isWatchAppInstalled)")
+          session.isPaired else {
+      print("iOS: Session not ready - activationState: \(session.activationState.rawValue), isPaired: \(session.isPaired)")
       return
     }
     
+    // isWatchAppInstalled가 부정확할 수 있으므로 실제 전송을 시도
+    print("iOS: 🚀 Watch 앱 설치 상태 무시하고 메시지 전송 시도")
+    
     if session.isReachable {
       session.sendMessage(message, replyHandler: { response in
-        print("iOS: Watch responded - \(response)")
+        print("iOS: ✅ Watch가 응답함! 실제로 연결됨 - \(response)")
       }) { error in
-        print("iOS: Failed to send message - \(error.localizedDescription)")
+        print("iOS: ❌ 메시지 전송 실패 - \(error.localizedDescription)")
         
         // 메시지 전송 실패 시 applicationContext로 재시도
         self.sendViaApplicationContext(message)
       }
     } else {
-      print("iOS: Watch is not reachable, trying applicationContext")
+      print("iOS: Watch가 reachable하지 않음, applicationContext로 전송")
       sendViaApplicationContext(message)
     }
   }
@@ -151,6 +160,27 @@ import WatchConnectivity
       print("iOS: Sent via applicationContext")
     } catch {
       print("iOS: Failed to update applicationContext - \(error.localizedDescription)")
+    }
+  }
+  
+  private func forceWatchReconnection() {
+    print("iOS: 🔄 WCSession 강제 재연결 시작")
+    
+    let session = WCSession.default
+    
+    // 기존 세션 상태 로그
+    print("iOS: 현재 상태 - activated: \(session.activationState.rawValue), paired: \(session.isPaired), installed: \(session.isWatchAppInstalled), reachable: \(session.isReachable)")
+    
+    // 강제 재활성화 (이미 활성화되어 있어도 다시 시도)
+    if WCSession.isSupported() {
+      session.activate()
+      print("iOS: ✅ WCSession 재활성화 완료")
+      
+      // 5초 후 상태 다시 확인
+      DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+        self?.notifyWatchConnectionStatus()
+        print("iOS: 🔍 재연결 후 상태 확인 완료")
+      }
     }
   }
 }

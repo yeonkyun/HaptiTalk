@@ -100,6 +100,22 @@ class _WatchDebugScreenState extends State<WatchDebugScreen> {
     }
   }
 
+  Future<void> _forceReconnect() async {
+    try {
+      setState(() {
+        _lastMessage = '🔄 강제 재연결 시도 중...';
+      });
+      await _watchService.forceReconnect();
+      setState(() {
+        _lastMessage = '✅ 강제 재연결 완료';
+      });
+    } catch (e) {
+      setState(() {
+        _lastMessage = '❌ 강제 재연결 실패: $e';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -194,6 +210,15 @@ class _WatchDebugScreenState extends State<WatchDebugScreen> {
                           foregroundColor: Colors.white,
                         ),
                         child: const Text('테스트 데이터 전송'),
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: _forceReconnect,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.pink,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('강제 재연결'),
                       ),
                     ],
                   ),

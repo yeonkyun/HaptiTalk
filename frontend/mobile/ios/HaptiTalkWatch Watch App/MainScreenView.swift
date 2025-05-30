@@ -5,6 +5,7 @@
 //  Created on 5/13/25.
 //
 
+#if os(watchOS)
 import SwiftUI
 
 @available(watchOS 6.0, *)
@@ -131,4 +132,5 @@ struct MainScreenView_Previews: PreviewProvider {
         MainScreenView()
             .environmentObject(AppState())
     }
-} 
+}
+#endif 

@@ -5,10 +5,9 @@
 //  Created on 5/13/25.
 //
 
-import SwiftUI
 #if os(watchOS)
+import SwiftUI
 import WatchKit
-#endif
 
 @available(watchOS 6.0, *)
 struct ConnectionStatusView: View {
@@ -73,9 +72,7 @@ struct ConnectionStatusView: View {
                     
                     Button(action: {
                         // 햅틱 테스트 액션
-                        #if os(watchOS)
                         WKInterfaceDevice.current().play(.success)
-                        #endif
                     }) {
                         Text("햅틱 테스트")
                             .font(.system(size: 12, weight: .semibold))
@@ -129,4 +126,5 @@ struct ConnectionStatusView_Previews: PreviewProvider {
         ConnectionStatusView()
             .environmentObject(AppState())
     }
-} 
+}
+#endif 

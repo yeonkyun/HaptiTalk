@@ -5,11 +5,11 @@
 //  Created on 5/15/25.
 //
 
-import SwiftUI
 #if os(watchOS)
+import SwiftUI
 import WatchKit
-#endif
 
+@available(watchOS 6.0, *)
 struct SessionProgressView: View {
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var appState: AppState
@@ -125,11 +125,7 @@ struct SessionProgressView: View {
                                     Rectangle()
                                         .fill(Color(.sRGB, red: 0.25, green: 0.32, blue: 0.71, opacity: 1.0)) // #3F51B5
                                         .frame(width: {
-                                            #if os(watchOS)
                                             return WKInterfaceDevice.current().screenBounds.width * 0.75 * speakingSpeed
-                                            #else
-                                            return 120 * speakingSpeed // fallback for iOS
-                                            #endif
                                         }(), height: 4)
                                         .cornerRadius(2)
                                 }
@@ -283,4 +279,5 @@ struct SessionProgressView_Previews: PreviewProvider {
         SessionProgressView()
             .environmentObject(AppState())
     }
-} 
+}
+#endif 

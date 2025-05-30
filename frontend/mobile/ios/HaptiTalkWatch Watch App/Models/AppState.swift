@@ -5,12 +5,11 @@
 //  Created on 5/13/25.
 //
 
+#if os(watchOS)
 import Foundation
 import SwiftUI
 import Combine
-#if os(watchOS)
 import WatchKit
-#endif
 import WatchConnectivity
 
 @available(watchOS 6.0, *)
@@ -104,6 +103,18 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
                 print("Watch: Session activation error - \(error.localizedDescription)")
             }
             self.updateConnectionStatus()
+            
+            // 🚀 Watch에서 먼저 iPhone에 연결 신호 전송
+            if activationState == .activated {
+                let connectionSignal = [
+                    "action": "watchConnected",
+                    "watchReady": true,
+                    "timestamp": Date().timeIntervalSince1970
+                ] as [String : Any]
+                
+                self.sendToiPhone(message: connectionSignal)
+                print("Watch: 📡 iPhone에 연결 신호 전송")
+            }
         }
     }
     
@@ -111,6 +122,35 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
         print("Watch received message from iPhone: \(message)")
         DispatchQueue.main.async {
             self.handleMessageFromiPhone(message)
+            
+            // iPhone에 응답 보내기 - Watch 앱이 살아있다는 신호
+            let response = [
+                "status": "received",
+                "action": message["action"] as? String ?? "unknown",
+                "timestamp": Date().timeIntervalSince1970,
+                "watchAppActive": true
+            ] as [String : Any]
+            
+            self.sendToiPhone(message: response)
+            print("Watch: 📡 iPhone에 응답 전송 - \(response)")
+        }
+    }
+    
+    func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
+        print("Watch received message with reply handler from iPhone: \(message)")
+        DispatchQueue.main.async {
+            self.handleMessageFromiPhone(message)
+            
+            // iPhone에 직접 응답
+            let response = [
+                "status": "received",
+                "action": message["action"] as? String ?? "unknown", 
+                "timestamp": Date().timeIntervalSince1970,
+                "watchAppActive": true
+            ] as [String : Any]
+            
+            replyHandler(response)
+            print("Watch: 📡 iPhone에 직접 응답 완료 - \(response)")
         }
     }
     
@@ -328,4 +368,5 @@ struct SessionSummary: Identifiable {
     var likeabilityPercent: String
     var coreFeedback: String
     var date: Date
-} 
+}
+#endif 

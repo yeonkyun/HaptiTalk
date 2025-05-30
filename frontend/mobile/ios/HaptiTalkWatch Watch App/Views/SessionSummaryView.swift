@@ -1,5 +1,7 @@
+#if os(watchOS)
 import SwiftUI
 
+@available(watchOS 6.0, *)
 struct SessionSummaryView: View {
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var appState: AppState
@@ -192,4 +194,5 @@ struct SessionSummaryView: View {
 #Preview {
     SessionSummaryView()
         .environmentObject(AppState())
-} 
+}
+#endif 
