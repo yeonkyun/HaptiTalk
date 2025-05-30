@@ -33,20 +33,17 @@ const logger = winston.createLogger({
 });
 
 // 개발 환경에서는 콘솔에 출력
-if (process.env.NODE_ENV !== 'production') {
-    logger.add(new winston.transports.Console({
-        format: format.combine(
-            format.colorize(),
-            format.printf(info => {
-                const { timestamp, level, message, metadata } = info;
-                const metaStr = Object.keys(metadata).length ? 
-                    ` ${JSON.stringify(metadata)}` : '';
-                
-                return `${timestamp} ${level}: [${SERVICE_NAME}] ${message}${metaStr}`;
-            })
-        ),
-    }));
-}
+logger.add(new winston.transports.Console({
+    format: format.combine(
+        format.colorize(),
+        format.printf(info => {
+            const { timestamp, level, message, metadata } = info;
+            const metaStr = Object.keys(metadata).length ? 
+                ` ${JSON.stringify(metadata)}` : '';
+            return `${timestamp} ${level}: [${SERVICE_NAME}] ${message}${metaStr}`;
+        })
+    ),
+}));
 
 // HTTP 요청 로깅 미들웨어
 logger.requestMiddleware = (req, res, next) => {
