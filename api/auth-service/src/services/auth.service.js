@@ -18,6 +18,7 @@ const authService = {
             // Check if user with email already exists
             const existingUser = await User.findByEmail(userData.email);
             if (existingUser) {
+                logger.warn(`회원가입 실패 - 이미 등록된 이메일: ${userData.email}`);
                 const error = new Error('Email already registered');
                 error.statusCode = httpStatus.CONFLICT;
                 throw error;
@@ -34,6 +35,8 @@ const authService = {
                 is_active: true,
                 is_verified: false
             });
+
+            logger.info(`회원가입 성공: ${userData.email} (ID: ${user.id})`);
 
             return {
                 id: user.id,
@@ -59,6 +62,7 @@ const authService = {
             // Find user by email
             const user = await User.findByEmail(email);
             if (!user) {
+                logger.warn(`로그인 실패 - 존재하지 않는 이메일: ${email}`);
                 const error = new Error('Invalid email or password');
                 error.statusCode = httpStatus.UNAUTHORIZED;
                 throw error;
@@ -66,6 +70,7 @@ const authService = {
 
             // Check if account is locked
             if (user.locked_until && user.locked_until > new Date()) {
+                logger.warn(`로그인 실패 - 계정 잠금: ${email} (잠금 해제: ${user.locked_until})`);
                 const error = new Error('Account is locked. Try again later');
                 error.statusCode = httpStatus.FORBIDDEN;
                 error.lockUntil = user.locked_until;
@@ -81,11 +86,13 @@ const authService = {
                 // Check if account should be locked
                 if (user.login_attempts + 1 >= MAX_LOGIN_ATTEMPTS) {
                     await User.lockAccount(user.id, LOCK_TIME_MINUTES);
+                    logger.warn(`계정 잠금 처리: ${email} (로그인 시도 횟수 초과)`);
                     const error = new Error(`Account locked due to too many failed attempts. Try again after ${LOCK_TIME_MINUTES} minutes`);
                     error.statusCode = httpStatus.FORBIDDEN;
                     throw error;
                 }
 
+                logger.warn(`로그인 실패 - 잘못된 비밀번호: ${email} (시도 횟수: ${user.login_attempts + 1})`);
                 const error = new Error('Invalid email or password');
                 error.statusCode = httpStatus.UNAUTHORIZED;
                 throw error;
@@ -99,6 +106,16 @@ const authService = {
 
             // Generate auth tokens
             const tokens = await tokenService.generateAuthTokens(user);
+
+            logger.info(`로그인 성공: ${email} (ID: ${user.id})`, {
+                userId: user.id,
+                deviceInfo: deviceInfo ? {
+                    type: deviceInfo.type,
+                    os: deviceInfo.os,
+                    browser: deviceInfo.browser
+                } : null,
+                lastLogin: user.last_login
+            });
 
             return {
                 user: {
@@ -126,6 +143,10 @@ const authService = {
                 tokenService.revokeAccessToken(accessToken),
                 tokenService.revokeRefreshToken(refreshToken)
             ]);
+
+            logger.info('로그아웃 성공', {
+                timestamp: new Date().toISOString()
+            });
         } catch (error) {
             logger.error('Error during logout:', error);
             throw error;
@@ -154,6 +175,8 @@ const authService = {
             // Generate new tokens
             const tokens = await tokenService.generateAuthTokens(user);
 
+            logger.info(`토큰 갱신 성공: ${user.email} (ID: ${user.id})`);
+
             return tokens;
         } catch (error) {
             logger.error('Error refreshing auth:', error);
@@ -171,6 +194,7 @@ const authService = {
             // Find user with verification token
             const user = await User.findOne({where: {verification_token: verificationToken}});
             if (!user) {
+                logger.warn(`이메일 인증 실패 - 유효하지 않은 토큰: ${verificationToken}`);
                 const error = new Error('Invalid or expired verification token');
                 error.statusCode = httpStatus.BAD_REQUEST;
                 throw error;
@@ -181,6 +205,8 @@ const authService = {
                 is_verified: true,
                 verification_token: null
             });
+
+            logger.info(`이메일 인증 성공: ${user.email} (ID: ${user.id})`);
 
             return {
                 id: user.id,
@@ -203,6 +229,7 @@ const authService = {
             // Find user by email
             const user = await User.findByEmail(email);
             if (!user) {
+                logger.info(`비밀번호 재설정 요청 - 존재하지 않는 이메일: ${email}`);
                 // For security, don't reveal that email doesn't exist
                 return {message: 'If your email is registered, you will receive a password reset link'};
             }
@@ -215,6 +242,11 @@ const authService = {
             await user.update({
                 reset_token: resetToken,
                 reset_token_expires_at: resetTokenExpires
+            });
+
+            logger.info(`비밀번호 재설정 토큰 생성: ${email}`, {
+                userId: user.id,
+                expiresAt: resetTokenExpires
             });
 
             return {
@@ -245,6 +277,7 @@ const authService = {
             });
 
             if (!user) {
+                logger.warn(`비밀번호 재설정 실패 - 유효하지 않은 토큰: ${resetToken}`);
                 const error = new Error('Invalid or expired reset token');
                 error.statusCode = httpStatus.BAD_REQUEST;
                 throw error;
@@ -258,6 +291,8 @@ const authService = {
                 login_attempts: 0,
                 locked_until: null
             });
+
+            logger.info(`비밀번호 재설정 성공: ${user.email} (ID: ${user.id})`);
 
             return {
                 id: user.id,

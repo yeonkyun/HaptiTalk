@@ -86,7 +86,13 @@ class SessionService {
                 timestamp: new Date().toISOString()
             });
 
-            logger.info(`Session created: ${session.id} for user ${user_id}`);
+            logger.info(`세션 생성 성공: ${session.id}`, {
+                userId: user_id,
+                sessionType: type,
+                title: title,
+                sessionId: session.id
+            });
+            
             return session;
         } catch (error) {
             logger.error('Error creating session:', error);
@@ -110,9 +116,11 @@ class SessionService {
                 const dbSession = await Session.findByPk(sessionId);
 
                 if (!dbSession) {
+                    logger.warn(`세션 조회 실패 - 존재하지 않는 세션: ${sessionId}`);
                     throw new Error(`Session not found: ${sessionId}`);
                 }
 
+                logger.debug(`세션 조회 성공 (캐시): ${sessionId}`);
                 return {
                     ...dbSession.get({plain: true}),
                     cached_status: cachedStatus
@@ -123,9 +131,11 @@ class SessionService {
             const session = await Session.findByPk(sessionId);
 
             if (!session) {
+                logger.warn(`세션 조회 실패 - 존재하지 않는 세션: ${sessionId}`);
                 throw new Error(`Session not found: ${sessionId}`);
             }
 
+            logger.debug(`세션 조회 성공 (DB): ${sessionId}`);
             return session;
         } catch (error) {
             logger.error(`Error getting session ${sessionId}:`, error);
@@ -166,6 +176,12 @@ class SessionService {
                     'id', 'title', 'type', 'status', 'start_time', 'end_time',
                     'duration', 'created_at', 'updated_at'
                 ]
+            });
+
+            logger.info(`사용자 세션 목록 조회 성공: ${userId}`, {
+                sessionCount: sessions.count,
+                limit: limit,
+                offset: offset
             });
 
             return sessions;
@@ -244,6 +260,11 @@ class SessionService {
                         // 세션 시작 처리
                         if (!session.start_time) {
                             await session.update({start_time: new Date()});
+                            logger.info(`세션 시작: ${sessionId}`, {
+                                userId: session.user_id,
+                                sessionType: session.type,
+                                startTime: new Date().toISOString()
+                            });
                         }
                         break;
 
@@ -259,6 +280,12 @@ class SessionService {
                                 end_time: endTime,
                                 duration
                             });
+
+                            logger.info(`세션 자동 종료: ${sessionId}`, {
+                                userId: session.user_id,
+                                duration: duration,
+                                endTime: endTime.toISOString()
+                            });
                         }
                         break;
                 }
@@ -273,7 +300,11 @@ class SessionService {
                 timestamp: new Date().toISOString()
             });
 
-            logger.info(`Session updated: ${sessionId}`);
+            logger.info(`세션 업데이트 성공: ${sessionId}`, {
+                updatedFields: Object.keys(updates),
+                newStatus: session.status
+            });
+            
             return session;
         } catch (error) {
             logger.error(`Error updating session ${sessionId}:`, error);
@@ -343,7 +374,14 @@ class SessionService {
                 timestamp: new Date().toISOString()
             });
 
-            logger.info(`Session ended: ${sessionId}, duration: ${duration}s`);
+            logger.info(`세션 종료 성공: ${sessionId}`, {
+                userId: session.user_id,
+                sessionType: session.type,
+                duration: duration,
+                startTime: session.start_time,
+                endTime: endTime.toISOString()
+            });
+            
             return session;
         } catch (error) {
             logger.error(`Error ending session ${sessionId}:`, error);
@@ -362,11 +400,17 @@ class SessionService {
             const session = await Session.findByPk(sessionId);
 
             if (!session) {
+                logger.warn(`세션 요약 업데이트 실패 - 존재하지 않는 세션: ${sessionId}`);
                 throw new Error(`Session not found: ${sessionId}`);
             }
 
             await session.update({summary: summaryData});
-            logger.info(`Session summary updated: ${sessionId}`);
+            
+            logger.info(`세션 요약 업데이트 성공: ${sessionId}`, {
+                userId: session.user_id,
+                summaryKeys: Object.keys(summaryData || {})
+            });
+            
             return session;
         } catch (error) {
             logger.error(`Error updating session summary ${sessionId}:`, error);

@@ -26,95 +26,52 @@ const validateSession = async (sessionId, userId, redisClient) => {
             return null;
         });
 
+        // 2. 캐시에 세션이 있으면 캐시 데이터로 유효성 검증
         if (sessionData) {
             const session = JSON.parse(sessionData);
-
-            // 세션 상태 확인
-            if (session.status !== 'active') {
-                logger.warn(`활성 상태가 아닌 세션: ${sessionId}, 현재 상태: ${session.status}`);
-                return false;
-            }
-
-            // 사용자가 세션 소유자인 경우
-            if (session.user_id === userId) {
-                return true;
-            }
-
-            // 초대된 참가자 확인 (회복성 패턴 적용)
-            const participantKey = `session:${sessionId}:participant:${userId}`;
-            const participantData = await withRedisResilience(
-                async () => redisClient.get(participantKey),
-                { operationName: 'get_participant_cache' }
-            ).catch(error => {
-                logger.warn('참가자 정보 Redis 조회 실패', { error: error.message });
-                return null;
-            });
+            const isValid = session.status === 'active' && 
+                           (session.user_id === userId || session.participants?.includes(userId));
             
-            if (participantData) {
-                return true;
+            if (isValid) {
+                logger.info(`세션 유효성 검증 성공 (캐시): ${sessionId}`, {
+                    userId,
+                    sessionStatus: session.status,
+                    source: 'cache'
+                });
+            } else {
+                logger.warn(`세션 유효성 검증 실패 (캐시): ${sessionId}`, {
+                    userId,
+                    sessionStatus: session.status,
+                    reason: 'invalid_status_or_not_participant'
+                });
             }
+            
+            return isValid;
         }
 
-        // 2. Redis에 없는 경우 세션 서비스 API를 통해 검증 (회복성 패턴 적용)
-        logger.info(`Redis에 세션 ${sessionId} 정보가 없어 API 호출로 검증합니다`);
-        
-        const isValid = await sessionServiceClient.get(`/api/v1/sessions/${sessionId}/validate/${userId}`, {
-            resilienceOptions: {
-                fallbackKey: 'validateSession',
-                service: 'session',
-                operation: 'validateSession'
-            }
-        }).catch(error => {
-            logger.error('세션 검증 API 호출 실패', { error: error.message });
-            return false;
-        });
+        // 3. 캐시에 없으면 세션 서비스 API 호출
+        logger.debug(`세션 캐시 미스 - API 호출: ${sessionId}`);
+        const isValid = await sessionApiService.validateSession(sessionId, userId);
         
         if (isValid) {
-            // API 검증 결과가 유효할 경우, Redis에 세션 정보 캐싱
-            try {
-                const sessionInfo = await sessionServiceClient.get(`/api/v1/sessions/${sessionId}`, {
-                    resilienceOptions: {
-                        fallbackKey: 'getSession',
-                        service: 'session',
-                        operation: 'getSession'
-                    }
-                });
-
-                await withRedisResilience(
-                    async () => redisClient.set(sessionKey, JSON.stringify({
-                        status: sessionInfo.status,
-                        user_id: sessionInfo.user_id,
-                        session_type: sessionInfo.type,
-                        start_time: sessionInfo.created_at
-                    }), 'EX', SESSION_CACHE_EXPIRY),
-                    { operationName: 'cache_session_info' }
-                ).catch(error => {
-                    logger.warn('세션 정보 캐싱 실패', { error: error.message });
-                });
-                
-                if (sessionInfo.participants) {
-                    // 참가자 정보도 캐싱
-                    for (const participant of sessionInfo.participants) {
-                        const participantKey = `session:${sessionId}:participant:${participant.user_id}`;
-                        await withRedisResilience(
-                            async () => redisClient.set(participantKey, JSON.stringify(participant), 'EX', SESSION_CACHE_EXPIRY),
-                            { operationName: 'cache_participant_info' }
-                        ).catch(error => {
-                            logger.warn('참가자 정보 캐싱 실패', { error: error.message });
-                        });
-                    }
-                }
-                
-                logger.debug(`세션 ${sessionId} 정보를 Redis에 캐싱했습니다`);
-            } catch (cacheError) {
-                logger.error(`세션 정보 캐싱 오류: ${cacheError.message}`);
-                // 캐싱 실패는 무시하고 계속 진행
-            }
+            logger.info(`세션 유효성 검증 성공 (API): ${sessionId}`, {
+                userId,
+                source: 'api'
+            });
+        } else {
+            logger.warn(`세션 유효성 검증 실패 (API): ${sessionId}`, {
+                userId,
+                source: 'api'
+            });
         }
-        
+
         return isValid;
+
     } catch (error) {
-        logger.error(`세션 검증 오류: ${error.message}`);
+        logger.error(`세션 유효성 검증 오류: ${sessionId}`, {
+            userId,
+            error: error.message
+        });
         return false;
     }
 };
@@ -278,4 +235,112 @@ const getSessionStatus = async (sessionId, redisClient) => {
     }
 };
 
-module.exports = {validateSession, getSessionStatus};
+/**
+ * 실시간 세션 참가자 추가
+ * @param {string} sessionId - 세션 ID
+ * @param {string} userId - 사용자 ID
+ * @param {Object} connectionInfo - 연결 정보
+ * @param {Redis} redisClient - Redis 클라이언트
+ * @returns {Promise<boolean>} - 참가자 추가 성공 여부
+ */
+const addParticipant = async (sessionId, userId, connectionInfo, redisClient) => {
+    try {
+        // 1. 세션 유효성 먼저 검증
+        const isValidSession = await validateSession(sessionId, userId, redisClient);
+        if (!isValidSession) {
+            logger.warn(`참가자 추가 실패 - 유효하지 않은 세션: ${sessionId}`, {
+                userId
+            });
+            return false;
+        }
+
+        // 2. Redis에 참가자 정보 저장
+        const participantKey = `session:${sessionId}:participants`;
+        const participantData = {
+            userId,
+            joinedAt: new Date().toISOString(),
+            connectionInfo,
+            isActive: true
+        };
+
+        await withRedisResilience(
+            async () => redisClient.hset(participantKey, userId, JSON.stringify(participantData)),
+            { operationName: 'add_participant' }
+        );
+
+        // 3. 세션 서비스에 참가자 추가 알림
+        try {
+            await sessionApiService.addParticipant(sessionId, userId);
+            logger.info(`참가자 추가 성공: ${sessionId}`, {
+                userId,
+                participantCount: await getParticipantCount(sessionId, redisClient)
+            });
+        } catch (apiError) {
+            logger.warn('세션 서비스 참가자 추가 알림 실패', {
+                sessionId,
+                userId,
+                error: apiError.message
+            });
+        }
+
+        return true;
+
+    } catch (error) {
+        logger.error(`참가자 추가 오류: ${sessionId}`, {
+            userId,
+            error: error.message
+        });
+        return false;
+    }
+};
+
+/**
+ * 실시간 세션 참가자 제거
+ * @param {string} sessionId - 세션 ID
+ * @param {string} userId - 사용자 ID
+ * @param {Redis} redisClient - Redis 클라이언트
+ * @returns {Promise<boolean>} - 참가자 제거 성공 여부
+ */
+const removeParticipant = async (sessionId, userId, redisClient) => {
+    try {
+        // 1. Redis에서 참가자 정보 제거
+        const participantKey = `session:${sessionId}:participants`;
+        const removed = await withRedisResilience(
+            async () => redisClient.hdel(participantKey, userId),
+            { operationName: 'remove_participant' }
+        );
+
+        if (removed) {
+            logger.info(`참가자 제거 성공: ${sessionId}`, {
+                userId,
+                remainingParticipants: await getParticipantCount(sessionId, redisClient)
+            });
+        } else {
+            logger.warn(`참가자 제거 실패 - 존재하지 않는 참가자: ${sessionId}`, {
+                userId
+            });
+        }
+
+        // 2. 세션 서비스에 참가자 제거 알림
+        try {
+            await sessionApiService.removeParticipant(sessionId, userId);
+        } catch (apiError) {
+            logger.warn('세션 서비스 참가자 제거 알림 실패', {
+                sessionId,
+                userId,
+                error: apiError.message
+            });
+        }
+
+        return !!removed;
+
+    } catch (error) {
+        logger.error(`참가자 제거 오류: ${sessionId}`, {
+            userId,
+            error: error.message
+        });
+        return false;
+    }
+};
+
+module.exports = {validateSession, getSessionStatus, addParticipant, removeParticipant};

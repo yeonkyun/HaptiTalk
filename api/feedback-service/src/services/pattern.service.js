@@ -21,6 +21,12 @@ const getAllPatterns = async ({category, active}) => {
             order: [['category', 'ASC'], ['name', 'ASC']]
         });
 
+        logger.info(`햅틱 패턴 목록 조회 성공`, {
+            filterCategory: category,
+            filterActive: active,
+            resultCount: patterns.length
+        });
+
         return patterns;
     } catch (error) {
         logger.error('Error in getAllPatterns:', error);
@@ -34,6 +40,17 @@ const getAllPatterns = async ({category, active}) => {
 const getPatternById = async (id) => {
     try {
         const pattern = await HapticPattern.findByPk(id);
+        
+        if (pattern) {
+            logger.info(`햅틱 패턴 조회 성공: ${id}`, {
+                patternName: pattern.name,
+                category: pattern.category,
+                isActive: pattern.is_active
+            });
+        } else {
+            logger.warn(`햅틱 패턴 조회 실패 - 존재하지 않는 패턴: ${id}`);
+        }
+        
         return pattern;
     } catch (error) {
         logger.error(`Error in getPatternById for id ${id}:`, error);
@@ -52,6 +69,12 @@ const createPattern = async (patternData) => {
             updated_at: new Date()
         });
 
+        logger.info(`햅틱 패턴 생성 성공: ${newPattern.id}`, {
+            patternName: newPattern.name,
+            category: newPattern.category,
+            durationMs: newPattern.duration_ms
+        });
+
         return newPattern;
     } catch (error) {
         logger.error('Error in createPattern:', error);
@@ -67,12 +90,18 @@ const updatePattern = async (id, updateData) => {
         const pattern = await HapticPattern.findByPk(id);
 
         if (!pattern) {
+            logger.warn(`햅틱 패턴 업데이트 실패 - 존재하지 않는 패턴: ${id}`);
             return null;
         }
 
         const updatedPattern = await pattern.update({
             ...updateData,
             updated_at: new Date()
+        });
+
+        logger.info(`햅틱 패턴 업데이트 성공: ${id}`, {
+            updatedFields: Object.keys(updateData),
+            patternName: updatedPattern.name
         });
 
         return updatedPattern;
@@ -105,10 +134,37 @@ const deactivatePattern = async (id) => {
     }
 };
 
+/**
+ * 햅틱 패턴 삭제
+ */
+const deletePattern = async (id) => {
+    try {
+        const pattern = await HapticPattern.findByPk(id);
+
+        if (!pattern) {
+            logger.warn(`햅틱 패턴 삭제 실패 - 존재하지 않는 패턴: ${id}`);
+            return false;
+        }
+
+        await pattern.destroy();
+
+        logger.info(`햅틱 패턴 삭제 성공: ${id}`, {
+            patternName: pattern.name,
+            category: pattern.category
+        });
+
+        return true;
+    } catch (error) {
+        logger.error(`Error in deletePattern for id ${id}:`, error);
+        throw error;
+    }
+};
+
 module.exports = {
     getAllPatterns,
     getPatternById,
     createPattern,
     updatePattern,
-    deactivatePattern
+    deactivatePattern,
+    deletePattern
 };

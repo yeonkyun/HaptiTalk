@@ -19,12 +19,18 @@ const generateFeedback = async (params) => {
     const { userId, sessionId, context, deviceId, timestamp } = params;
 
     try {
+        logger.debug(`피드백 생성 요청: 사용자 ${userId}, 세션 ${sessionId}`, {
+            context: context?.type || 'unknown',
+            deviceId
+        });
+
         // 1. 사용자 피드백 설정 조회
         const userSettings = await getUserSettings(userId);
 
         // 2. 피드백 생성 전 이전 피드백과의 간격 확인
         const shouldSendFeedback = await checkFeedbackInterval(userId, userSettings.minimum_interval_seconds);
         if (!shouldSendFeedback) {
+            logger.debug(`피드백 생성 스킵 - 최소 간격 미충족: ${userId}`);
             return null; // 최소 간격이 지나지 않았으면 피드백 생성하지 않음
         }
 
@@ -35,12 +41,14 @@ const generateFeedback = async (params) => {
         // 4. 피드백 결정 (가장 적절한 햅틱 패턴 선택)
         const feedbackDecision = decideFeedback(enhancedContext, userSettings);
         if (!feedbackDecision) {
+            logger.debug(`피드백 생성 스킵 - 적절한 피드백 없음: ${userId}`);
             return null; // 적절한 피드백이 없음
         }
 
         // 5. 햅틱 패턴 데이터 조회
         const pattern = await HapticPattern.findByPk(feedbackDecision.patternId);
         if (!pattern || !pattern.is_active) {
+            logger.warn(`피드백 생성 실패 - 패턴 없음 또는 비활성화: ${feedbackDecision.patternId}`);
             return null; // 패턴이 없거나 비활성화됨
         }
 
@@ -82,6 +90,7 @@ const generateFeedback = async (params) => {
         saveFeedbackHistory(feedbackHistoryData)
             .then(id => {
                 feedback.history_id = id;
+                logger.debug(`피드백 이력 저장 성공: ${id}`);
             })
             .catch(err => {
                 logger.error('Error saving feedback history:', err);
@@ -89,6 +98,15 @@ const generateFeedback = async (params) => {
 
         // 9. 마지막 피드백 시간 업데이트 (Redis)
         await redisClient.set(`feedback:last:${userId}`, new Date().toISOString());
+
+        logger.info(`피드백 생성 성공: ${feedback.id}`, {
+            userId,
+            sessionId,
+            feedbackType: feedbackDecision.type,
+            patternId: pattern.id,
+            priority: feedbackDecision.priority,
+            intensity: userSettings.haptic_strength
+        });
 
         return feedback;
     } catch (error) {
@@ -104,6 +122,7 @@ const checkFeedbackInterval = async (userId, minimumIntervalSeconds) => {
     try {
         const lastFeedbackTime = await redisClient.get(`feedback:last:${userId}`);
         if (!lastFeedbackTime) {
+            logger.debug(`첫 피드백 생성 허용: ${userId}`);
             return true; // 이전 피드백이 없으면 즉시 전송 가능
         }
 
@@ -111,7 +130,14 @@ const checkFeedbackInterval = async (userId, minimumIntervalSeconds) => {
         const last = new Date(lastFeedbackTime);
         const diffSeconds = (now - last) / 1000;
 
-        return diffSeconds >= minimumIntervalSeconds;
+        const allowed = diffSeconds >= minimumIntervalSeconds;
+        logger.debug(`피드백 간격 체크: ${userId}`, {
+            diffSeconds,
+            minimumIntervalSeconds,
+            allowed
+        });
+
+        return allowed;
     } catch (error) {
         logger.error(`Error in checkFeedbackInterval for userId ${userId}:`, error);
         return true; // 오류 발생 시 기본적으로 피드백 허용
