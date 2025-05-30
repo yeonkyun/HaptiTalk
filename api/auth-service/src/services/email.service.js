@@ -13,8 +13,11 @@ const emailService = {
             // 이메일 전송 로직 대신 로깅
             const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
 
-            logger.info(`Sending verification email to ${email} with token ${token}`);
-            logger.info(`Verification URL: ${verificationUrl}`);
+            logger.info(`인증 이메일 전송 성공: ${email}`, {
+                recipient: email,
+                tokenPrefix: token.substring(0, 8) + '...',
+                verificationUrl
+            });
 
             // 실제 구현에서는 nodemailer 등을 사용하여 이메일 전송
             return true;
@@ -34,8 +37,11 @@ const emailService = {
             // 이메일 전송 로직 대신 로깅
             const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
-            logger.info(`Sending password reset email to ${email} with token ${token}`);
-            logger.info(`Reset URL: ${resetUrl}`);
+            logger.info(`비밀번호 재설정 이메일 전송 성공: ${email}`, {
+                recipient: email,
+                tokenPrefix: token.substring(0, 8) + '...',
+                resetUrl
+            });
 
             // 실제 구현에서는 nodemailer 등을 사용하여 이메일 전송
             return true;

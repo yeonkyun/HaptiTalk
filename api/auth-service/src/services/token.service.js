@@ -55,6 +55,13 @@ const tokenService = {
                 expiresAt: decodedAccess.exp
             });
 
+            logger.info(`인증 토큰 생성 성공: ${user.id}`, {
+                userId: user.id,
+                email: user.email,
+                accessTokenExpiresAt: new Date(decodedAccess.exp * 1000),
+                refreshTokenExpiresAt: new Date(decodedRefresh.exp * 1000)
+            });
+
             return {
                 access: {
                     token: accessToken,
@@ -92,6 +99,12 @@ const tokenService = {
             );
 
             const decoded = jwt.decode(sessionToken);
+
+            logger.info(`세션 토큰 생성 성공: ${userId}`, {
+                userId,
+                sessionId,
+                expiresAt: new Date(decoded.exp * 1000)
+            });
 
             return {
                 token: sessionToken,
@@ -140,6 +153,12 @@ const tokenService = {
 
             // Verify token with JWT library
             const verified = jwt.verify(token, JWT_CONFIG.ACCESS_TOKEN.SECRET);
+            
+            logger.debug(`액세스 토큰 검증 성공: ${verified.sub}`, {
+                userId: verified.sub,
+                status: 'valid',
+                expiresIn: timeUntilExpiry
+            });
             
             return {
                 payload: verified,
@@ -238,6 +257,11 @@ const tokenService = {
                 throw new Error('Token does not match user');
             }
 
+            logger.debug(`리프레시 토큰 검증 성공: ${decoded.sub}`, {
+                userId: decoded.sub,
+                tokenId: decoded.jti
+            });
+
             return decoded;
         } catch (error) {
             if (error.name === 'JsonWebTokenError') {
@@ -262,6 +286,11 @@ const tokenService = {
             if (decoded.type !== 'session') {
                 throw new Error('Invalid token type');
             }
+
+            logger.debug(`세션 토큰 검증 성공: ${decoded.sub}`, {
+                userId: decoded.sub,
+                sessionId: decoded.session
+            });
 
             return decoded;
         } catch (error) {
@@ -290,6 +319,11 @@ const tokenService = {
             
             // Remove token metadata
             await redisHelpers.removeTokenMetadata(token);
+
+            logger.info(`액세스 토큰 폐기 성공: ${decoded.sub}`, {
+                userId: decoded.sub,
+                tokenType: decoded.type
+            });
         } catch (error) {
             logger.error('Error revoking access token:', error);
             throw error;
@@ -309,6 +343,11 @@ const tokenService = {
 
             // Remove refresh token from Redis
             await redisHelpers.removeRefreshToken(decoded.jti);
+
+            logger.info(`리프레시 토큰 폐기 성공: ${decoded.sub}`, {
+                userId: decoded.sub,
+                tokenId: decoded.jti
+            });
         } catch (error) {
             logger.error('Error revoking refresh token:', error);
             throw error;
@@ -363,6 +402,11 @@ const tokenService = {
             
             // Blacklist the old token
             await redisHelpers.blacklistToken(accessToken, jwt.decode(accessToken).exp);
+            
+            logger.info(`토큰 사전 갱신 성공: ${user.id}`, {
+                userId: user.id,
+                newTokenExpiresAt: new Date(decodedAccess.exp * 1000)
+            });
             
             return {
                 token: newAccessToken,

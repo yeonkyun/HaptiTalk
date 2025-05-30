@@ -7,7 +7,17 @@ const logger = require('../utils/logger');
  */
 const getFeedbackHistory = async (query, options) => {
     try {
-        return await getHistoryFromMongo(query, options);
+        const result = await getHistoryFromMongo(query, options);
+        
+        logger.info(`피드백 이력 조회 요청 처리 성공`, {
+            queryConditions: Object.keys(query),
+            resultCount: result.data.length,
+            totalCount: result.meta.total,
+            page: result.meta.page,
+            limit: result.meta.limit
+        });
+        
+        return result;
     } catch (error) {
         logger.error('Error in getFeedbackHistory:', error);
         throw error;
@@ -28,7 +38,16 @@ const canAccessSession = async (userId, sessionId) => {
             { projection: { _id: 1 } }
         );
 
-        return !!session; // 세션이 있으면 접근 가능
+        const hasAccess = !!session;
+        
+        logger.info(`세션 접근 권한 확인 완료: ${sessionId}`, {
+            userId,
+            sessionId,
+            hasAccess,
+            checkResult: hasAccess ? 'GRANTED' : 'DENIED'
+        });
+
+        return hasAccess;
     } catch (error) {
         logger.error(`Error in canAccessSession for userId ${userId}, sessionId ${sessionId}:`, error);
         return false;

@@ -41,7 +41,14 @@ const publishFeedbackSent = async (feedback) => {
     
     // sessionId를 키로 사용하여 같은 세션의 메시지가 같은 파티션에 전송되도록 함
     await kafkaClient.sendMessage(TOPICS.FEEDBACK_EVENTS, message, feedback.sessionId);
-    logger.debug(`피드백 전송 이벤트 발행 성공: ${feedback.id}`, { component: 'kafka' });
+    
+    logger.info(`피드백 전송 이벤트 발행 성공: ${feedback.id}`, {
+      feedbackId: feedback.id,
+      userId: feedback.userId,
+      sessionId: feedback.sessionId,
+      patternId: feedback.patternId,
+      topic: TOPICS.FEEDBACK_EVENTS
+    });
     
     return true;
   } catch (error) {
@@ -77,7 +84,14 @@ const publishFeedbackAcknowledged = async (feedbackId, data) => {
     };
     
     await kafkaClient.sendMessage(TOPICS.FEEDBACK_EVENTS, message, data.sessionId);
-    logger.debug(`피드백 확인 이벤트 발행 성공: ${feedbackId}`, { component: 'kafka' });
+    
+    logger.info(`피드백 확인 이벤트 발행 성공: ${feedbackId}`, {
+      feedbackId,
+      userId: data.userId,
+      sessionId: data.sessionId,
+      deviceId: data.deviceId,
+      topic: TOPICS.FEEDBACK_EVENTS
+    });
     
     return true;
   } catch (error) {
@@ -114,7 +128,14 @@ const publishFeedbackAnalytics = async (sessionId, analysisData) => {
     };
     
     await kafkaClient.sendMessage(TOPICS.FEEDBACK_ANALYTICS, message, sessionId);
-    logger.debug(`피드백 분석 이벤트 발행 성공: ${sessionId}`, { component: 'kafka' });
+    
+    logger.info(`피드백 분석 이벤트 발행 성공: ${sessionId}`, {
+      sessionId,
+      userId: analysisData.userId,
+      feedbackCount: analysisData.feedbackCount,
+      acknowledgementRate: analysisData.acknowledgementRate,
+      topic: TOPICS.FEEDBACK_ANALYTICS
+    });
     
     return true;
   } catch (error) {
@@ -153,12 +174,22 @@ const subscribeToSessionEvents = async (handleSessionStart, handleSessionEnd) =>
           case 'UPDATED':
             if (value.data && value.data.status === 'ACTIVE' && handleSessionStart) {
               await handleSessionStart(value.sessionId, value.userId, value);
+              logger.info(`세션 시작 이벤트 처리 성공: ${value.sessionId}`, {
+                sessionId: value.sessionId,
+                userId: value.userId,
+                action: value.action
+              });
             }
             break;
             
           case 'ENDED':
             if (handleSessionEnd) {
               await handleSessionEnd(value.sessionId, value.userId, value);
+              logger.info(`세션 종료 이벤트 처리 성공: ${value.sessionId}`, {
+                sessionId: value.sessionId,
+                userId: value.userId,
+                action: value.action
+              });
             }
             break;
             
@@ -174,7 +205,11 @@ const subscribeToSessionEvents = async (handleSessionStart, handleSessionEnd) =>
       }
     });
     
-    logger.info('세션 이벤트 구독 시작됨', { component: 'kafka' });
+    logger.info('세션 이벤트 구독 시작됨', { 
+      component: 'kafka',
+      topic: TOPICS.SESSION_EVENTS,
+      groupId: 'feedback-service-session-events'
+    });
     return true;
   } catch (error) {
     logger.error('세션 이벤트 구독 실패', {

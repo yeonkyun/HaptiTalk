@@ -12,6 +12,12 @@ const reportService = {
      */
     async generateSessionReport(userId, sessionId, options) {
         try {
+            logger.info(`리포트 생성 시작: 사용자 ${userId}, 세션 ${sessionId}`, {
+                detailLevel: options.detailLevel,
+                includeCharts: options.includeCharts,
+                format: options.format
+            });
+
             // MongoDB에서 세션 분석 데이터 조회
             const db = await mongodbService.getDb();
             const sessionAnalytics = await db.collection('sessionAnalytics').findOne({
@@ -20,6 +26,9 @@ const reportService = {
             });
 
             if (!sessionAnalytics) {
+                logger.warn(`리포트 생성 실패 - 세션 분석 데이터 없음: ${sessionId}`, {
+                    userId
+                });
                 throw new Error('Session analytics data not found');
             }
 
@@ -28,6 +37,11 @@ const reportService = {
                 sessionId,
                 userId
             }).toArray();
+
+            logger.debug(`리포트 데이터 조회 완료: ${sessionId}`, {
+                feedbackCount: feedbackHistory.length,
+                sessionDuration: sessionAnalytics.summary?.duration
+            });
 
             // 리포트 데이터 생성
             const reportData = {
@@ -72,6 +86,16 @@ const reportService = {
                 reportData.improvementAreas = reportData.improvementAreas.slice(0, 3);
             }
 
+            logger.info(`리포트 생성 성공: ${reportData._id}`, {
+                userId,
+                sessionId,
+                reportId: reportData._id.toString(),
+                sessionType: reportData.sessionType,
+                duration: reportData.duration,
+                insightsCount: reportData.overallInsights?.length || 0,
+                improvementAreasCount: reportData.improvementAreas?.length || 0
+            });
+
             return reportData;
         } catch (error) {
             logger.error(`Error generating report: ${error.message}`);
@@ -91,8 +115,18 @@ const reportService = {
             });
 
             if (!report) {
+                logger.warn(`리포트 조회 실패 - 존재하지 않는 리포트: ${reportId}`, {
+                    userId
+                });
                 throw new Error('Report not found');
             }
+
+            logger.info(`리포트 조회 성공: ${reportId}`, {
+                userId,
+                sessionId: report.sessionId,
+                sessionType: report.sessionType,
+                createdAt: report.createdAt
+            });
 
             return report;
         } catch (error) {
@@ -141,6 +175,17 @@ const reportService = {
                 })
                 .toArray();
 
+            logger.info(`사용자 리포트 목록 조회 성공: ${userId}`, {
+                totalReports: total,
+                returnedReports: reports.length,
+                page,
+                limit,
+                filters: {
+                    sessionType,
+                    dateRange: startDate && endDate ? `${startDate} ~ ${endDate}` : null
+                }
+            });
+
             return {
                 reports,
                 pagination: {
@@ -161,7 +206,7 @@ const reportService = {
      */
     async generateReportPdf(userId, reportId) {
         try {
-            logger.info('PDF generation is disabled');
+            logger.info(`PDF 생성 요청 (비활성화): 사용자 ${userId}, 리포트 ${reportId}`);
             // 임시 PDF 버퍼 반환
             return Buffer.from('PDF generation is disabled');
         } catch (error) {
@@ -175,6 +220,12 @@ const reportService = {
      */
     async generateComparisonReport(userId, sessionIds, metrics) {
         try {
+            logger.info(`비교 리포트 생성 시작: 사용자 ${userId}`, {
+                sessionCount: sessionIds.length,
+                sessions: sessionIds,
+                customMetrics: metrics ? metrics.length : 0
+            });
+
             const db = await mongodbService.getDb();
 
             // 세션 리포트 데이터 조회
@@ -186,6 +237,11 @@ const reportService = {
                 .toArray();
 
             if (reports.length !== sessionIds.length) {
+                logger.warn(`비교 리포트 생성 실패 - 일부 리포트 없음: ${userId}`, {
+                    requestedSessions: sessionIds.length,
+                    foundReports: reports.length,
+                    missingSessions: sessionIds.filter(id => !reports.find(r => r.sessionId === id))
+                });
                 throw new Error('One or more reports not found');
             }
 
@@ -195,6 +251,12 @@ const reportService = {
                 'emotionAnalysis.positive',
                 'keyMetrics.wordsPerMinute'
             ];
+
+            logger.info(`비교 리포트 생성 성공: ${userId}`, {
+                comparedSessions: reports.length,
+                metricsCompared: metricsToCompare.length,
+                reportGeneratedAt: new Date().toISOString()
+            });
 
             // 비교 데이터 구성
             const comparisonData = {

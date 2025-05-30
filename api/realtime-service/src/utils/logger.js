@@ -23,29 +23,29 @@ const logger = winston.createLogger({
         environment: process.env.NODE_ENV || 'development'
     },
     transports: [
-        // 파일 로깅 설정
-        new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-        new winston.transports.File({ filename: 'logs/combined.log' }),
+        // 콘솔 출력 (도커 로그용)
+        new winston.transports.Console({
+            format: process.env.NODE_ENV === 'production' 
+                ? format.json() // 프로덕션에서는 JSON 형식
+                : format.combine( // 개발 환경에서는 읽기 쉬운 형식
+                    format.colorize(),
+                    format.printf(info => {
+                        const { timestamp, level, message, metadata } = info;
+                        const metaStr = Object.keys(metadata).length ? 
+                            ` ${JSON.stringify(metadata)}` : '';
+                        return `${timestamp} ${level}: [${SERVICE_NAME}] ${message}${metaStr}`;
+                    })
+                )
+        }),
+        // 파일 로깅 설정 (옵션)
+        ...(process.env.LOG_TO_FILE === 'true' ? [
+            new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+            new winston.transports.File({ filename: 'logs/combined.log' })
+        ] : [])
     ],
     // 종료 시 로깅 처리
     exitOnError: false
 });
-
-// 개발 환경에서는 콘솔에 출력
-if (process.env.NODE_ENV !== 'production') {
-    logger.add(new winston.transports.Console({
-        format: format.combine(
-            format.colorize(),
-            format.printf(info => {
-                const { timestamp, level, message, metadata } = info;
-                const metaStr = Object.keys(metadata).length ? 
-                    ` ${JSON.stringify(metadata)}` : '';
-                
-                return `${timestamp} ${level}: [${SERVICE_NAME}] ${message}${metaStr}`;
-            })
-        ),
-    }));
-}
 
 // HTTP 요청 로깅 미들웨어
 logger.requestMiddleware = (req, res, next) => {
@@ -102,33 +102,6 @@ logger.errorMiddleware = (err, req, res, next) => {
     });
 
     next(err);
-};
-
-// 소켓 연결 로깅 헬퍼
-logger.socketLogger = {
-    connect: (socketId, userId) => {
-        logger.info('Socket connected', { socketId, userId });
-    },
-    disconnect: (socketId, userId, reason) => {
-        logger.info('Socket disconnected', { socketId, userId, reason });
-    },
-    join: (socketId, userId, room) => {
-        logger.info('Socket joined room', { socketId, userId, room });
-    },
-    leave: (socketId, userId, room) => {
-        logger.info('Socket left room', { socketId, userId, room });
-    },
-    error: (socketId, userId, error) => {
-        logger.error('Socket error', { 
-            socketId, 
-            userId, 
-            error: error.message,
-            stack: error.stack
-        });
-    },
-    message: (socketId, userId, event, data) => {
-        logger.debug('Socket message', { socketId, userId, event, data });
-    }
 };
 
 module.exports = logger;
