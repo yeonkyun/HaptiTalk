@@ -25,9 +25,9 @@ if [ $? -eq 0 ]; then
     echo "생성된 JWT 소비자 설정:"
     grep -A 5 "jwt_secrets:" $TEMP_FILE
     
-    # 임시 파일을 최종 위치로 복사
-    cp $TEMP_FILE /usr/local/kong/declarative/kong.yml
-    echo "설정 파일 복사 완료"
+    # 환경변수로 Kong이 읽을 수 있도록 설정
+    export KONG_DECLARATIVE_CONFIG=$TEMP_FILE
+    echo "Kong 설정 파일 경로 설정: $KONG_DECLARATIVE_CONFIG"
 else
     echo "Kong 설정 파일 생성 실패"
     exit 1
@@ -35,6 +35,6 @@ fi
 
 echo "환경변수 치환 완료!"
 
-# Kong 시작
+# Kong 시작 (올바른 명령어 사용)
 echo "Kong 시작..."
-exec kong docker-start 
+exec /docker-entrypoint.sh kong docker-start 
