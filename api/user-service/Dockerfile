@@ -2,6 +2,9 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# Node.js가 /app/api 디렉토리에서도 모듈을 찾도록 NODE_PATH 설정
+ENV NODE_PATH=/app/api
+
 # 패키지 파일 복사
 COPY api/user-service/package*.json ./
 
