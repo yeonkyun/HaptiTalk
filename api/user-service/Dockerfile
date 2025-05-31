@@ -1,35 +1,41 @@
 FROM node:18-alpine
 
+# Global workdir for the application
 WORKDIR /app
 
-# Node.js가 /app/api 디렉토리에서도 모듈을 찾도록 NODE_PATH 설정
-ENV NODE_PATH=/app/api
+# Set NODE_PATH to help Node resolve shared modules.
+# This path should contain the 'shared' directory.
+ENV NODE_PATH=/app
 
-# 1. user-service의 package.json 복사 및 메인 의존성 설치
+# --- Install dependencies for shared kafka-client module ---
+# Copy only package files first to leverage Docker cache
+COPY api/shared/kafka-client/package*.json /tmp/shared/kafka-client/
+RUN cd /tmp/shared/kafka-client && npm install --production
+
+# --- Install dependencies for the main user-service ---
 COPY api/user-service/package*.json ./
-RUN npm install --production # --production 플래그를 사용하여 개발 의존성은 제외할 수 있습니다.
+RUN npm install --production
 
-# 2. 공유 모듈 코드 복사
-COPY api/shared /app/api/shared
+# --- Copy source code ---
+# Copy shared module source code (e.g., kafka-client, etc.)
+COPY api/shared /app/shared
 
-# 3. 공유 모듈 (kafka-client) 의존성 설치
-#    주의: 공유 모듈이 여러 개이고 각자 package.json을 가진다면, 각 공유 모듈마다 이 단계를 반복하거나 스크립트로 처리해야 합니다.
-#    여기서는 kafka-client만 있다고 가정합니다.
-WORKDIR /app/api/shared/kafka-client  # kafka-client 디렉토리로 이동
-RUN npm install --production          # kafka-client의 의존성 설치
+# Copy main user-service source code
+# Ensure all necessary subdirectories of api/user-service are copied.
+# If your user-service has more than just 'src', add COPY lines for them.
+# For example: COPY api/user-service/config ./config
+COPY api/user-service/src ./src
 
-# 4. 다시 user-service의 작업 디렉토리로 돌아옴
-WORKDIR /app
+# Now, move the pre-installed node_modules for kafka-client to its final location
+# Ensure the target directory exists
+RUN mkdir -p /app/shared/kafka-client
+# Move node_modules. If it doesn't exist from the temp install, this won't create an error.
+RUN if [ -d /tmp/shared/kafka-client/node_modules ]; then mv /tmp/shared/kafka-client/node_modules /app/shared/kafka-client/; fi
+# Clean up temp directory
+RUN rm -rf /tmp/shared
 
-# 5. user-service 소스 코드 복사
-COPY api/user-service .
+# Healthcheck (update path if your healthcheck script is located elsewhere)
+HEALTHCHECK --interval=30s --timeout=30s --start-period=30s --retries=3 CMD node src/utils/healthcheck.js || exit 1
 
-# 헬스체크 및 시작 스크립트
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD wget -qO- http://localhost:${PORT:-3004}/health || exit 1
-
-# 포트 설정
-EXPOSE ${PORT}
-
-# 시작 명령어
-CMD ["npm", "start"]
+# Command to run the application
+CMD ["node", "src/app.js"]
