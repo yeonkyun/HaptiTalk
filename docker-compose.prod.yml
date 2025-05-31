@@ -174,7 +174,7 @@ services:
       - haptitalk_network
     restart: on-failure
 
-  # Kong API 게이트웨이 (헬스체크 개선)
+  # Kong API 게이트웨이 (환경변수 치환 적용)
   kong:
     image: ${KONG_IMAGE:-kong/kong-gateway:3.4.2.0}
     platform: linux/arm64
@@ -193,7 +193,9 @@ services:
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_APP_KEY_ID: ${JWT_APP_KEY_ID}
     volumes:
-      - ./infrastructure/api-gateway/kong.yml.template:/usr/local/kong/declarative/kong.yml:ro
+      - ./infrastructure/api-gateway/kong.yml.template:/usr/local/kong/declarative/kong.yml.template:ro
+      - ./infrastructure/api-gateway/entrypoint.sh:/usr/local/bin/entrypoint.sh:ro
+    entrypoint: ["/bin/bash", "/usr/local/bin/entrypoint.sh"]
     ports:
       - "${KONG_PROXY_PORT}:8000"
       - "${KONG_HTTPS_PORT}:8443"
