@@ -165,14 +165,11 @@ services:
       KONG_ADMIN_ACCESS_LOG: /dev/stdout
       KONG_PROXY_ERROR_LOG: /dev/stderr
       KONG_ADMIN_ERROR_LOG: /dev/stderr
-      KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
-      # API 문서 접근 인증 설정
-      API_DOCS_USERNAME: ${API_DOCS_USERNAME:-apidocs}
-      API_DOCS_PASSWORD: ${API_DOCS_PASSWORD:-haptitalk-docs}
-      # JWT 서비스 키 설정
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_PLUGINS: bundled
+      # JWT 관련 환경변수
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
-      JWT_APP_KEY_ID: ${JWT_APP_KEY_ID:-haptitalk-app-key}
-      JWT_ADMIN_KEY_ID: ${JWT_ADMIN_KEY_ID:-haptitalk-admin-key}
+      JWT_APP_KEY_ID: ${JWT_APP_KEY_ID}
     volumes:
       # 템플릿 파일을 컨테이너의 /tmp 디렉토리에 마운트
       - ./infrastructure/api-gateway/kong.yml.template:/tmp/kong.yml.template

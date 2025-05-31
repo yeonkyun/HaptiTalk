@@ -189,6 +189,9 @@ services:
       KONG_ADMIN_ERROR_LOG: /dev/stderr
       KONG_ADMIN_LISTEN: 0.0.0.0:8001
       KONG_PLUGINS: bundled
+      # JWT 관련 환경변수
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_APP_KEY_ID: ${JWT_APP_KEY_ID}
     volumes:
       - ./infrastructure/api-gateway/kong.yml:/usr/local/kong/declarative/kong.yml:ro
     ports:
@@ -641,6 +644,7 @@ services:
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - JWT_SESSION_SECRET=${JWT_SESSION_SECRET}
+      - JWT_APP_KEY_ID=${JWT_APP_KEY_ID}
       - JWT_ACCESS_EXPIRES_IN=${JWT_ACCESS_EXPIRES_IN}
       - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN}
       - JWT_SESSION_EXPIRES_IN=${JWT_SESSION_EXPIRES_IN}
@@ -827,6 +831,7 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
+      - NODE_PATH=/app
       - PORT=${USER_SERVICE_PORT}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}

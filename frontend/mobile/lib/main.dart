@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:haptitalk/config/app_config.dart';
 import 'package:haptitalk/config/routes.dart';
 import 'package:haptitalk/config/theme.dart';
@@ -17,9 +18,13 @@ import 'package:haptitalk/services/local_storage_service.dart';
 import 'package:haptitalk/services/navigation_service.dart';
 import 'package:haptitalk/widgets/common/buttons/primary_button.dart';
 import 'package:haptitalk/widgets/common/buttons/secondary_button.dart';
+import 'package:haptitalk/services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 환경변수 로드
+  await dotenv.load(fileName: '.env');
 
   // LocalStorageService 초기화
   await LocalStorageService.init();
@@ -33,6 +38,9 @@ void main() async {
   // 서비스 및 Repository 생성
   final apiService = ApiService.create();
   final localStorageService = LocalStorageService();
+
+  // AuthService 초기화
+  final authService = AuthService.create(apiService, localStorageService);
 
   final sessionRepository = SessionRepository(apiService, localStorageService);
   final analysisRepository =

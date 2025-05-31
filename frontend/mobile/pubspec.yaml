@@ -42,6 +42,8 @@ dependencies:
   intl: ^0.20.2
   uuid: ^4.5.1
   fl_chart: ^0.71.0
+  flutter_dotenv: ^5.1.0
+  web_socket_channel: ^2.4.0
 
 dev_dependencies:
   flutter_test:
@@ -71,6 +73,7 @@ flutter:
     - assets/icons/google.svg
     - assets/icons/apple.svg
     - assets/icons/kakao.svg
+    - .env
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

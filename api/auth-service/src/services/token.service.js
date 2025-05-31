@@ -16,14 +16,16 @@ const tokenService = {
             const tokenPayload = {
                 sub: user.id,
                 email: user.email,
-                type: 'access'
+                type: 'access',
+                kid: process.env.JWT_APP_KEY_ID
             };
 
             const refreshTokenId = uuidv4();
             const refreshPayload = {
                 sub: user.id,
                 jti: refreshTokenId, // JWT ID for token identification
-                type: 'refresh'
+                type: 'refresh',
+                kid: process.env.JWT_APP_KEY_ID
             };
 
             // Generate JWT tokens
@@ -89,7 +91,8 @@ const tokenService = {
             const payload = {
                 sub: userId,
                 session: sessionId,
-                type: 'session'
+                type: 'session',
+                kid: process.env.JWT_APP_KEY_ID
             };
 
             const sessionToken = jwt.sign(
@@ -381,7 +384,8 @@ const tokenService = {
             const tokenPayload = {
                 sub: user.id,
                 email: user.email,
-                type: 'access'
+                type: 'access',
+                kid: process.env.JWT_APP_KEY_ID
             };
             
             const newAccessToken = jwt.sign(

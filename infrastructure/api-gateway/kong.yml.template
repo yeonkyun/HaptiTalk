@@ -387,22 +387,3 @@ consumers:
       - algorithm: HS256
         key: "${JWT_APP_KEY_ID:-haptitalk-app-key}"
         secret: "${JWT_ACCESS_SECRET}"
-  
-  - username: haptitalk-admin
-    jwt_secrets:
-      - algorithm: HS256
-        key: "${JWT_ADMIN_KEY_ID:-haptitalk-admin-key}"
-        secret: "${JWT_ACCESS_SECRET}"
-    plugins:
-      - name: rate-limiting
-        config:
-          second: 10
-          minute: 100
-          hour: 1000
-          policy: local
-  
-  # API 문서 접근용 소비자
-  - username: api-docs-user
-    basicauth_credentials:
-      - username: "${API_DOCS_USERNAME:-apidocs}"
-        password: "${API_DOCS_PASSWORD:-haptitalk-docs}"

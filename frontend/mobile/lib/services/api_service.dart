@@ -27,6 +27,11 @@ class ApiService {
     headers.addAll(newHeaders);
   }
 
+  // 헤더 제거
+  void removeHeader(String key) {
+    headers.remove(key);
+  }
+
   // GET 요청
   Future<dynamic> get(String endpoint,
       {Map<String, dynamic>? queryParams}) async {
@@ -83,6 +88,22 @@ class ApiService {
       return _processResponse(response);
     } catch (e) {
       throw Exception('DELETE 요청 실패: $e');
+    }
+  }
+
+  // PATCH 요청
+  Future<dynamic> patch(String endpoint, {dynamic body}) async {
+    final uri = Uri.parse('$baseUrl$endpoint');
+
+    try {
+      final response = await http.patch(
+        uri,
+        headers: headers,
+        body: body != null ? json.encode(body) : null,
+      );
+      return _processResponse(response);
+    } catch (e) {
+      throw Exception('PATCH 요청 실패: $e');
     }
   }
 
