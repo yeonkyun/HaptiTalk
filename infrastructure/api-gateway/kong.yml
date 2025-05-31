@@ -389,5 +389,5 @@ consumers:
   - username: haptitalk-app
     jwt_secrets:
       - algorithm: HS256
-        key: "${JWT_APP_KEY_ID:-haptitalk-app-key}"
+        key: "${JWT_APP_KEY_ID}"
         secret: "${JWT_ACCESS_SECRET}"
