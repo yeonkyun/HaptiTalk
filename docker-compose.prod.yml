@@ -827,6 +827,7 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
+      - NODE_PATH=/app
       - PORT=${USER_SERVICE_PORT}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
