@@ -193,7 +193,7 @@ services:
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_APP_KEY_ID: ${JWT_APP_KEY_ID}
     volumes:
-      - ./infrastructure/api-gateway/kong.yml:/usr/local/kong/declarative/kong.yml:ro
+      - ./infrastructure/api-gateway/kong.yml.template:/usr/local/kong/declarative/kong.yml:ro
     ports:
       - "${KONG_PROXY_PORT}:8000"
       - "${KONG_HTTPS_PORT}:8443"
