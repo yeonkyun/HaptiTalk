@@ -39,17 +39,35 @@ class AuthService {
   // 로그인 메서드
   Future<bool> login(String email, String password) async {
     try {
+      print('🔄 로그인 시도: $email');
+      
+      // 로그인 전에 기존 Authorization 헤더 제거 (보안 및 API 설계 원칙)
+      _apiService.removeHeader('Authorization');
+      print('🔄 로그인 전 기존 Authorization 헤더 제거');
+      
       final response = await _apiService.post('/auth/login', body: {
         'email': email,
         'password': password,
       });
 
-      if (response['success'] == true && response['data'] != null) {
+      print('🔄 로그인 API 응답 타입: ${response.runtimeType}');
+      print('🔄 로그인 API 응답 내용: $response');
+
+      if (response is Map<String, dynamic> && response['success'] == true && response['data'] != null) {
         final data = response['data'];
+        print('🔄 응답 데이터: $data');
 
         // 토큰 저장
         _accessToken = data['access_token'];
         _refreshToken = data['refresh_token'];
+        
+        if (_accessToken == null || _refreshToken == null) {
+          print('❌ 토큰이 응답에 포함되지 않음: access_token=${_accessToken != null}, refresh_token=${_refreshToken != null}');
+          return false;
+        }
+        
+        print('🔑 액세스 토큰 수신: ${_accessToken?.substring(0, 20)}...');
+        print('🔑 리프레시 토큰 수신: ${_refreshToken?.substring(0, 20)}...');
         
         await _storageService.setItem('access_token', _accessToken!);
         await _storageService.setItem('refresh_token', _refreshToken!);
@@ -72,11 +90,23 @@ class AuthService {
           // 필요하다면 여기서 로그아웃 처리를 할 수도 있습니다.
           return false; // 프로필 조회 실패를 로그인 실패로 간주
         }
+      } else {
+        print('❌ 로그인 API 응답 오류: success=${response['success']}, data=${response['data']}');
+        print('❌ 전체 응답: $response');
+        return false;
       }
-      
-      return false;
     } catch (e) {
-      print('❌ 로그인 실패: $e');
+      print('❌ 로그인 실패 (예외 발생): $e');
+      print('❌ 예외 타입: ${e.runtimeType}');
+      if (e.toString().contains('401') || e.toString().contains('Unauthorized')) {
+        print('❌ 인증 실패: 이메일 또는 비밀번호가 올바르지 않습니다.');
+      } else if (e.toString().contains('404')) {
+        print('❌ API 엔드포인트를 찾을 수 없습니다.');
+      } else if (e.toString().contains('500')) {
+        print('❌ 서버 내부 오류가 발생했습니다.');
+      } else {
+        print('❌ 네트워크 또는 기타 오류: $e');
+      }
       return false;
     }
   }

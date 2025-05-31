@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:haptitalk/constants/colors.dart';
 import 'package:haptitalk/screens/auth/login_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:haptitalk/services/auth_service.dart';
+import 'package:haptitalk/screens/main/main_tab_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({Key? key}) : super(key: key);
@@ -24,6 +26,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _agreeTerms = false;
   bool _agreePrivacy = false;
   bool _agreeMarketing = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -358,14 +361,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       width: double.infinity,
                       height: 55,
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: _isLoading ? null : () async {
                           if (_formKey.currentState!.validate() &&
                               _agreeTerms &&
                               _agreePrivacy) {
-                            // 회원가입 처리 로직
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('회원가입 처리 중...')),
-                            );
+                            await _handleSignUp();
                           } else if (!_agreeTerms || !_agreePrivacy) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('필수 약관에 동의해주세요')),
@@ -378,14 +378,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text(
-                          '회원가입',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                '회원가입',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -628,5 +637,60 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ),
       child: Center(child: icon),
     );
+  }
+
+  Future<void> _handleSignUp() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
+      final name = _nameController.text.trim();
+
+      // AuthService를 사용한 회원가입
+      final success = await AuthService().register(email, password, name);
+
+      if (success) {
+        if (!mounted) return;
+        
+        // 회원가입 성공 시 로그인 화면으로 이동
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('회원가입이 완료되었습니다! 자동으로 로그인됩니다.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // 메인 화면으로 이동 (AuthService에서 자동 로그인됨)
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const MainTabScreen(),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('회원가입에 실패했습니다. 다시 시도해주세요.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('회원가입 오류: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('회원가입 중 오류가 발생했습니다: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 }

@@ -77,6 +77,83 @@ class SessionModel {
     );
   }
 
+  // API 응답에서 SessionModel 생성
+  factory SessionModel.fromApiJson(Map<String, dynamic> json) {
+    return SessionModel(
+      id: json['id'] ?? json['session_id'],
+      name: json['title'] ?? json['name'],
+      mode: _parseSessionMode(json['type'] ?? json['mode']),
+      analysisLevel: _parseAnalysisLevel(json['custom_settings']?['analysis_level'] ?? 'basic'),
+      recordingRetention: _parseRecordingRetention(json['custom_settings']?['recording_retention'] ?? 'none'),
+      createdAt: DateTime.parse(json['created_at'] ?? json['createdAt'] ?? DateTime.now().toIso8601String()),
+      endedAt: json['ended_at'] != null ? DateTime.parse(json['ended_at']) : null,
+      duration: Duration(seconds: json['duration_seconds'] ?? json['durationSeconds'] ?? 0),
+      isSmartWatchConnected: json['custom_settings']?['is_smart_watch_connected'] ?? json['isSmartWatchConnected'] ?? false,
+      recordingPath: json['recording_path'] ?? json['recordingPath'],
+      transcription: json['transcription'],
+      tags: json['tags'] != null
+          ? (json['tags'] as List)
+              .map((tag) => SessionTag.fromJson(tag))
+              .toList()
+          : null,
+      analysisResult: json['analysis_result'] != null || json['analysisResult'] != null
+          ? AnalysisResult.fromJson(json['analysis_result'] ?? json['analysisResult'])
+          : null,
+    );
+  }
+
+  // 문자열을 SessionMode로 변환
+  static SessionMode _parseSessionMode(String? mode) {
+    switch (mode?.toLowerCase()) {
+      case 'dating':
+        return SessionMode.dating;
+      case 'interview':
+        return SessionMode.interview;
+      case 'business':
+      case 'meeting':
+        return SessionMode.business;
+      case 'coaching':
+      case 'presentation':
+        return SessionMode.coaching;
+      default:
+        return SessionMode.dating; // 기본값
+    }
+  }
+
+  // 문자열을 AnalysisLevel로 변환
+  static AnalysisLevel _parseAnalysisLevel(String? level) {
+    switch (level?.toLowerCase()) {
+      case 'basic':
+        return AnalysisLevel.basic;
+      case 'standard':
+      case 'detailed':
+        return AnalysisLevel.standard;
+      case 'premium':
+      case 'comprehensive':
+        return AnalysisLevel.premium;
+      default:
+        return AnalysisLevel.basic; // 기본값
+    }
+  }
+
+  // 문자열을 RecordingRetention으로 변환
+  static RecordingRetention _parseRecordingRetention(String? retention) {
+    switch (retention?.toLowerCase()) {
+      case 'none':
+        return RecordingRetention.none;
+      case 'seven_days':
+      case 'sevendays':
+      case 'week':
+        return RecordingRetention.sevenDays;
+      case 'thirty_days':
+      case 'thirtydays':
+      case 'month':
+        return RecordingRetention.thirtyDays;
+      default:
+        return RecordingRetention.none; // 기본값
+    }
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
