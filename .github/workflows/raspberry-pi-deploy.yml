@@ -1054,12 +1054,13 @@ jobs:
             cp .env .env.backup || echo '기존 .env 파일이 없습니다.'
             
             # 환경 변수 파일에 GitHub Container Registry 설정 추가
-            echo 'GITHUB_REPOSITORY_OWNER=$(echo "${{ github.repository_owner }}" | tr "[:upper:]" "[:lower:]")' >> .env
-            echo 'IMAGE_TAG=${{ needs.prepare_deployment.outputs.image_tag }}' >> .env
-            echo 'KONG_IMAGE=kong/kong-gateway:3.4.2.0' >> .env
-            echo 'DEPLOY_TIMESTAMP=$(date +%Y%m%d_%H%M%S)' >> .env
-            echo 'DEPLOY_BRANCH=${{ github.ref_name }}' >> .env
-            echo 'DEPLOY_COMMIT=${{ github.sha }}' >> .env
+            OWNER_LOWERCASE=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+            echo "GITHUB_REPOSITORY_OWNER=${OWNER_LOWERCASE}" >> .env
+            echo "IMAGE_TAG=${{ needs.prepare_deployment.outputs.image_tag }}" >> .env
+            echo "KONG_IMAGE=kong/kong-gateway:3.4.2.0" >> .env
+            echo "DEPLOY_TIMESTAMP=$(date +%Y%m%d_%H%M%S)" >> .env
+            echo "DEPLOY_BRANCH=${{ github.ref_name }}" >> .env
+            echo "DEPLOY_COMMIT=${{ github.sha }}" >> .env
             
             # GitHub Container Registry 인증
             echo '${{ secrets.GHCR_PAT }}' | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
