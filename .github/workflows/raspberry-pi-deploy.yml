@@ -802,9 +802,10 @@ jobs:
           echo "JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}" >> .env
           echo "JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}" >> .env
           echo "JWT_SESSION_SECRET=${{ secrets.JWT_SESSION_SECRET }}" >> .env
+          echo "JWT_APP_KEY_ID=${{ secrets.JWT_APP_KEY_ID }}" >> .env
           echo "JWT_ACCESS_EXPIRES_IN=15m" >> .env
           echo "JWT_REFRESH_EXPIRES_IN=7d" >> .env
-          echo "JWT_SESSION_EXPIRES_IN=30d" >> .env
+          echo "JWT_SESSION_EXPIRES_IN=7d" >> .env
           echo "" >> .env
           echo "KAFKA_TOPIC_SESSION_EVENTS=session-events" >> .env
           echo "KAFKA_TOPIC_ANALYSIS_RESULTS=analysis-results" >> .env

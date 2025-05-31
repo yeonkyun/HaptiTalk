@@ -133,6 +133,10 @@ jobs:
           KAFKA_TOPIC_ANALYSIS_RESULTS: test-analysis-results
           KAFKA_TOPIC_FEEDBACK_COMMANDS: test-feedback-commands
           KAFKA_TOPIC_USER_ACTIVITY: test-user-activity
+          JWT_SESSION_EXPIRES_IN: 30d
+          EMAIL_FROM: no-reply@haptitalk.com
+          FRONTEND_URL: http://localhost:3000
+          LOG_LEVEL: info
       
       - name: Run API Gateway Tests
         run: |
@@ -143,8 +147,7 @@ jobs:
             # 환경 변수 적용해서 템플릿에서 실제 설정 파일 생성
             if [ -f "./kong.yml.template" ]; then
               export JWT_ACCESS_SECRET=test-jwt-access-secret
-              export API_DOCS_USERNAME=test
-              export API_DOCS_PASSWORD=test
+              export JWT_APP_KEY_ID=test-app-key
               
               cat kong.yml.template | envsubst > kong.yml
               
