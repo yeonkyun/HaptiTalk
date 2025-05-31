@@ -37,4 +37,4 @@ echo "환경변수 치환 완료!"
 
 # Kong 시작 (올바른 명령어 사용)
 echo "Kong 시작..."
-exec /docker-entrypoint.sh kong docker-start 
+exec /usr/local/bin/kong start --run-migrations 
