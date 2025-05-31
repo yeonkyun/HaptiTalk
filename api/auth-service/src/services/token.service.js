@@ -16,29 +16,37 @@ const tokenService = {
             const tokenPayload = {
                 sub: user.id,
                 email: user.email,
-                type: 'access',
-                kid: process.env.JWT_APP_KEY_ID
+                type: 'access'
             };
 
             const refreshTokenId = uuidv4();
             const refreshPayload = {
                 sub: user.id,
                 jti: refreshTokenId, // JWT ID for token identification
-                type: 'refresh',
-                kid: process.env.JWT_APP_KEY_ID
+                type: 'refresh'
             };
 
-            // Generate JWT tokens
+            // Generate JWT tokens with kid in header
             const accessToken = jwt.sign(
                 tokenPayload,
                 JWT_CONFIG.ACCESS_TOKEN.SECRET,
-                {expiresIn: JWT_CONFIG.ACCESS_TOKEN.EXPIRES_IN}
+                {
+                    expiresIn: JWT_CONFIG.ACCESS_TOKEN.EXPIRES_IN,
+                    header: {
+                        kid: process.env.JWT_APP_KEY_ID
+                    }
+                }
             );
 
             const refreshToken = jwt.sign(
                 refreshPayload,
                 JWT_CONFIG.REFRESH_TOKEN.SECRET,
-                {expiresIn: JWT_CONFIG.REFRESH_TOKEN.EXPIRES_IN}
+                {
+                    expiresIn: JWT_CONFIG.REFRESH_TOKEN.EXPIRES_IN,
+                    header: {
+                        kid: process.env.JWT_APP_KEY_ID
+                    }
+                }
             );
 
             // Decode tokens to get expiration time
@@ -91,14 +99,18 @@ const tokenService = {
             const payload = {
                 sub: userId,
                 session: sessionId,
-                type: 'session',
-                kid: process.env.JWT_APP_KEY_ID
+                type: 'session'
             };
 
             const sessionToken = jwt.sign(
                 payload,
                 JWT_CONFIG.SESSION_TOKEN.SECRET,
-                {expiresIn: JWT_CONFIG.SESSION_TOKEN.EXPIRES_IN}
+                {
+                    expiresIn: JWT_CONFIG.SESSION_TOKEN.EXPIRES_IN,
+                    header: {
+                        kid: process.env.JWT_APP_KEY_ID
+                    }
+                }
             );
 
             const decoded = jwt.decode(sessionToken);
@@ -384,14 +396,18 @@ const tokenService = {
             const tokenPayload = {
                 sub: user.id,
                 email: user.email,
-                type: 'access',
-                kid: process.env.JWT_APP_KEY_ID
+                type: 'access'
             };
             
             const newAccessToken = jwt.sign(
                 tokenPayload,
                 JWT_CONFIG.ACCESS_TOKEN.SECRET,
-                {expiresIn: JWT_CONFIG.ACCESS_TOKEN.EXPIRES_IN}
+                {
+                    expiresIn: JWT_CONFIG.ACCESS_TOKEN.EXPIRES_IN,
+                    header: {
+                        kid: process.env.JWT_APP_KEY_ID
+                    }
+                }
             );
             
             const decodedAccess = jwt.decode(newAccessToken);
