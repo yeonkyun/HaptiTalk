@@ -18,10 +18,13 @@ class ProfileService {
             }
 
             // 데이터베이스에서 조회
-            const profile = await Profile.findByPk(userId);
+            let profile = await Profile.findByPk(userId);
             if (!profile) {
-                logger.warn(`프로필 조회 실패 - 존재하지 않는 사용자: ${userId}`);
-                throw new Error('Profile not found');
+                logger.warn(`프로필이 존재하지 않음 - 기본 프로필 생성: ${userId}`);
+                
+                // 프로필이 없으면 기본 프로필 생성
+                profile = await this.createDefaultProfile(userId);
+                return profile;
             }
 
             logger.info(`프로필 조회 성공: ${userId}`);
