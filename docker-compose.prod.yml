@@ -174,12 +174,36 @@ services:
       - haptitalk_network
     restart: on-failure
 
-  # Kong API 게이트웨이 (헬스체크 개선)
+  # Kong 설정 초기화 서비스
+  kong-init:
+    image: alpine:latest
+    container_name: haptitalk-kong-init
+    environment:
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_APP_KEY_ID: ${JWT_APP_KEY_ID}
+    volumes:
+      - ./infrastructure/api-gateway/kong.yml:/tmp/kong.yml.template:ro
+      - kong_config:/tmp/kong_config
+    command: >
+      sh -c '
+        apk add --no-cache gettext &&
+        echo "Kong 설정 파일 환경변수 치환 시작..." &&
+        envsubst < /tmp/kong.yml.template > /tmp/kong_config/kong.yml &&
+        echo "환경변수 치환 완료!" &&
+        echo "생성된 JWT 소비자 설정:" &&
+        grep -A 5 "jwt_secrets:" /tmp/kong_config/kong.yml
+      '
+    networks:
+      - haptitalk_network
+
+  # Kong API 게이트웨이 (환경변수 치환 적용)
   kong:
     image: ${KONG_IMAGE:-kong/kong-gateway:3.4.2.0}
     platform: linux/arm64
     container_name: haptitalk-kong
     restart: unless-stopped
+    depends_on:
+      - kong-init
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /usr/local/kong/declarative/kong.yml
@@ -189,11 +213,8 @@ services:
       KONG_ADMIN_ERROR_LOG: /dev/stderr
       KONG_ADMIN_LISTEN: 0.0.0.0:8001
       KONG_PLUGINS: bundled
-      # JWT 관련 환경변수
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
-      JWT_APP_KEY_ID: ${JWT_APP_KEY_ID}
     volumes:
-      - ./infrastructure/api-gateway/kong.yml:/usr/local/kong/declarative/kong.yml:ro
+      - kong_config:/usr/local/kong/declarative:ro
     ports:
       - "${KONG_PROXY_PORT}:8000"
       - "${KONG_HTTPS_PORT}:8443"
@@ -983,4 +1004,6 @@ volumes:
     name: ${JAEGER_VOLUME_NAME:-jaeger_data}
   logstash_data:
     name: ${LOGSTASH_DATA_VOLUME_NAME:-logstash_data}
+  kong_config:
+    name: ${KONG_CONFIG_VOLUME_NAME:-kong_config}
     
