@@ -126,9 +126,10 @@ services:
     write_timeout: 60000  
     read_timeout: 60000
     routes:
-      # Socket.IO 경로 (HTTP로 시작하여 WebSocket으로 업그레이드)
-      - name: realtime-websocket-routes
+      # 실시간 서비스 API 및 Socket.IO 통합 경로
+      - name: realtime-api-routes  
         paths:
+          - /api/v1/realtime
           - /socket.io
         strip_path: false
         protocols:
@@ -137,14 +138,6 @@ services:
         preserve_host: false
         request_buffering: false
         response_buffering: false
-      # 실시간 서비스 API
-      - name: realtime-api-routes  
-        paths:
-          - /api/v1/realtime
-        strip_path: false
-        protocols:
-          - http
-          - https
     plugins:
       - name: cors
         config:
