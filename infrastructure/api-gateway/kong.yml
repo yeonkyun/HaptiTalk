@@ -177,8 +177,6 @@ services:
         protocols:
           - http
           - https
-          - ws
-          - wss
         preserve_host: false
         request_buffering: false
         response_buffering: false
