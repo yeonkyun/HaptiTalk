@@ -7,10 +7,60 @@ import numpy as np
 import whisperx
 from fastapi import WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
+import httpx
 
 from app.core.logging import logger
 from app.core.config import settings
 from app.services.stt_service import stt_processor
+
+
+async def call_emotion_analysis(audio_bytes: bytes, scenario: str, language: str) -> Optional[Dict[str, Any]]:
+    """
+    감정분석 서비스 호출
+    
+    Args:
+        audio_bytes: 오디오 바이너리 데이터
+        scenario: 시나리오 (dating, interview, presentation)
+        language: 언어 코드
+        
+    Returns:
+        감정분석 결과 또는 None (실패 시)
+    """
+    try:
+        emotion_service_url = "http://localhost:8001/api/v1/emotion/analyze_bytes"
+        
+        params = {
+            "scenario": scenario,
+            "language": language,
+            "apply_scenario_weights": True,
+            "top_k": 6  # 모든 감정 반환 (6개 모든 감정 라벨)
+        }
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:  # 타임아웃 30초로 증가
+            response = await client.post(
+                emotion_service_url,
+                content=audio_bytes,
+                params=params,
+                headers={"Content-Type": "application/octet-stream"}
+            )
+            
+            if response.status_code == 200:
+                emotion_result = response.json()
+                logger.debug(f"감정분석 완료 - 주 감정: {emotion_result['primary_emotion']['emotion_kr']} ({emotion_result['primary_emotion']['probability']:.3f})")
+                return emotion_result
+            else:
+                logger.warning(f"감정분석 서비스 오류: HTTP {response.status_code}")
+                return None
+                
+    except httpx.TimeoutException:
+        logger.warning("감정분석 서비스 호출 시간 초과")
+        return None
+    except httpx.ConnectError:
+        logger.warning("감정분석 서비스에 연결할 수 없습니다 (포트 8001)")
+        return None
+    except Exception as e:
+        logger.warning(f"감정분석 서비스 호출 중 오류: {str(e)}")
+        return None
 
 
 def calculate_segment_based_metrics(
@@ -598,6 +648,11 @@ class STTWebSocketManager:
             # 메시지 수신 대기
             while True:
                 try:
+                    # WebSocket 연결 상태 확인
+                    if websocket.client_state == WebSocketState.DISCONNECTED:
+                        logger.info(f"WebSocket이 이미 연결 해제됨: {connection_id}")
+                        break
+                    
                     logger.debug(f"WebSocket 메시지 수신 대기 중: {connection_id}")
                     # 메시지 수신
                     message = await websocket.receive()
@@ -615,15 +670,28 @@ class STTWebSocketManager:
                 
                 except WebSocketDisconnect:
                     # 연결이 종료된 경우
+                    logger.info(f"WebSocket 연결 종료됨: {connection_id}")
                     break
+                except RuntimeError as e:
+                    if "disconnect message has been received" in str(e):
+                        logger.info(f"WebSocket 연결이 이미 종료됨: {connection_id}")
+                        break
+                    else:
+                        logger.error(f"런타임 에러 발생: {connection_id} - {str(e)}", exc_info=True)
+                        break
                 except Exception as e:
                     # 기타 예외 처리
                     logger.error(f"메시지 수신 중 오류 발생: {connection_id} - {str(e)}", exc_info=True)
-                    # 오류 메시지 전송
-                    await self.connection_manager.send_json(connection_id, {
-                        "type": "error",
-                        "message": f"오류가 발생했습니다: {str(e)}"
-                    })
+                    # 오류 메시지 전송 시도 (연결이 유효한 경우에만)
+                    try:
+                        if websocket.client_state == WebSocketState.CONNECTED:
+                            await self.connection_manager.send_json(connection_id, {
+                                "type": "error",
+                                "message": f"오류가 발생했습니다: {str(e)}"
+                            })
+                    except:
+                        # 오류 메시지 전송 실패시 로그만 남기고 계속 진행
+                        logger.warning(f"오류 메시지 전송 실패: {connection_id}")
                     break
         
         finally:
@@ -770,6 +838,15 @@ class STTWebSocketManager:
                         # 속도 변동성 계산
                         variability_metrics = calculate_speech_variability(segments_list)
                         
+                        # 감정분석 서비스 호출 (병렬 처리)
+                        emotion_result = None
+                        try:
+                            # 오디오 바이트 데이터로 변환 (16-bit PCM으로 다시 변환)
+                            audio_bytes = (audio_np * 32768.0).astype(np.int16).tobytes()
+                            emotion_result = await call_emotion_analysis(audio_bytes, scenario, detected_language)
+                        except Exception as e:
+                            logger.warning(f"감정분석 서비스 호출 실패: {str(e)}")
+                        
                         # 결과 전송
                         try:
                             result_data = {
@@ -805,6 +882,20 @@ class STTWebSocketManager:
                                 # 세그먼트 상세 정보
                                 "segments": speech_metrics["segment_metrics"]
                             }
+                            
+                            # 감정분석 결과 추가
+                            if emotion_result:
+                                result_data["emotion_analysis"] = {
+                                    "primary_emotion": emotion_result["primary_emotion"],
+                                    "top_emotions": emotion_result["top_emotions"],
+                                    "scenario_applied": emotion_result["scenario_applied"],
+                                    "processing_time": emotion_result["processing_time"],
+                                    "model_used": emotion_result["model_used"]
+                                }
+                                logger.info(f"감정분석 결과 포함 - 주 감정: {emotion_result['primary_emotion']['emotion_kr']} ({emotion_result['primary_emotion']['probability']:.3f})")
+                            else:
+                                result_data["emotion_analysis"] = None
+                                logger.debug("감정분석 결과 없음")
                             
                             # 단어 수준 타임스탬프 정보 추가
                             words_with_timestamps = []
