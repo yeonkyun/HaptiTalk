@@ -32,10 +32,11 @@ async def call_emotion_analysis(audio_bytes: bytes, scenario: str, language: str
         params = {
             "scenario": scenario,
             "language": language,
-            "apply_scenario_weights": True
+            "apply_scenario_weights": True,
+            "top_k": 6  # 모든 감정 반환 (6개 모든 감정 라벨)
         }
         
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:  # 타임아웃 30초로 증가
             response = await client.post(
                 emotion_service_url,
                 content=audio_bytes,

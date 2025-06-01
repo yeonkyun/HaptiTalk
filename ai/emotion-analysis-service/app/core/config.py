@@ -45,11 +45,11 @@ class Settings(BaseSettings):
     
     # 감정분석 임계값 설정
     CONFIDENCE_THRESHOLD: float = 0.5  # 신뢰도 임계값
-    TOP_K_EMOTIONS: int = 3  # 상위 K개 감정 반환 (최대 6개)
+    TOP_K_EMOTIONS: int = 6  # 상위 K개 감정 반환 (모든 감정)
     
     # WebSocket 설정 (실시간 처리용)
     WEBSOCKET_BUFFER_SIZE: int = 1024 * 16  # 16KB 버퍼
-    WEBSOCKET_TIMEOUT: int = 60  # 60초 타임아웃
+    WEBSOCKET_TIMEOUT: int = 30  # 30초 타임아웃 (응답 시간 개선)
     
     # 시나리오별 감정분석 가중치 (실제 모델 라벨에 맞춤)
     SCENARIO_WEIGHTS: Dict[str, Dict[str, float]] = {

@@ -17,7 +17,7 @@ async def analyze_emotion(
     language: str = Query(default="ko", description="언어 코드"),
     scenario: str = Query(default="presentation", description="시나리오 (dating, interview, presentation)"),
     apply_scenario_weights: bool = Query(default=True, description="시나리오별 가중치 적용 여부"),
-    top_k: Optional[int] = Query(default=3, ge=1, le=6, description="상위 K개 감정 반환"),
+    top_k: Optional[int] = Query(default=6, ge=1, le=6, description="상위 K개 감정 반환"),
     confidence_threshold: Optional[float] = Query(default=0.5, ge=0.0, le=1.0, description="신뢰도 임계값")
 ) -> EmotionAnalysisResponse:
     """
@@ -78,7 +78,7 @@ async def analyze_emotion_bytes(
     language: str = Query(default="ko", description="언어 코드"),
     scenario: str = Query(default="presentation", description="시나리오 (dating, interview, presentation)"),
     apply_scenario_weights: bool = Query(default=True, description="시나리오별 가중치 적용 여부"),
-    top_k: Optional[int] = Query(default=3, ge=1, le=6, description="상위 K개 감정 반환"),
+    top_k: Optional[int] = Query(default=6, ge=1, le=6, description="상위 K개 감정 반환"),
     confidence_threshold: Optional[float] = Query(default=0.5, ge=0.0, le=1.0, description="신뢰도 임계값")
 ) -> EmotionAnalysisResponse:
     """

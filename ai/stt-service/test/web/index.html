@@ -1052,6 +1052,8 @@
                 let emotionHtml = '';
                 if (data.emotion_analysis) {
                     const primaryEmotion = data.emotion_analysis.primary_emotion;
+                    const allEmotions = data.emotion_analysis.all_emotions || data.emotion_analysis.top_emotions;
+                    
                     emotionHtml = `
                         <div style="margin-top: 10px; padding: 10px; background: #f0f9ff; border-left: 4px solid #0ea5e9; border-radius: 6px;">
                             <div style="margin-bottom: 8px;">
@@ -1061,8 +1063,8 @@
                                     ${(primaryEmotion.probability * 100).toFixed(1)}%
                                 </span>
                             </div>
-                            <div style="font-size: 12px; color: #475569;">
-                                상위 감정: ${data.emotion_analysis.top_emotions.map(e => 
+                            <div style="font-size: 12px; color: #475569; margin-bottom: 8px;">
+                                <strong>모든 감정:</strong> ${allEmotions.map(e => 
                                     `${e.emotion_kr} (${(e.probability * 100).toFixed(1)}%)`
                                 ).join(', ')}
                             </div>
@@ -1103,8 +1105,9 @@
                 if (!speechMetrics) return '';
                 
                 let emotionMetricsHtml = '';
-                if (emotionAnalysis && emotionAnalysis.top_emotions) {
-                    emotionMetricsHtml = emotionAnalysis.top_emotions.map(emotion => `
+                if (emotionAnalysis && (emotionAnalysis.all_emotions || emotionAnalysis.top_emotions)) {
+                    const emotions = emotionAnalysis.all_emotions || emotionAnalysis.top_emotions;
+                    emotionMetricsHtml = emotions.map(emotion => `
                         <div class="metric-card">
                             <div class="metric-value">${emotion.emotion_kr}</div>
                             <div class="metric-label">${(emotion.probability * 100).toFixed(1)}%</div>
