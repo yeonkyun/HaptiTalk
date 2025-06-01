@@ -123,10 +123,22 @@ services:
   - name: realtime-service
     url: http://realtime-service:3001
     routes:
-      - name: realtime-routes
+      # HTTP API 라우트
+      - name: realtime-api-routes
         paths:
           - /api/v1/realtime
         strip_path: false
+        protocols:
+          - http
+          - https
+      # WebSocket 라우트 (분리)
+      - name: realtime-websocket-routes
+        paths:
+          - /socket.io
+        strip_path: false
+        protocols:
+          - ws
+          - wss
       - name: realtime-api-docs-route
         paths:
           - /api/docs/realtime
@@ -153,30 +165,9 @@ services:
       # 속도 제한 설정
       - name: rate-limiting
         config:
-          second: 10
-          minute: 60
-          hour: 600
-          day: 6000
+          minute: 100
+          hour: 2000
           policy: local
-          fault_tolerant: true
-
-  # Socket.IO 전용 서비스 (WebSocket 지원)
-  - name: realtime-service-websocket
-    url: http://realtime-service:3001
-    routes:
-      - name: socket-io-route
-        paths:
-          - /socket.io
-        strip_path: false
-        protocols:
-          - http
-          - https
-          - ws
-          - wss
-        preserve_host: false
-    plugins:
-      - name: cors
-      # WebSocket은 JWT 플러그인 대신 별도 인증 처리
 
   # 실시간 서비스 Health 전용 서비스  
   - name: realtime-service-health
