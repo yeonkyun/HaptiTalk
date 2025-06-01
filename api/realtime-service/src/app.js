@@ -299,10 +299,27 @@ const messagingSystem = new HybridMessaging(redisClient, io, {
 // Socket.io 미들웨어 적용
 io.use(async (socket, next) => {
     try {
-        const token = socket.handshake.auth.token;
+        // 다양한 방식으로 토큰 추출 시도
+        let token = socket.handshake.auth.token 
+                 || socket.handshake.query.token
+                 || socket.handshake.headers.authorization?.replace('Bearer ', '')
+                 || socket.handshake.auth.authorization?.replace('Bearer ', '');
+
         if (!token) {
+            logger.warn('토큰 없음 - handshake 정보:', {
+                auth: socket.handshake.auth,
+                query: socket.handshake.query,
+                headers: Object.keys(socket.handshake.headers)
+            });
             return next(new Error('인증 토큰이 필요합니다'));
         }
+
+        logger.info('토큰 발견:', { 
+            tokenPreview: token.substring(0, 20) + '...',
+            source: socket.handshake.auth.token ? 'auth' : 
+                   socket.handshake.query.token ? 'query' :
+                   socket.handshake.headers.authorization ? 'headers.authorization' : 'auth.authorization'
+        });
 
         // 토큰 검증
         const user = await authMiddleware.verifySocketToken(token, redisClient);
@@ -314,11 +331,19 @@ io.use(async (socket, next) => {
         // 소켓 연결 로깅
         logger.socketLogger.connect(socket.id, user.id);
         
+        logger.info('Socket.IO 인증 성공:', {
+            socketId: socket.id,
+            userId: user.id,
+            userEmail: user.email
+        });
+        
         next();
     } catch (error) {
         logger.error(`소켓 인증 오류:`, {
             error: error.message,
-            stack: error.stack
+            stack: error.stack,
+            auth: socket.handshake.auth,
+            query: socket.handshake.query
         });
         next(new Error('유효하지 않은 토큰입니다'));
     }
