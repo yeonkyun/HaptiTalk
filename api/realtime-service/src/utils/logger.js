@@ -104,4 +104,35 @@ logger.errorMiddleware = (err, req, res, next) => {
     next(err);
 };
 
+// Socket.IO 로깅 유틸리티 추가
+logger.socketLogger = {
+    connect: (socketId, userId) => {
+        logger.info('Socket.IO 연결 성공', {
+            component: 'socket',
+            action: 'connect',
+            socketId,
+            userId
+        });
+    },
+    disconnect: (socketId, userId, reason) => {
+        logger.info('Socket.IO 연결 종료', {
+            component: 'socket',
+            action: 'disconnect',
+            socketId,
+            userId,
+            reason
+        });
+    },
+    error: (socketId, userId, error) => {
+        logger.error('Socket.IO 오류', {
+            component: 'socket',
+            action: 'error',
+            socketId,
+            userId,
+            error: error.message || error,
+            stack: error.stack
+        });
+    }
+};
+
 module.exports = logger;
