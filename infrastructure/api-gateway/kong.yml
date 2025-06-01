@@ -175,6 +175,8 @@ services:
           - /socket.io
         strip_path: false
         protocols:
+          - http
+          - https
           - ws
           - wss
         preserve_host: false
@@ -195,13 +197,10 @@ services:
             - Accept
             - Accept-Version
             - Authorization
-            - Content-Length
-            - Content-MD5
             - Content-Type
-            - Date
-            - X-Auth-Token
+            - X-Requested-With
           exposed_headers:
-            - X-Auth-Token
+            - X-Custom-Header
           credentials: true
           max_age: 3600
       # WebSocket에는 JWT 플러그인 적용하지 않음 (Socket.IO에서 직접 처리)
