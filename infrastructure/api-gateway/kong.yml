@@ -171,8 +171,8 @@ services:
           - /socket.io
         strip_path: false
         protocols:
-          - http
-          - https
+          - ws
+          - wss
         headers:
           Connection: ["upgrade"]
           Upgrade: ["websocket"]
