@@ -13,6 +13,7 @@ from app.core.logging import logger
 from app.core.config import settings
 from app.services.stt_service import stt_processor
 
+# WhisperX 3.3.4에서는 whisperx.audio 모듈이 제거되었으므로 직접 상수 정의
 
 async def call_emotion_analysis(audio_bytes: bytes, scenario: str, language: str) -> Optional[Dict[str, Any]]:
     """
@@ -464,7 +465,8 @@ class STTWebSocketManager:
             "scenario": scenario,
             "segment_count": 0,
             "last_transcription": "",
-            "is_first_segment": True
+            "is_first_segment": True,
+            "is_recording": False
         }
     
     async def _load_model_if_needed(self, connection_id: str) -> bool:
@@ -531,8 +533,36 @@ class STTWebSocketManager:
                 if "command" in data:
                     command = data["command"]
                     
+                    # 녹음 시작 명령
+                    if command == "start_recording":
+                        logger.info(f"녹음 시작 요청 수신: {connection_id}")
+                        session = self.sessions[connection_id]
+                        session["is_recording"] = True
+                        
+                        await self.connection_manager.send_json(connection_id, {
+                            "type": "recording_started",
+                            "message": "녹음이 시작되었습니다."
+                        })
+                        return True
+                    
+                    # 녹음 중지 명령
+                    elif command == "stop_recording":
+                        logger.info(f"녹음 중지 요청 수신: {connection_id}")
+                        session = self.sessions[connection_id]
+                        session["is_recording"] = False
+                        
+                        # 버퍼에 남은 데이터 최종 처리
+                        if len(session["buffer"]) > 0:
+                            await self._process_audio_buffer(connection_id, is_final=True)
+                        
+                        await self.connection_manager.send_json(connection_id, {
+                            "type": "recording_stopped",
+                            "message": "녹음이 중지되었습니다."
+                        })
+                        return True
+                    
                     # 최종 처리 명령
-                    if command == "process_final":
+                    elif command == "process_final":
                         logger.info(f"최종 처리 요청 수신: {connection_id}")
                         await self._process_audio_buffer(connection_id, is_final=True)
                         logger.info(f"최종 처리 완료: {connection_id}")
@@ -603,6 +633,11 @@ class STTWebSocketManager:
             
         session = self.sessions[connection_id]
         
+        # 녹음 상태가 아니면 오디오 데이터 무시
+        if not session.get("is_recording", False):
+            logger.debug(f"녹음 상태가 아니므로 오디오 데이터 무시: {connection_id}")
+            return True
+        
         # 데이터 버퍼에 추가
         session["buffer"].extend(binary_data)
         session["last_chunk_time"] = time.time()
@@ -610,8 +645,8 @@ class STTWebSocketManager:
         logger.info(f"오디오 데이터 수신: {connection_id}, 크기: {len(binary_data)} bytes, 현재 버퍼 크기: {len(session['buffer'])} bytes")
         
         # 버퍼 크기 확인 및 처리
-        # 1분 분량의 오디오 데이터 (16kHz, 16-bit, mono = 2바이트 * 16000 * 60 = 1,920,000바이트)
-        buffer_threshold = min(1920000, settings.MAX_AUDIO_BUFFER_MB * 1024 * 1024)
+        # 30초 분량의 오디오 데이터 (16kHz, 16-bit, mono = 2바이트 * 16000 * 30 = 960,000바이트)
+        buffer_threshold = min(settings.DEFAULT_BUFFER_SIZE, settings.MAX_AUDIO_BUFFER_MB * 1024 * 1024)
         
         if len(session["buffer"]) >= buffer_threshold and not session["is_processing"]:
             # 병렬로 처리
@@ -749,7 +784,7 @@ class STTWebSocketManager:
                 # 16-bit PCM, 단일 채널 오디오 가정
                 audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
                 
-                logger.info(f"오디오 데이터 NumPy 배열로 변환 완료: {connection_id}, 배열 크기: {audio_np.shape}, 오디오 길이: {len(audio_np) / whisperx.audio.SAMPLE_RATE:.2f}초")
+                logger.info(f"오디오 데이터 NumPy 배열로 변환 완료: {connection_id}, 배열 크기: {audio_np.shape}, 오디오 길이: {len(audio_np) / settings.SAMPLE_RATE:.2f}초")
                 
                 # 오디오 데이터가 충분한지 확인
                 if len(audio_np) < 512:  # 너무 짧은 오디오는 처리하지 않음
@@ -817,7 +852,7 @@ class STTWebSocketManager:
                         # 세그먼트 기반 말하기 속도 메트릭 계산
                         speech_metrics = calculate_segment_based_metrics(
                             segments_list,
-                            len(audio_np) / whisperx.audio.SAMPLE_RATE,
+                            len(audio_np) / settings.SAMPLE_RATE,
                             scenario,
                             detected_language
                         )

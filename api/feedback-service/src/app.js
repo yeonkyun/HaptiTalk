@@ -34,9 +34,9 @@ app.use(logger.requestMiddleware);
 // 메트릭 미들웨어 설정
 metrics.setupMetricsMiddleware(app);
 
-// Morgan 설정 변경 - JSON 형식 로그 출력
+// Morgan 설정 변경 - OpenTelemetry와 호환되는 안전한 로깅
 app.use(morgan((tokens, req, res) => {
-    return JSON.stringify({
+    const logMessage = JSON.stringify({
         method: tokens.method(req, res),
         url: tokens.url(req, res),
         status: tokens.status(req, res),
@@ -46,7 +46,12 @@ app.use(morgan((tokens, req, res) => {
         requestId: req.id,
         userAgent: tokens['user-agent'](req, res)
     });
-}, { stream: logger.stream }));
+    
+    // OpenTelemetry 컨텍스트와 충돌하지 않도록 직접 콘솔 출력
+    console.log(logMessage);
+    
+    return null; // Morgan의 기본 스트림 사용 방지
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
