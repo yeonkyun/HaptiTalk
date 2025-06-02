@@ -19,9 +19,13 @@ import '../../services/auth_service.dart';
 
 class RealtimeAnalysisScreen extends StatefulWidget {
   final String sessionId;
+  final String? sessionType;
 
-  const RealtimeAnalysisScreen({Key? key, required this.sessionId})
-      : super(key: key);
+  const RealtimeAnalysisScreen({
+    Key? key, 
+    required this.sessionId,
+    this.sessionType,
+  }) : super(key: key);
 
   @override
   _RealtimeAnalysisScreenState createState() => _RealtimeAnalysisScreenState();
@@ -64,9 +68,17 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     'reaction': DateTime.now().subtract(Duration(hours: 1)),   // 상대방 반응 (R)
   };
 
+  // 마지막 전송된 Watch 햅틱 피드백 추적
+  String _lastSentWatchFeedback = '';
+
   @override
   void initState() {
     super.initState();
+    
+    // 세션 타입을 STT 시나리오로 변환
+    _currentScenario = _convertSessionTypeToScenario(widget.sessionType);
+    print('🎯 현재 세션 모드: ${widget.sessionType} → STT 시나리오: $_currentScenario');
+    
     _initializeServices();
     _startTimer();
     _checkWatchConnection();
@@ -149,13 +161,13 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     }
 
     try {
-      print('🎤 자동 녹음 시작 시도...');
-      final success = await _audioService.startRealTimeRecording();
+      print('🎤 자동 녹음 시작 시도... (scenario: $_currentScenario)');
+      final success = await _audioService.startRealTimeRecording(scenario: _currentScenario);
       if (success) {
         setState(() {
           _isRecording = true;
         });
-        print('✅ 자동 녹음 시작 성공');
+        print('✅ 자동 녹음 시작 성공 (scenario: $_currentScenario)');
       } else {
         print('❌ 자동 녹음 시작 실패');
         _showErrorSnackBar('자동 녹음 시작에 실패했습니다. 수동으로 녹음을 시작해주세요.');
@@ -224,22 +236,13 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     // 시각적 피드백 표시
     if (visualCue != null) {
       _showVisualFeedback(visualCue);
+    } else if (message != null && feedbackType != null) {
+      // visualCue가 없으면 기본 우선순위로 표시
+      _showRealtimeVisualFeedback(message, feedbackType);
     }
   }
 
-  /// Apple Watch 햅틱 전송
-  Future<void> _sendHapticToWatch(String type, String pattern, String message) async {
-    try {
-      // WatchService는 message 파라미터만 받으므로 형식을 맞춰서 전송
-      final hapticMessage = '$type: $message';
-      await _watchService.sendHapticFeedback(hapticMessage);
-      print('📱 Apple Watch 햅틱 전송: $type - $pattern');
-    } catch (e) {
-      print('❌ Apple Watch 햅틱 전송 실패: $e');
-    }
-  }
-
-  /// 시각적 피드백 표시
+  /// 시각적 피드백 표시 (피드백 서비스에서 온 visualCue 데이터용)
   void _showVisualFeedback(Map<String, dynamic> visualCue) {
     final color = visualCue['color'] as String?;
     final text = visualCue['text'] as String?;
@@ -252,6 +255,86 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
           duration: const Duration(seconds: 2),
         ),
       );
+    }
+  }
+
+  /// 실시간 분석용 시각적 피드백 표시
+  void _showRealtimeVisualFeedback(String message, String priority) {
+    // 우선순위에 따른 색상 설정
+    Color backgroundColor;
+    IconData icon;
+    
+    switch (priority) {
+      case 'high':
+        backgroundColor = Colors.red.withOpacity(0.9);
+        icon = Icons.warning;
+        break;
+      case 'medium':
+        backgroundColor = Colors.orange.withOpacity(0.9);
+        icon = Icons.info;
+        break;
+      case 'low':
+        backgroundColor = Colors.blue.withOpacity(0.9);
+        icon = Icons.lightbulb;
+        break;
+      default:
+        backgroundColor = AppColors.primary.withOpacity(0.9);
+        icon = Icons.notifications;
+        break;
+    }
+
+    // SnackBar로 시각적 피드백 표시
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: backgroundColor,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+
+    // 추가로 UI 상태에도 반영
+    setState(() {
+      _feedback = message;
+    });
+
+    // 5초 후 피드백 메시지 클리어
+    Timer(const Duration(seconds: 5), () {
+      if (mounted && _feedback == message) {
+        setState(() {
+          _feedback = '';
+        });
+      }
+    });
+  }
+
+  /// Apple Watch 햅틱 전송
+  Future<void> _sendHapticToWatch(String type, String pattern, String message) async {
+    try {
+      // WatchService는 message 파라미터만 받으므로 형식을 맞춰서 전송
+      final hapticMessage = '$type: $message';
+      await _watchService.sendHapticFeedback(hapticMessage);
+      print('📱 Apple Watch 햅틱 전송: $type - $pattern');
+    } catch (e) {
+      print('❌ Apple Watch 햅틱 전송 실패: $e');
     }
   }
 
@@ -480,12 +563,10 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       
       // 텍스트 내용 기반 피드백 생성
       final text = response.text ?? '';
-      if (text.isNotEmpty) {
-        _generateTextBasedFeedback(text, speechMetrics);
-        
-        // 💡 텍스트 내용 기반 추천 토픽 업데이트
-        _updateSuggestedTopics(text, speechMetrics);
-      }
+      _generateTextBasedFeedback(text, speechMetrics);
+      
+      // 💡 텍스트 내용 기반 추천 토픽 업데이트
+      _updateSuggestedTopics(text, speechMetrics);
       
       print('🔍 최종 업데이트된 값들 - 속도: $_speakingSpeed, 감정: $_emotionState, 관심: $_interest, 호감: $_likability');
       
@@ -621,6 +702,9 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
           patternId: event['patternId']
         );
         
+        // 🎨 시각적 피드백 표시
+        _showRealtimeVisualFeedback(event['message'], event['priority']);
+        
         // 카테고리별 마지막 전송 시간 업데이트
         _lastHapticByCategory[event['category']] = now;
         
@@ -741,9 +825,8 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
         feedback = '말하기 속도가 조금 빠른 편입니다. 천천히 말해보세요';
       } else if (speedCategory == 'very_slow') {
         feedback = '조금 더 활발하게 대화해보세요';
-      } else if (speedCategory == 'normal') {
-        feedback = '자연스러운 말하기 속도입니다';
       }
+      // 🔄 정상적인 속도일 때는 피드백을 생성하지 않음 (중복 방지)
       
       // 발화 패턴 피드백
       final speechPattern = speechMetrics['speech_pattern'] as String?;
@@ -759,8 +842,10 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       feedback += '좋습니다! 적극적으로 대화하고 있어요';
     }
     
-    if (feedback.isNotEmpty) {
+    // 🔄 새로운 피드백이 있고 기존 피드백과 다를 때만 업데이트
+    if (feedback.isNotEmpty && feedback != _feedback) {
       _feedback = feedback;
+      print('📝 새로운 피드백 생성: $feedback');
     }
   }
 
@@ -841,10 +926,9 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
         elapsedTime: _formatTime(_seconds),
       );
 
-      // 중요한 피드백이 있을 때만 별도 햅틱 알림
-      if (_feedback.isNotEmpty && _feedback.contains('속도')) {
-        await _watchService.sendHapticFeedback(_feedback);
-      }
+      // 🔄 속도 관련 피드백은 _sendImmediateHapticFeedback에서만 처리
+      // 정상적인 속도일 때는 햅틱을 보내지 않음
+      
     } catch (e) {
       print('Watch 동기화 실패: $e');
     }
@@ -865,7 +949,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
 
     if (_isRecording) {
       // 녹음 중지
-      await _audioService.stopRecording();
+      await _audioService.pauseRecording();
       setState(() {
         _isRecording = false;
       });
@@ -1145,6 +1229,24 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       default:
         print('⚠️ 알 수 없는 Watch 메시지: $action');
         break;
+    }
+  }
+
+  /// 세션 타입을 STT 시나리오로 변환
+  String _convertSessionTypeToScenario(String? sessionType) {
+    switch (sessionType) {
+      case '발표':
+        return 'presentation';
+      case '소개팅':
+        return 'dating';
+      case '면접':
+        return 'interview';
+      case '코칭':
+        return 'presentation';  // 코칭도 presentation으로 매핑
+      case '회의':  // 혹시 모를 레거시 케이스
+        return 'presentation';
+      default:
+        return 'dating';  // 기본값
     }
   }
 

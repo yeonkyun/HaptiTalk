@@ -147,7 +147,7 @@ class AudioService {
   }
 
   /// 실시간 음성 녹음 시작
-  Future<bool> startRealTimeRecording() async {
+  Future<bool> startRealTimeRecording({String scenario = 'dating'}) async {
     if (!_isInitialized) {
       print('❌ AudioService가 초기화되지 않았습니다');
       return false;
@@ -161,8 +161,8 @@ class AudioService {
     try {
       // STT WebSocket 연결 확인
       if (!_sttService.isConnected) {
-        print('🔌 STT WebSocket 연결 시도...');
-        await _sttService.connect();
+        print('🔌 STT WebSocket 연결 시도... (scenario: $scenario)');
+        await _sttService.connect(scenario: scenario);
         await Future.delayed(Duration(milliseconds: 1000)); 
         
         if (!_sttService.isConnected) {

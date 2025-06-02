@@ -99,7 +99,7 @@ class RealtimeService {
     }
   }
 
-  /// STT 분석 결과를 realtime-service로 전송
+  /// STT 분석 결과를 feedback-service로 전송 (피드백 생성)
   Future<bool> sendSTTResult({
     required String sessionId,
     required STTResponse sttResponse,
@@ -126,10 +126,11 @@ class RealtimeService {
         requestData['emotionAnalysis'] = sttResponse.metadata!['emotionAnalysis'];
       }
 
-      _logger.d('realtime-service로 STT 결과 전송: ${json.encode(requestData)}');
+      _logger.d('feedback-service로 STT 결과 전송: ${json.encode(requestData)}');
 
+      // 🔥 피드백 서비스의 새로운 STT 분석 엔드포인트로 변경
       final response = await http.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/realtime/analyze-stt-result'),
+        Uri.parse('${AppConfig.apiBaseUrl}/feedback/analyze-stt'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $accessToken',
@@ -139,19 +140,22 @@ class RealtimeService {
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-        _logger.i('STT 결과 전송 성공: ${responseData['success']}');
+        _logger.i('STT 결과 처리 성공: ${responseData['success']}');
         
-        if (responseData['feedback'] != null) {
-          _logger.i('피드백 생성됨: ${responseData['feedback']['type']}');
+        if (responseData['data']?['feedback'] != null) {
+          _logger.i('햅틱 피드백 생성됨: ${responseData['data']['feedback']['type']}');
+          _logger.i('패턴 ID: ${responseData['data']['feedback']['pattern_id']}');
+        } else {
+          _logger.d('피드백 생성 안됨 - 조건 불충족');
         }
         
         return true;
       } else {
-        _logger.e('STT 결과 전송 실패: ${response.statusCode} - ${response.body}');
+        _logger.e('STT 결과 처리 실패: ${response.statusCode} - ${response.body}');
         return false;
       }
     } catch (e) {
-      _logger.e('STT 결과 전송 오류: $e');
+      _logger.e('STT 결과 처리 오류: $e');
       return false;
     }
   }
