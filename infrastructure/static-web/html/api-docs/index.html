@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HaptiTalk API 문서</title>
+  <!-- 외부 스타일시트를 사용하는 대신 로컬에서 호스팅하는 CSS 파일을 사용 -->
+  <link rel="stylesheet" type="text/css" href="/api-docs/swagger-ui.css">
+  <style>
+    html {
+      box-sizing: border-box;
+      overflow: -moz-scrollbars-vertical;
+      overflow-y: scroll;
+    }
+    
+    *,
+    *:before,
+    *:after {
+      box-sizing: inherit;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      background: #fafafa;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    
+    .swagger-ui .topbar {
+      background-color: #175E95;
+    }
+    
+    .custom-header {
+      background-color: #175E95;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .custom-header h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+    
+    .custom-header p {
+      margin: 5px 0 0;
+      font-size: 16px;
+      opacity: 0.8;
+    }
+    
+    .api-selection {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .api-selection select {
+      padding: 8px 15px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: white;
+      min-width: 250px;
+    }
+  </style>
+</head>
+<body>
+  <div class="custom-header">
+    <h1>HaptiTalk API 문서</h1>
+    <p>마이크로서비스 API 통합 문서</p>
+  </div>
+  
+  <div class="api-selection">
+    <select id="api-selector">
+      <option value="">서비스 선택...</option>
+      <option value="auth-service">인증 서비스 API</option>
+      <option value="user-service">사용자 서비스 API</option>
+      <option value="session-service">세션 서비스 API</option>
+      <option value="feedback-service">피드백 서비스 API</option>
+      <option value="realtime-service">실시간 서비스 API</option>
+      <option value="report-service">리포트 서비스 API</option>
+    </select>
+  </div>
+  
+  <div id="swagger-ui"></div>
+  
+  <!-- 외부 JS를 사용하는 대신 로컬에서 호스팅하는 JS 파일을 사용 -->
+  <script src="/api-docs/swagger-ui-bundle.js"></script>
+  <script src="/api-docs/swagger-ui-standalone-preset.js"></script>
+  <script>
+    // 서비스별 OpenAPI 스펙 정의
+    const serviceSpecs = {
+      'auth-service': {
+        title: '인증 서비스 API',
+        url: window.location.origin + '/swagger-specs/auth-service.json'
+      },
+      'user-service': {
+        title: '사용자 서비스 API',
+        url: window.location.origin + '/swagger-specs/user-service.json'
+      },
+      'session-service': {
+        title: '세션 서비스 API',
+        url: window.location.origin + '/swagger-specs/session-service.json'
+      },
+      'feedback-service': {
+        title: '피드백 서비스 API',
+        url: window.location.origin + '/swagger-specs/feedback-service.json'
+      },
+      'realtime-service': {
+        title: '실시간 서비스 API',
+        url: window.location.origin + '/swagger-specs/realtime-service.json'
+      },
+      'report-service': {
+        title: '리포트 서비스 API',
+        url: window.location.origin + '/swagger-specs/report-service.json'
+      }
+    };
+    
+    // 페이지 로드 시 기본 Swagger UI 초기화
+    window.onload = function() {
+      // URL에서 파라미터 확인 (예: ?service=auth-service)
+      const urlParams = new URLSearchParams(window.location.search);
+      const serviceParam = urlParams.get('service');
+      
+      // 선택된 서비스가 있으면 해당 서비스 선택
+      if (serviceParam && serviceSpecs[serviceParam]) {
+        const apiSelector = document.getElementById('api-selector');
+        
+        // 셀렉트 박스 업데이트
+        for (let i = 0; i < apiSelector.options.length; i++) {
+          if (apiSelector.options[i].value === serviceParam) {
+            apiSelector.selectedIndex = i;
+            break;
+          }
+        }
+        
+        // 해당 서비스의 API 문서 로드
+        initSwaggerUI(serviceParam);
+      } else {
+        // 기본 메시지 표시 (서비스 선택 전)
+        const swaggerDiv = document.getElementById('swagger-ui');
+        swaggerDiv.innerHTML = '<div style="text-align: center; padding: 50px; color: #666;">상단 드롭다운에서 서비스를 선택하세요.</div>';
+      }
+      
+      // 드롭다운 변경 이벤트 핸들러
+      document.getElementById('api-selector').addEventListener('change', function() {
+        const selectedValue = this.value;
+        
+        if (selectedValue) {
+          // URL 업데이트
+          const newUrl = window.location.pathname + '?service=' + selectedValue;
+          window.history.pushState({}, '', newUrl);
+          
+          // 선택된 서비스의 API 문서 로드
+          initSwaggerUI(selectedValue);
+        } else {
+          // 선택이 취소되면 기본 메시지 표시
+          const swaggerDiv = document.getElementById('swagger-ui');
+          swaggerDiv.innerHTML = '<div style="text-align: center; padding: 50px; color: #666;">상단 드롭다운에서 서비스를 선택하세요.</div>';
+        }
+      });
+    };
+    
+    // Swagger UI 인스턴스
+    let swaggerUIInstance = null;
+    
+    // Swagger UI 초기화 함수 - DOM 조작 오류 해결
+    function initSwaggerUI(serviceKey) {
+      const swaggerDiv = document.getElementById('swagger-ui');
+      const serviceSpec = serviceSpecs[serviceKey];
+      
+      if (!serviceSpec) {
+        swaggerDiv.innerHTML = '<div style="text-align: center; padding: 50px; color: #666;">해당 서비스의 API 문서를 찾을 수 없습니다.</div>';
+        return;
+      }
+      
+      // 기존 Swagger UI 완전히 제거
+      if (swaggerUIInstance) {
+        // DOM 노드 충돌 방지를 위해 컨테이너 요소 자체를 재생성
+        const parentElement = swaggerDiv.parentNode;
+        swaggerDiv.remove();
+        
+        // 새로운 컨테이너 요소 생성
+        const newSwaggerDiv = document.createElement('div');
+        newSwaggerDiv.id = 'swagger-ui';
+        parentElement.appendChild(newSwaggerDiv);
+      }
+      
+      // 현재 도메인 기반 서버 URL 설정
+      const currentProtocol = window.location.protocol;
+      const currentHost = window.location.host;
+      const apiBaseUrl = `${currentProtocol}//${currentHost}`;
+      
+      // 새로운 Swagger UI 초기화
+      swaggerUIInstance = SwaggerUIBundle({
+        url: serviceSpec.url,
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIStandalonePreset
+        ],
+        plugins: [
+          SwaggerUIBundle.plugins.DownloadUrl
+        ],
+        layout: "StandaloneLayout",
+        docExpansion: 'list',
+        defaultModelsExpandDepth: 1,
+        defaultModelExpandDepth: 1,
+        showExtensions: true,
+        showCommonExtensions: true,
+        // Swagger validator 비활성화
+        validatorUrl: null,
+        // 서버 URL 동적 설정
+        requestInterceptor: function(request) {
+          // API 요청 URL을 현재 도메인 기반으로 수정
+          if (request.url.startsWith('/api/')) {
+            request.url = apiBaseUrl + request.url;
+          }
+          return request;
+        },
+        // 오류 발생 시 콘솔에 로그 기록
+        onComplete: function() {
+          console.log('Swagger UI loaded successfully for ' + serviceKey);
+          console.log('API Base URL: ' + apiBaseUrl);
+          console.log('Spec URL: ' + serviceSpec.url);
+        },
+        onFailure: function(error) {
+          console.error('Swagger UI failed to load:', error);
+          console.error('Failed Spec URL: ' + serviceSpec.url);
+          const swaggerDiv = document.getElementById('swagger-ui');
+          swaggerDiv.innerHTML = '<div style="text-align: center; padding: 50px; color: #d32f2f;"><h3>API 스펙 로드 실패</h3><p>URL: ' + serviceSpec.url + '</p><p>오류: ' + error.message + '</p></div>';
+        }
+      });
+    }
+  </script>
+</body>
+</html> 

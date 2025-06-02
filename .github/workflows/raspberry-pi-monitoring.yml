@@ -1,0 +1,367 @@
+name: Raspberry Pi Monitoring
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # 30분마다 실행
+  workflow_dispatch:  # 수동 실행 가능
+
+env:
+  # 모니터링 임계값 설정
+  DISK_THRESHOLD: 85  # 디스크 사용량 경고 임계값 (%)
+  MEMORY_THRESHOLD: 85  # 메모리 사용량 경고 임계값 (%)
+  MIN_EXPECTED_SERVICES: 5  # 최소 실행 필요 서비스 수
+
+jobs:
+  setup_cloudflared:
+    name: Setup Cloudflared Connection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install cloudflared
+        run: |
+          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+          chmod +x cloudflared
+          sudo mv cloudflared /usr/local/bin
+          cloudflared version
+      
+      - name: Set up SSH config with Cloudflare proxy
+        run: |
+          # 시크릿에 저장된 SSH 키 사용
+          mkdir -p ~/.ssh
+          echo "${{ secrets.RASPBERRY_PI_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          
+          # cloudflared로 로컬 포트 2222를 라즈베리파이 SSH 포트로 포워딩
+          echo "Cloudflared TCP 포트 포워딩 설정 중..."
+          nohup cloudflared access tcp --hostname pi.eumgyeol.com --url 127.0.0.1:2222 --loglevel debug > cloudflared.log 2>&1 &
+          CLOUDFLARED_PID=$!
+          echo "Cloudflared PID: $CLOUDFLARED_PID"
+          
+          # 설정 확인을 위해 대기
+          sleep 5
+          
+          # cloudflared 상태 확인
+          if ps -p $CLOUDFLARED_PID > /dev/null; then
+            echo "cloudflared 프로세스가 실행 중입니다."
+            
+            # cloudflared 로그 확인
+            echo "cloudflared 로그:"
+            cat cloudflared.log || echo "로그 파일이 없습니다."
+            
+            # SSH 설정 - 로컬 포트로 연결
+            cat > ~/.ssh/config << EOF
+          Host raspberry-pi
+            HostName localhost
+            Port 2222
+            User ${{ secrets.RASPBERRY_PI_USER }}
+            IdentityFile ~/.ssh/id_ed25519
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            LogLevel DEBUG3
+          EOF
+            chmod 600 ~/.ssh/config
+          else
+            echo "cloudflared 프로세스 시작 실패"
+            cat cloudflared.log || echo "로그 파일이 없습니다"
+            exit 1
+          fi
+      
+      - name: Test SSH Connection
+        id: ssh_test
+        run: |
+          echo "SSH 연결 테스트 중..."
+          
+          # SSH 키 기반 인증으로 연결 시도
+          if ssh -o ConnectTimeout=10 raspberry-pi 'echo "Connection successful" && uptime'; then
+            echo "ssh_connected=true" >> $GITHUB_OUTPUT
+          else
+            echo "ssh_connected=false" >> $GITHUB_OUTPUT
+            echo "연결 실패. 자세한 로그:"
+            ssh -vvv raspberry-pi 'echo test' || true
+            cat cloudflared.log || echo "cloudflared 로그 파일이 없습니다."
+            exit 1
+          fi
+
+  check_services:
+    name: Check Service Status
+    needs: setup_cloudflared
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Count Expected Services
+        id: service_count
+        run: |
+          # docker-compose.yml 파일에서 서비스 수를 동적으로 계산
+          # 기본값은 환경 변수에 정의된 값 사용
+          if [ -f "docker-compose.yml" ]; then
+            EXPECTED_SERVICES=$(grep -c "^  [a-zA-Z0-9_-]*:" docker-compose.yml)
+            # 최소 기준값과 비교하여 더 큰 값 사용
+            if [ "$EXPECTED_SERVICES" -gt "$MIN_EXPECTED_SERVICES" ]; then
+              echo "expected_services=$EXPECTED_SERVICES" >> $GITHUB_OUTPUT
+            else
+              echo "expected_services=$MIN_EXPECTED_SERVICES" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "expected_services=$MIN_EXPECTED_SERVICES" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Setup SSH Connection Again
+        run: |
+          # 이전 cloudflared 프로세스 종료
+          pkill cloudflared || echo "실행 중인 cloudflared 프로세스가 없습니다"
+          
+          # SSH 키 확인 (이미 있으면 다시 생성하지 않음)
+          if [ ! -f ~/.ssh/id_ed25519 ]; then
+            echo "${{ secrets.RASPBERRY_PI_SSH_KEY }}" > ~/.ssh/id_ed25519
+            chmod 600 ~/.ssh/id_ed25519
+          fi
+          
+          # 새 cloudflared TCP 터널 설정
+          echo "Cloudflared TCP 포트 포워딩 설정 중..."
+          nohup cloudflared access tcp --hostname pi.eumgyeol.com --url 127.0.0.1:2222 --loglevel debug > cloudflared_again.log 2>&1 &
+          CLOUDFLARED_PID=$!
+          echo "Cloudflared PID: $CLOUDFLARED_PID"
+          
+          # 설정 확인을 위해 대기
+          sleep 5
+          
+          # cloudflared 상태 확인
+          if ps -p $CLOUDFLARED_PID > /dev/null; then
+            echo "cloudflared 프로세스가 실행 중입니다."
+            
+            # cloudflared 로그 확인
+            echo "cloudflared 로그:"
+            cat cloudflared_again.log || echo "로그 파일이 없습니다."
+            
+            # SSH 설정 - 로컬 포트로 연결
+            cat > ~/.ssh/config << EOF
+          Host raspberry-pi
+            HostName localhost
+            Port 2222
+            User ${{ secrets.RASPBERRY_PI_USER }}
+            IdentityFile ~/.ssh/id_ed25519
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            LogLevel DEBUG3
+          EOF
+            chmod 600 ~/.ssh/config
+          else
+            echo "cloudflared 프로세스 시작 실패"
+            cat cloudflared_again.log || echo "로그 파일이 없습니다"
+            exit 1
+          fi
+      
+      - name: Check Docker Services
+        id: docker_check
+        run: |
+          # SSH로 라즈베리파이에 접속하여 서비스 상태 확인
+          STATUS=$(ssh raspberry-pi '
+            cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
+            docker-compose ps -q | wc -l
+          ')
+
+          # 필수 인프라 서비스 확인 (postgres, mongodb, redis, kafka, kong)
+          INFRA_SERVICES=$(ssh raspberry-pi '
+            cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
+            docker-compose ps postgres mongodb redis kafka kong | grep -c "Up"
+          ')
+          
+          # 컨테이너 상태 및 로그 정보 수집
+          CONTAINER_INFO=$(ssh raspberry-pi '
+            cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
+            echo "---- Container Status ----"
+            docker-compose ps
+            echo "---- Recent Errors ----"
+            docker-compose logs --tail=50 | grep -i "error\|exception\|fatal" || echo "No recent errors found"
+          ')
+          
+          echo "container_info<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONTAINER_INFO" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # 결과 판단 (기대 서비스 수와 실제 실행 중인 서비스 수 비교)
+          EXPECTED_SERVICES=${{ steps.service_count.outputs.expected_services }}
+          EXPECTED_INFRA=5  # 필수 인프라 서비스 수
+          
+          echo "total_services=$STATUS" >> $GITHUB_OUTPUT
+          echo "infra_services=$INFRA_SERVICES" >> $GITHUB_OUTPUT
+          echo "expected_services=$EXPECTED_SERVICES" >> $GITHUB_OUTPUT
+          
+          if [ "$STATUS" -lt "$EXPECTED_SERVICES" ]; then
+            echo "services_down=true" >> $GITHUB_OUTPUT
+          else
+            echo "services_down=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ "$INFRA_SERVICES" -lt "$EXPECTED_INFRA" ]; then
+            echo "infra_down=true" >> $GITHUB_OUTPUT
+          else
+            echo "infra_down=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Check System Resources
+        id: resource_check
+        run: |
+          # SSH로 라즈베리파이에 접속하여 시스템 리소스 확인
+          RESOURCES=$(ssh raspberry-pi '
+            echo "---- Memory Usage ----"
+            free -h
+            echo "---- Disk Usage ----"
+            df -h | grep -E "Filesystem|/$"
+            echo "---- CPU Usage ----"
+            top -bn1 | grep "Cpu(s)"
+            echo "---- Temperature ----"
+            vcgencmd measure_temp 2>/dev/null || echo "온도 측정 기능을 사용할 수 없습니다"
+            echo "---- System Uptime ----"
+            uptime
+            echo "---- Docker Stats ----"
+            docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"
+          ')
+          
+          echo "resources<<EOF" >> $GITHUB_OUTPUT
+          echo "$RESOURCES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # 디스크 사용량이 임계값 이상인지 확인
+          DISK_USAGE=$(ssh raspberry-pi '
+            df -h | grep -E "/$" | awk "{print \$5}" | sed "s/%//"
+          ')
+          
+          if [ "$DISK_USAGE" -gt "$DISK_THRESHOLD" ]; then
+            echo "disk_warning=true" >> $GITHUB_OUTPUT
+            echo "disk_usage=$DISK_USAGE" >> $GITHUB_OUTPUT
+          else
+            echo "disk_warning=false" >> $GITHUB_OUTPUT
+            echo "disk_usage=$DISK_USAGE" >> $GITHUB_OUTPUT
+          fi
+          
+          # 메모리 사용량이 임계값 이상인지 확인
+          MEM_USAGE=$(ssh raspberry-pi '
+            free | grep Mem | awk "{print \$3/\$2 * 100.0}" | cut -d. -f1
+          ')
+          
+          if [ "$MEM_USAGE" -gt "$MEMORY_THRESHOLD" ]; then
+            echo "memory_warning=true" >> $GITHUB_OUTPUT
+            echo "memory_usage=$MEM_USAGE" >> $GITHUB_OUTPUT
+          else
+            echo "memory_warning=false" >> $GITHUB_OUTPUT
+            echo "memory_usage=$MEM_USAGE" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Restart Services if Down
+        if: steps.docker_check.outputs.services_down == 'true' || steps.docker_check.outputs.infra_down == 'true'
+        run: |
+          # 서비스 재시작 전 로그 백업
+          ssh raspberry-pi '
+            cd /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk
+            mkdir -p logs/backup
+            docker-compose logs > logs/backup/before_restart_$(date +%Y%m%d_%H%M%S).log
+            
+            # 서비스 다운 정보 수집 후 재시작
+            echo "서비스 재시작 시작: $(date)"
+            docker-compose down --remove-orphans
+            docker system prune -f  # 불필요한 리소스 정리
+            docker-compose up -d
+            echo "서비스 재시작 완료: $(date)"
+            
+            # 재시작 후 상태 확인
+            echo "---- 재시작 후 서비스 상태 ----"
+            docker-compose ps
+            echo "---- 재시작 후 리소스 사용량 ----"
+            free -h
+            df -h | grep -E "Filesystem|/$"
+          '
+          echo "서비스가 다운되어 재시작되었습니다."
+      
+      - name: Clean Up Old Logs and Images
+        run: |
+          # 30일 이상된 로그 파일 및 사용하지 않는 도커 이미지 정리
+          ssh raspberry-pi '
+            # 오래된 로그 파일 삭제
+            find /home/${{ secrets.RASPBERRY_PI_USER }}/haptitalk/logs/backup -type f -name "*.log" -mtime +30 -delete
+            
+            # 사용하지 않는 도커 이미지, 볼륨 정리
+            docker image prune -a --force --filter "until=720h"
+          '
+      
+      - name: Check Alert Status
+        id: alert_status
+        run: |
+          # 알림 상태 계산 (서비스 다운, 디스크 경고, 메모리 경고 중 하나라도 있으면 경고)
+          if [[ "${{ steps.docker_check.outputs.services_down }}" == "true" || 
+                "${{ steps.docker_check.outputs.infra_down }}" == "true" || 
+                "${{ steps.resource_check.outputs.disk_warning }}" == "true" || 
+                "${{ steps.resource_check.outputs.memory_warning }}" == "true" ]]; then
+            echo "has_warning=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_warning=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Format Slack Message
+        id: format_message
+        run: |
+          # 슬랙 메시지 포맷팅
+          MESSAGE="*라즈베리파이 상태 보고서*\n\n"
+          
+          # 실행 중인 서비스 정보
+          MESSAGE+="*실행 중인 서비스:* ${{ steps.docker_check.outputs.total_services }}/${{ steps.docker_check.outputs.expected_services }} 개\n\n"
+          
+          # 서비스 상태
+          if [[ "${{ steps.docker_check.outputs.services_down }}" == "true" ]]; then
+            MESSAGE+="*서비스 상태:* ⚠️ 일부 서비스가 다운되어 재시작되었습니다\n\n"
+          else
+            MESSAGE+="*서비스 상태:* ✅ 모든 서비스 정상 실행 중\n\n"
+          fi
+          
+          # 인프라 서비스 상태
+          if [[ "${{ steps.docker_check.outputs.infra_down }}" == "true" ]]; then
+            MESSAGE+="*인프라 서비스:* ⚠️ 일부 인프라 서비스가 다운되었습니다\n\n"
+          else
+            MESSAGE+="*인프라 서비스:* ✅ 모든 인프라 서비스 정상 실행 중\n\n"
+          fi
+          
+          # 디스크 상태
+          if [[ "${{ steps.resource_check.outputs.disk_warning }}" == "true" ]]; then
+            MESSAGE+="*디스크 상태:* ⚠️ 디스크 공간 부족 (${{ steps.resource_check.outputs.disk_usage }}% 사용)\n\n"
+          else
+            MESSAGE+="*디스크 상태:* ✅ 디스크 공간 충분 (${{ steps.resource_check.outputs.disk_usage }}% 사용)\n\n"
+          fi
+          
+          # 메모리 상태
+          if [[ "${{ steps.resource_check.outputs.memory_warning }}" == "true" ]]; then
+            MESSAGE+="*메모리 상태:* ⚠️ 메모리 부족 (${{ steps.resource_check.outputs.memory_usage }}% 사용)\n\n"
+          else
+            MESSAGE+="*메모리 상태:* ✅ 메모리 충분 (${{ steps.resource_check.outputs.memory_usage }}% 사용)\n\n"
+          fi
+          
+          # 컨테이너 상태 및 오류 정보 (서비스 다운 또는 인프라 다운인 경우에만)
+          if [[ "${{ steps.docker_check.outputs.services_down }}" == "true" || "${{ steps.docker_check.outputs.infra_down }}" == "true" ]]; then
+            MESSAGE+="*컨테이너 상태 및 오류 정보:*\n\`\`\`\n${{ steps.docker_check.outputs.container_info }}\n\`\`\`\n\n"
+          fi
+          
+          # 시스템 리소스 세부 정보
+          MESSAGE+="*시스템 리소스 세부 정보:*\n\`\`\`\n${{ steps.resource_check.outputs.resources }}\n\`\`\`"
+          
+          # 메시지를 출력 변수로 설정
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$MESSAGE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Set Slack Color
+        id: set_slack_color
+        run: |
+          if [[ "${{ steps.alert_status.outputs.has_warning }}" == "true" ]]; then
+            echo "color=danger" >> $GITHUB_OUTPUT
+          else
+            echo "color=good" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Send Status Notification
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL || 'monitoring' }}
+          SLACK_COLOR: ${{ steps.set_slack_color.outputs.color }}
+          SLACK_TITLE: Raspberry Pi Status
+          SLACK_MESSAGE: ${{ steps.format_message.outputs.message }}
+          SLACK_FOOTER: 'Haptitalk Raspberry Pi 모니터링'

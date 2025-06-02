@@ -45,3 +45,26 @@ build/
 dist/
 build/
 out/
+
+# Xcode 관련
+xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+timeline.xctimeline
+playground.xcworkspace
+.build/
+
+# 임시 스크립트
+scripts/
+
+# act 로컬 설정 파일
+.actrc
+.secrets
