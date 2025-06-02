@@ -44,4 +44,18 @@ db.userModels.createIndex(
   { name: "idx_user_id", unique: true }
 );
 
+// sessionSegments 컬렉션 인덱스
+db.sessionSegments.createIndex(
+  { sessionId: 1, segmentIndex: 1 },
+  { name: "idx_session_segment", unique: true }
+);
+db.sessionSegments.createIndex(
+  { userId: 1, timestamp: -1 },
+  { name: "idx_user_timestamp" }
+);
+db.sessionSegments.createIndex(
+  { sessionId: 1, timestamp: 1 },
+  { name: "idx_session_time" }
+);
+
 print("MongoDB indexes created successfully");
