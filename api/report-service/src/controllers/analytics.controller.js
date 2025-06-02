@@ -1,6 +1,6 @@
 const analyticsService = require('../services/analytics.service');
 const logger = require('../utils/logger');
-const { sendErrorResponse, sendSuccessResponse } = require('../utils/response');
+const { formatResponse, formatErrorResponse } = require('../utils/responseFormatter');
 
 /**
  * 세그먼트 데이터 저장 (30초마다 호출)
@@ -28,14 +28,11 @@ const saveSegment = async (req, res) => {
 
         logger.info(`세그먼트 저장 완료: sessionId=${sessionId}, segmentIndex=${segmentIndex}`);
 
-        sendSuccessResponse(res, {
-            message: '세그먼트가 성공적으로 저장되었습니다',
-            data: {
-                sessionId,
-                segmentIndex,
-                savedAt: new Date()
-            }
-        });
+        return formatResponse(res, 200, true, {
+            sessionId,
+            segmentIndex,
+            savedAt: new Date()
+        }, '세그먼트가 성공적으로 저장되었습니다');
 
     } catch (error) {
         logger.error(`세그먼트 저장 실패: ${error.message}`, { 
@@ -46,10 +43,10 @@ const saveSegment = async (req, res) => {
         });
 
         if (error.code === 11000) {
-            return sendErrorResponse(res, 409, '이미 존재하는 세그먼트입니다');
+            return formatErrorResponse(res, 409, '이미 존재하는 세그먼트입니다');
         }
 
-        sendErrorResponse(res, 500, '세그먼트 저장 중 오류가 발생했습니다');
+        return formatErrorResponse(res, 500, '세그먼트 저장 중 오류가 발생했습니다');
     }
 };
 
@@ -67,14 +64,11 @@ const getSegments = async (req, res) => {
 
         logger.info(`세그먼트 조회 완료: sessionId=${sessionId}, count=${segments.length}`);
 
-        sendSuccessResponse(res, {
-            message: '세그먼트를 성공적으로 조회했습니다',
-            data: {
-                sessionId,
-                totalSegments: segments.length,
-                segments
-            }
-        });
+        return formatResponse(res, 200, true, {
+            sessionId,
+            totalSegments: segments.length,
+            segments
+        }, '세그먼트를 성공적으로 조회했습니다');
 
     } catch (error) {
         logger.error(`세그먼트 조회 실패: ${error.message}`, { 
@@ -83,7 +77,7 @@ const getSegments = async (req, res) => {
             error: error.stack 
         });
 
-        sendErrorResponse(res, 500, '세그먼트 조회 중 오류가 발생했습니다');
+        return formatErrorResponse(res, 500, '세그먼트 조회 중 오류가 발생했습니다');
     }
 };
 
@@ -103,7 +97,7 @@ const finalizeSession = async (req, res) => {
         
         if (segments.length === 0) {
             logger.warn(`세션 종료 처리 실패: 세그먼트가 없음 - sessionId=${sessionId}`);
-            return sendErrorResponse(res, 404, '분석할 세그먼트 데이터가 없습니다');
+            return formatErrorResponse(res, 404, '분석할 세그먼트 데이터가 없습니다');
         }
 
         // 2. sessionAnalytics 생성
@@ -117,14 +111,11 @@ const finalizeSession = async (req, res) => {
 
         logger.info(`세션 분석 완료: sessionId=${sessionId}, totalSegments=${segments.length}`);
 
-        sendSuccessResponse(res, {
-            message: '세션이 성공적으로 종료되고 분석이 완료되었습니다',
-            data: {
-                sessionId,
-                totalSegments: segments.length,
-                analytics: sessionAnalytics
-            }
-        });
+        return formatResponse(res, 200, true, {
+            sessionId,
+            totalSegments: segments.length,
+            analytics: sessionAnalytics
+        }, '세션이 성공적으로 종료되고 분석이 완료되었습니다');
 
     } catch (error) {
         logger.error(`세션 종료 처리 실패: ${error.message}`, { 
@@ -133,7 +124,7 @@ const finalizeSession = async (req, res) => {
             error: error.stack 
         });
 
-        sendErrorResponse(res, 500, '세션 종료 처리 중 오류가 발생했습니다');
+        return formatErrorResponse(res, 500, '세션 종료 처리 중 오류가 발생했습니다');
     }
 };
 
@@ -160,19 +151,16 @@ const updateSegment = async (req, res) => {
         );
 
         if (!result) {
-            return sendErrorResponse(res, 404, '업데이트할 세그먼트를 찾을 수 없습니다');
+            return formatErrorResponse(res, 404, '업데이트할 세그먼트를 찾을 수 없습니다');
         }
 
         logger.info(`세그먼트 업데이트 완료: sessionId=${sessionId}, segmentIndex=${segmentIndex}`);
 
-        sendSuccessResponse(res, {
-            message: '세그먼트가 성공적으로 업데이트되었습니다',
-            data: {
-                sessionId,
-                segmentIndex: parseInt(segmentIndex),
-                updatedAt: new Date()
-            }
-        });
+        return formatResponse(res, 200, true, {
+            sessionId,
+            segmentIndex: parseInt(segmentIndex),
+            updatedAt: new Date()
+        }, '세그먼트가 성공적으로 업데이트되었습니다');
 
     } catch (error) {
         logger.error(`세그먼트 업데이트 실패: ${error.message}`, { 
@@ -182,7 +170,7 @@ const updateSegment = async (req, res) => {
             error: error.stack 
         });
 
-        sendErrorResponse(res, 500, '세그먼트 업데이트 중 오류가 발생했습니다');
+        return formatErrorResponse(res, 500, '세그먼트 업데이트 중 오류가 발생했습니다');
     }
 };
 
