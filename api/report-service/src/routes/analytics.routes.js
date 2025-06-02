@@ -38,7 +38,7 @@ router.post(
     authenticate,
     validate([
         param('sessionId').isUUID().withMessage('유효하지 않은 세션 ID입니다'),
-        body('sessionType').isString().isIn(['dating', 'interview', 'business', 'coaching']).withMessage('유효하지 않은 세션 타입입니다'),
+        body('sessionType').isString().isIn(['dating', 'interview', 'presentation', 'coaching']).withMessage('유효하지 않은 세션 타입입니다'),
         body('totalDuration').optional().isInt({min: 0}).withMessage('총 시간은 0 이상의 정수여야 합니다')
     ]),
     analyticsController.finalizeSession
