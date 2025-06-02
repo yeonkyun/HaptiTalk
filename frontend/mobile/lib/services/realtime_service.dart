@@ -4,6 +4,7 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:logger/logger.dart';
 import '../config/app_config.dart';
 import '../models/stt/stt_response.dart';
+import 'auth_service.dart';
 
 class RealtimeService {
   static final RealtimeService _instance = RealtimeService._internal();
@@ -163,6 +164,80 @@ class RealtimeService {
   /// 햅틱 피드백 수신 콜백 설정
   void setHapticFeedbackCallback(Function(Map<String, dynamic>) callback) {
     _onHapticFeedback = callback;
+  }
+
+  /// 세그먼트 데이터를 report-service/analytics에 저장 (30초마다 호출)
+  Future<bool> saveSegment(String sessionId, Map<String, dynamic> segmentData) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConfig.apiBaseUrl}/reports/analytics/segments/$sessionId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${await _getAccessToken()}',
+        },
+        body: json.encode(segmentData),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        _logger.i('✅ 세그먼트 저장 성공: ${segmentData['segmentIndex']}');
+        return true;
+      } else {
+        _logger.e('❌ 세그먼트 저장 실패: ${response.statusCode} - ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      _logger.e('❌ 세그먼트 저장 오류: $e');
+      return false;
+    }
+  }
+
+  /// 세션 종료 및 최종 분석 데이터 생성
+  Future<bool> finalizeSession(String sessionId, String sessionType, {int? totalDuration}) async {
+    try {
+      final requestData = {
+        'sessionType': sessionType,
+        if (totalDuration != null) 'totalDuration': totalDuration,
+      };
+
+      final response = await http.post(
+        Uri.parse('${AppConfig.apiBaseUrl}/reports/analytics/$sessionId/finalize'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${await _getAccessToken()}',
+        },
+        body: json.encode(requestData),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        _logger.i('✅ 세션 종료 처리 성공: ${responseData['data']['totalSegments']}개 세그먼트 분석 완료');
+        return true;
+      } else {
+        _logger.e('❌ 세션 종료 처리 실패: ${response.statusCode} - ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      _logger.e('❌ 세션 종료 처리 오류: $e');
+      return false;
+    }
+  }
+
+  /// 액세스 토큰을 가져오는 헬퍼 메서드
+  Future<String> _getAccessToken() async {
+    try {
+      final authService = AuthService();
+      final accessToken = await authService.getAccessToken();
+      
+      if (accessToken == null) {
+        throw Exception('액세스 토큰을 가져올 수 없습니다');
+      }
+      
+      return accessToken;
+    } catch (e) {
+      _logger.e('❌ 액세스 토큰 가져오기 실패: $e');
+      throw e;
+    }
   }
 
   /// 연결 해제
