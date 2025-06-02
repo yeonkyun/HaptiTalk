@@ -23,8 +23,16 @@ import 'package:haptitalk/services/auth_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 환경변수 로드
-  await dotenv.load(fileName: '.env');
+  // 환경변수 로드 - .env 파일이 없어도 동작하도록 수정
+  try {
+    await dotenv.load(fileName: '.env');
+    print('✅ .env 파일 로드 완료');
+  } catch (e) {
+    print('⚠️ .env 파일을 찾을 수 없습니다. 기본값을 사용합니다: $e');
+  }
+
+  // 앱 설정 정보 출력
+  AppConfig.logCurrentConfig();
 
   // LocalStorageService 초기화
   await LocalStorageService.init();

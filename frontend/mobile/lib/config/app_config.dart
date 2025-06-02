@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
-  // API 설정 - 환경변수에서 가져오기
+  // API 설정 - 환경변수에서만 가져오기
   static String get apiBaseUrl {
     if (kDebugMode) {
       final url = dotenv.env['DEV_API_BASE_URL'];
@@ -39,7 +39,24 @@ class AppConfig {
     }
   }
 
-  // JWT 설정
+  // AI 서버 설정 (젯슨 서버)
+  static String get aiBaseUrl {
+    if (kDebugMode) {
+      final url = dotenv.env['DEV_AI_BASE_URL'];
+      if (url == null || url.isEmpty) {
+        throw Exception('DEV_AI_BASE_URL 환경변수가 설정되지 않았습니다. .env 파일을 확인하세요.');
+      }
+      return url;
+    } else {
+      final url = dotenv.env['AI_BASE_URL'];
+      if (url == null || url.isEmpty) {
+        throw Exception('AI_BASE_URL 환경변수가 설정되지 않았습니다. .env 파일을 확인하세요.');
+      }
+      return url;
+    }
+  }
+
+  // JWT 설정 - 환경변수에서만 가져오기 (기본값 없음)
   static String get jwtAccessSecret {
     final secret = dotenv.env['JWT_ACCESS_SECRET'];
     if (secret == null || secret.isEmpty) {
@@ -90,9 +107,34 @@ class AppConfig {
       'isDebugMode': isDebugMode,
       'apiBaseUrl': apiBaseUrl,
       'wsBaseUrl': wsBaseUrl,
+      'aiBaseUrl': aiBaseUrl,
     };
   }
 
   // 환경변수 초기화 확인
-  static bool get isInitialized => dotenv.isEveryDefined(['API_BASE_URL']);
+  static bool get isInitialized {
+    try {
+      // 필수 환경변수들이 제대로 로드되는지 확인
+      apiBaseUrl;
+      wsBaseUrl;
+      aiBaseUrl;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // 연결 상태 확인용 메서드 추가
+  static void logCurrentConfig() {
+    print('📱 App Config:');
+    try {
+      print('  - API Base URL: $apiBaseUrl');
+      print('  - WebSocket URL: $wsBaseUrl');
+      print('  - AI Base URL: $aiBaseUrl');
+      print('  - Debug Mode: $isDebugMode');
+      print('  - App Version: $appVersion');
+    } catch (e) {
+      print('  - ❌ 설정 로드 실패: $e');
+    }
+  }
 }

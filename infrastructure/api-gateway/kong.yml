@@ -119,47 +119,60 @@ services:
           policy: local
           fault_tolerant: true
 
-  # 실시간 서비스
-  - name: realtime-service
+  # 실시간 서비스 (Socket.IO 포함)
+  - name: realtime-service  
     url: http://realtime-service:3001
+    connect_timeout: 60000
+    write_timeout: 60000  
+    read_timeout: 60000
     routes:
-      - name: realtime-routes
+      # 실시간 서비스 API 및 Socket.IO 통합 경로
+      - name: realtime-api-routes  
         paths:
           - /api/v1/realtime
+          - /socket.io
         strip_path: false
-      - name: realtime-api-docs-route
-        paths:
-          - /api/docs/realtime
-        strip_path: true
-        regex_priority: 0
-        https_redirect_status_code: 426
-        path_handling: v0
-        preserve_host: false
         protocols:
           - http
           - https
-        request_buffering: true
-        response_buffering: true
+        preserve_host: false
+        request_buffering: false
+        response_buffering: false
     plugins:
       - name: cors
-      # JWT 인증 적용
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Authorization
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - X-Custom-Header
+            - Connection
+            - Upgrade
+            - Sec-WebSocket-Key
+            - Sec-WebSocket-Version
+          exposed_headers:
+            - X-Custom-Header
+          credentials: true
+          max_age: 3600
       - name: jwt
         config:
           secret_is_base64: false
+          key_claim_name: kid
           claims_to_verify:
             - exp
-          key_claim_name: kid
-          maximum_expiration: 86400  # 24시간
-      # 속도 제한 설정
-      - name: rate-limiting
-        config:
-          second: 10
-          minute: 60
-          hour: 600
-          day: 6000
-          policy: local
-          fault_tolerant: true
-  
+
   # 실시간 서비스 Health 전용 서비스  
   - name: realtime-service-health
     url: http://realtime-service:3001/health
