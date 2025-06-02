@@ -30,6 +30,32 @@ const generateFeedback = async (req, res, next) => {
 };
 
 /**
+ * STT 분석 결과 기반 피드백 생성
+ */
+const processSTTAnalysisResult = async (req, res, next) => {
+    try {
+        const { session_id, analysis_result, device_id } = req.body;
+        const userId = req.user.id;
+
+        const feedback = await feedbackService.processSTTAnalysisAndGenerateFeedback({
+            userId,
+            sessionId: session_id,
+            analysisResult: analysis_result,
+            deviceId: device_id,
+            timestamp: new Date()
+        });
+
+        return res.status(httpStatus.OK).json(formatResponse(
+            true,
+            { feedback },
+            'STT 분석 기반 피드백이 생성되었습니다.'
+        ));
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
  * 피드백 수신 확인
  */
 const acknowledgeFeedback = async (req, res, next) => {
@@ -52,5 +78,6 @@ const acknowledgeFeedback = async (req, res, next) => {
 
 module.exports = {
     generateFeedback,
+    processSTTAnalysisResult,
     acknowledgeFeedback
 };
