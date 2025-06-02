@@ -465,7 +465,8 @@ class STTWebSocketManager:
             "scenario": scenario,
             "segment_count": 0,
             "last_transcription": "",
-            "is_first_segment": True
+            "is_first_segment": True,
+            "is_recording": False
         }
     
     async def _load_model_if_needed(self, connection_id: str) -> bool:
@@ -532,8 +533,36 @@ class STTWebSocketManager:
                 if "command" in data:
                     command = data["command"]
                     
+                    # 녹음 시작 명령
+                    if command == "start_recording":
+                        logger.info(f"녹음 시작 요청 수신: {connection_id}")
+                        session = self.sessions[connection_id]
+                        session["is_recording"] = True
+                        
+                        await self.connection_manager.send_json(connection_id, {
+                            "type": "recording_started",
+                            "message": "녹음이 시작되었습니다."
+                        })
+                        return True
+                    
+                    # 녹음 중지 명령
+                    elif command == "stop_recording":
+                        logger.info(f"녹음 중지 요청 수신: {connection_id}")
+                        session = self.sessions[connection_id]
+                        session["is_recording"] = False
+                        
+                        # 버퍼에 남은 데이터 최종 처리
+                        if len(session["buffer"]) > 0:
+                            await self._process_audio_buffer(connection_id, is_final=True)
+                        
+                        await self.connection_manager.send_json(connection_id, {
+                            "type": "recording_stopped",
+                            "message": "녹음이 중지되었습니다."
+                        })
+                        return True
+                    
                     # 최종 처리 명령
-                    if command == "process_final":
+                    elif command == "process_final":
                         logger.info(f"최종 처리 요청 수신: {connection_id}")
                         await self._process_audio_buffer(connection_id, is_final=True)
                         logger.info(f"최종 처리 완료: {connection_id}")
@@ -603,6 +632,11 @@ class STTWebSocketManager:
             return False
             
         session = self.sessions[connection_id]
+        
+        # 녹음 상태가 아니면 오디오 데이터 무시
+        if not session.get("is_recording", False):
+            logger.debug(f"녹음 상태가 아니므로 오디오 데이터 무시: {connection_id}")
+            return True
         
         # 데이터 버퍼에 추가
         session["buffer"].extend(binary_data)
