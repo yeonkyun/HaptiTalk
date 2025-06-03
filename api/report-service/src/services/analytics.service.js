@@ -142,6 +142,9 @@ const generateSessionAnalytics = async (sessionId, userId, sessionType, segments
             specializedAnalysis: analytics.specializedAnalysis
         };
 
+        // 디버깅: 저장할 데이터 로깅
+        logger.info(`저장할 sessionAnalytics:`, JSON.stringify(sanitizeData(sessionAnalytics), null, 2));
+
         const result = await collection.replaceOne(
             { sessionId: sessionId },
             sanitizeData(sessionAnalytics),
