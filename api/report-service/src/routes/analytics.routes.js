@@ -34,7 +34,7 @@ router.get(
 
 // 세션 종료 및 최종 분석 데이터 생성
 router.post(
-    '/analytics/:sessionId/finalize',
+    '/:sessionId/finalize',
     authenticate,
     validate([
         param('sessionId').isUUID().withMessage('유효하지 않은 세션 ID입니다'),
