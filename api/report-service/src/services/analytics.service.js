@@ -1,4 +1,4 @@
-const { getDB } = require('../config/mongodb');
+const { getDb } = require('../config/mongodb');
 const logger = require('../utils/logger');
 
 /**
@@ -6,7 +6,7 @@ const logger = require('../utils/logger');
  */
 const saveSegment = async (segmentData) => {
     try {
-        const db = getDB();
+        const db = await getDb();
         const collection = db.collection('sessionSegments');
 
         // 중복 체크를 위한 upsert 사용
@@ -38,7 +38,7 @@ const saveSegment = async (segmentData) => {
  */
 const getSegmentsBySession = async (sessionId, userId) => {
     try {
-        const db = getDB();
+        const db = await getDb();
         const collection = db.collection('sessionSegments');
 
         const segments = await collection
@@ -64,7 +64,7 @@ const getSegmentsBySession = async (sessionId, userId) => {
  */
 const updateSegment = async (sessionId, segmentIndex, userId, updateData) => {
     try {
-        const db = getDB();
+        const db = await getDb();
         const collection = db.collection('sessionSegments');
 
         const result = await collection.updateOne(
@@ -96,7 +96,7 @@ const updateSegment = async (sessionId, segmentIndex, userId, updateData) => {
  */
 const generateSessionAnalytics = async (sessionId, userId, sessionType, segments, totalDuration) => {
     try {
-        const db = getDB();
+        const db = await getDb();
         const collection = db.collection('sessionAnalytics');
 
         // 세그먼트 데이터 분석
