@@ -1,6 +1,33 @@
 const { getDb } = require('../config/mongodb');
 const logger = require('../utils/logger');
 
+// NaN과 Infinity 값을 안전한 값으로 변환하는 함수
+const sanitizeValue = (value, defaultValue = 0) => {
+    if (value === null || value === undefined || Number.isNaN(value) || !Number.isFinite(value)) {
+        return defaultValue;
+    }
+    return value;
+};
+
+// 객체의 모든 숫자 값을 안전하게 변환하는 함수
+const sanitizeData = (obj) => {
+    if (obj === null || obj === undefined) return null;
+    if (typeof obj === 'number') {
+        return sanitizeValue(obj);
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(sanitizeData);
+    }
+    if (typeof obj === 'object') {
+        const sanitized = {};
+        for (const [key, value] of Object.entries(obj)) {
+            sanitized[key] = sanitizeData(value);
+        }
+        return sanitized;
+    }
+    return obj;
+};
+
 /**
  * 세그먼트 데이터를 MongoDB에 저장
  */
@@ -117,7 +144,7 @@ const generateSessionAnalytics = async (sessionId, userId, sessionType, segments
 
         const result = await collection.replaceOne(
             { sessionId: sessionId },
-            sessionAnalytics,
+            sanitizeData(sessionAnalytics),
             { upsert: true }
         );
 
@@ -195,17 +222,17 @@ const calculateBasicStatistics = (segments) => {
         .reduce((sum, count) => sum + count, 0);
 
     const averageSpeakingSpeed = speakingSpeeds.length > 0 
-        ? Math.round(speakingSpeeds.reduce((sum, speed) => sum + speed, 0) / speakingSpeeds.length)
+        ? sanitizeValue(Math.round(speakingSpeeds.reduce((sum, speed) => sum + speed, 0) / speakingSpeeds.length), 120)
         : 120; // 기본값
 
     const speakingRatio = validSegments.length > 0 
-        ? validSegments.filter(s => s.transcription && s.transcription.trim().length > 0).length / validSegments.length
+        ? sanitizeValue(validSegments.filter(s => s.transcription && s.transcription.trim().length > 0).length / validSegments.length, 0.5)
         : 0.5;
 
     return {
-        speakingRatio: Math.round(speakingRatio * 100) / 100,
+        speakingRatio: sanitizeValue(Math.round(speakingRatio * 100) / 100, 0.5),
         averageSpeakingSpeed: averageSpeakingSpeed,
-        totalWords: totalWords,
+        totalWords: sanitizeValue(totalWords, 0),
         questionAnswerRatio: calculateQuestionAnswerRatio(validSegments),
         interruptions: calculateInterruptions(validSegments),
         silencePeriods: calculateSilencePeriods(validSegments),
@@ -227,14 +254,18 @@ const analyzeEmotions = (segments) => {
     const likabilityScores = validSegments.map(s => s.analysis.likability || 50);
     const interestScores = validSegments.map(s => s.analysis.interest || 50);
 
-    const averageLikability = likabilityScores.reduce((sum, score) => sum + score, 0) / likabilityScores.length;
-    const averageInterest = interestScores.reduce((sum, score) => sum + score, 0) / interestScores.length;
+    const averageLikability = likabilityScores.length > 0 
+        ? sanitizeValue(likabilityScores.reduce((sum, score) => sum + score, 0) / likabilityScores.length, 50)
+        : 50;
+    const averageInterest = interestScores.length > 0 
+        ? sanitizeValue(interestScores.reduce((sum, score) => sum + score, 0) / interestScores.length, 50)
+        : 50;
 
     return {
         averageScores: {
-            positive: Math.round((averageLikability + averageInterest) / 2) / 100,
+            positive: sanitizeValue(Math.round((averageLikability + averageInterest) / 2) / 100, 0.5),
             neutral: 0.3,
-            negative: Math.round((200 - averageLikability - averageInterest) / 2) / 100
+            negative: sanitizeValue(Math.round((200 - averageLikability - averageInterest) / 2) / 100, 0.2)
         },
         trends: calculateEmotionTrends(likabilityScores, interestScores)
     };
@@ -290,7 +321,8 @@ const calculateQuestionAnswerRatio = (segments) => {
         s.transcription.includes('어떤')
     ).length;
     
-    return Math.round((questionCount / validSegments.length) * 100) / 100;
+    const ratio = questionCount / validSegments.length;
+    return sanitizeValue(Math.round(ratio * 100) / 100, 0);
 };
 
 const calculateInterruptions = (segments) => {
@@ -352,7 +384,8 @@ const calculateSpeakingRateVariance = (speeds) => {
     
     const mean = speeds.reduce((sum, speed) => sum + speed, 0) / speeds.length;
     const variance = speeds.reduce((sum, speed) => sum + Math.pow(speed - mean, 2), 0) / speeds.length;
-    return Math.round(Math.sqrt(variance));
+    const result = Math.sqrt(variance);
+    return sanitizeValue(Math.round(result), 0);
 };
 
 const calculateEmotionTrends = (likability, interest) => {
@@ -361,14 +394,18 @@ const calculateEmotionTrends = (likability, interest) => {
     const firstHalf = likability.slice(0, Math.floor(likability.length / 2));
     const secondHalf = likability.slice(Math.floor(likability.length / 2));
     
-    const firstAvg = firstHalf.reduce((sum, val) => sum + val, 0) / firstHalf.length;
-    const secondAvg = secondHalf.reduce((sum, val) => sum + val, 0) / secondHalf.length;
+    const firstAvg = firstHalf.length > 0 
+        ? sanitizeValue(firstHalf.reduce((sum, val) => sum + val, 0) / firstHalf.length, 50)
+        : 50;
+    const secondAvg = secondHalf.length > 0 
+        ? sanitizeValue(secondHalf.reduce((sum, val) => sum + val, 0) / secondHalf.length, 50)
+        : 50;
     
-    const change = secondAvg - firstAvg;
+    const change = sanitizeValue(secondAvg - firstAvg, 0);
     
     return {
         trend: change > 5 ? 'increasing' : change < -5 ? 'decreasing' : 'stable',
-        change: Math.round(change),
+        change: sanitizeValue(Math.round(change), 0),
         likabilityTrend: change > 0 ? '상승' : change < 0 ? '하락' : '안정',
         interestTrend: interest.length > 1 ? '지속적' : '보통'
     };
