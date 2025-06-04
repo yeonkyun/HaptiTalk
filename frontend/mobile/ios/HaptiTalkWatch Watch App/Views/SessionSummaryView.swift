@@ -131,25 +131,8 @@ struct SessionSummaryView: View {
                     
                     Spacer(minLength: 30)
                     
-                    // 홈으로 돌아가기 버튼
-                    Button(action: {
-                        // 세션 요약 저장 (이미 SessionProgressView에서 저장했을 가능성이 높지만, 중복 방지를 위한 조치 필요)
-                        saveSessionIfNeeded()
-                        
-                        // 홈 화면으로 이동
-                        presentationMode.wrappedValue.dismiss()
-                    }) {
-                        Text("홈으로 돌아가기")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color(.sRGB, red: 0.25, green: 0.32, blue: 0.71, opacity: 1.0)) // #3F51B5
-                            )
-                    }
-                    .buttonStyle(PlainButtonStyle())
+                    // 홈으로 돌아가기 버튼이 제거됨
+                    Spacer(minLength: 20)
                     .padding(.horizontal, 10)
                     .padding(.bottom, 20)
                 }

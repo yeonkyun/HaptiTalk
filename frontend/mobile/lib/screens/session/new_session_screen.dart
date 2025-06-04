@@ -18,10 +18,9 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
 
   // 세션 모드 목록과 설명
   final Map<String, String> _sessionModes = {
-    '발표': '설득력과 프레젠테이션 분석',
     '소개팅': '호감도와 대화 주제 분석',
-    '면접': '자신감과 명확성 분석',
-    '코칭': '감정 변화와 심리 분석',
+    '면접(인터뷰)': '자신감과 명확성 분석',
+    '발표': '설득력과 전달력 분석',
   };
 
   // 분석 수준 선택
@@ -528,8 +527,10 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
         return Icons.present_to_all;
       case '소개팅':
         return Icons.favorite_border;
-      case '면접':
+      case '면접(인터뷰)':
         return Icons.business_center;
+      case '비즈니스':
+        return Icons.handshake;
       case '코칭':
         return Icons.psychology;
       default:
