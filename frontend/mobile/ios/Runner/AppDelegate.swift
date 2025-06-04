@@ -208,6 +208,113 @@ import WatchConnectivity
       }
     }
   }
+  
+  // iPhone 모델명 가져오기 (기기 ID를 사람이 읽을 수 있는 모델명으로 변환)
+  private func getDeviceModelName() -> String {
+    var systemInfo = utsname()
+    uname(&systemInfo)
+    let machineMirror = Mirror(reflecting: systemInfo.machine)
+    let identifier = machineMirror.children.reduce("") { identifier, element in
+      guard let value = element.value as? Int8, value != 0 else { return identifier }
+      return identifier + String(UnicodeScalar(UInt8(value)))
+    }
+    
+    print("iOS: 🔍 현재 기기 식별자 초기값: \(identifier)")
+    
+    // 기기 식별자를 모델명으로 변환
+    var modelName: String
+    switch identifier {
+      // 초기 iPhone 모델
+      case "iPhone1,1": modelName = "iPhone"
+      case "iPhone1,2": modelName = "iPhone 3G"
+      case "iPhone2,1": modelName = "iPhone 3GS"
+      
+      // iPhone 4 시리즈
+      case "iPhone3,1": modelName = "iPhone 4"
+      case "iPhone3,2": modelName = "iPhone 4 GSM Rev A"
+      case "iPhone3,3": modelName = "iPhone 4 CDMA"
+      case "iPhone4,1": modelName = "iPhone 4S"
+      
+      // iPhone 5 시리즈
+      case "iPhone5,1": modelName = "iPhone 5 (GSM)"
+      case "iPhone5,2": modelName = "iPhone 5 (GSM+CDMA)"
+      case "iPhone5,3": modelName = "iPhone 5C (GSM)"
+      case "iPhone5,4": modelName = "iPhone 5C (Global)"
+      case "iPhone6,1": modelName = "iPhone 5S (GSM)"
+      case "iPhone6,2": modelName = "iPhone 5S (Global)"
+      
+      // iPhone 6 시리즈
+      case "iPhone7,1": modelName = "iPhone 6 Plus"
+      case "iPhone7,2": modelName = "iPhone 6"
+      case "iPhone8,1": modelName = "iPhone 6s"
+      case "iPhone8,2": modelName = "iPhone 6s Plus"
+      case "iPhone8,4": modelName = "iPhone SE (1세대)"
+      
+      // iPhone 7 시리즈
+      case "iPhone9,1": modelName = "iPhone 7"
+      case "iPhone9,2": modelName = "iPhone 7 Plus"
+      case "iPhone9,3": modelName = "iPhone 7"
+      case "iPhone9,4": modelName = "iPhone 7 Plus"
+      
+      // iPhone 8 & X 시리즈
+      case "iPhone10,1": modelName = "iPhone 8"
+      case "iPhone10,2": modelName = "iPhone 8 Plus"
+      case "iPhone10,3": modelName = "iPhone X Global"
+      case "iPhone10,4": modelName = "iPhone 8"
+      case "iPhone10,5": modelName = "iPhone 8 Plus"
+      case "iPhone10,6": modelName = "iPhone X GSM"
+      
+      // iPhone XS & XR 시리즈
+      case "iPhone11,2": modelName = "iPhone XS"
+      case "iPhone11,4": modelName = "iPhone XS Max"
+      case "iPhone11,6": modelName = "iPhone XS Max Global"
+      case "iPhone11,8": modelName = "iPhone XR"
+      
+      // iPhone 11 시리즈
+      case "iPhone12,1": modelName = "iPhone 11"
+      case "iPhone12,3": modelName = "iPhone 11 Pro"
+      case "iPhone12,5": modelName = "iPhone 11 Pro Max"
+      case "iPhone12,8": modelName = "iPhone SE (2세대)"
+      
+      // iPhone 12 시리즈
+      case "iPhone13,1": modelName = "iPhone 12 Mini"
+      case "iPhone13,2": modelName = "iPhone 12"
+      case "iPhone13,3": modelName = "iPhone 12 Pro"
+      case "iPhone13,4": modelName = "iPhone 12 Pro Max"
+      
+      // iPhone 13 시리즈
+      case "iPhone14,2": modelName = "iPhone 13 Pro"
+      case "iPhone14,3": modelName = "iPhone 13 Pro Max"
+      case "iPhone14,4": modelName = "iPhone 13 Mini"
+      case "iPhone14,5": modelName = "iPhone 13"
+      case "iPhone14,6": modelName = "iPhone SE (3세대)"
+      
+      // iPhone 14 시리즈
+      case "iPhone14,7": modelName = "iPhone 14"
+      case "iPhone14,8": modelName = "iPhone 14 Plus"
+      case "iPhone15,2": modelName = "iPhone 14 Pro"
+      case "iPhone15,3": modelName = "iPhone 14 Pro Max"
+      
+      // iPhone 15 시리즈
+      case "iPhone15,4": modelName = "iPhone 15"
+      case "iPhone15,5": modelName = "iPhone 15 Plus"
+      case "iPhone16,1": modelName = "iPhone 15 Pro"
+      case "iPhone16,2": modelName = "iPhone 15 Pro Max"
+      
+      // iPhone 16 시리즈
+      case "iPhone17,1": modelName = "iPhone 16 Pro"
+      case "iPhone17,2": modelName = "iPhone 16 Pro Max"
+      case "iPhone17,3": modelName = "iPhone 16"
+      case "iPhone17,4": modelName = "iPhone 16 Plus"
+      case "iPhone17,5": modelName = "iPhone 16e"
+      default: 
+        modelName = "iPhone"
+        print("iOS: ⚠️ 알 수 없는 기기 식별자: \(identifier). 기본값 사용.")
+    }
+    
+    print("iOS: 💻 변환된 모델명: \(modelName)")
+    return modelName
+  }
 }
 
 // MARK: - WCSessionDelegate
@@ -231,23 +338,81 @@ extension AppDelegate: WCSessionDelegate {
     // 재활성화
     session.activate()
   }
-  
   func sessionReachabilityDidChange(_ session: WCSession) {
     DispatchQueue.main.async { [weak self] in
       print("iOS: Reachability changed - isReachable: \(session.isReachable)")
       self?.notifyWatchConnectionStatus()
     }
   }
+
+  // MARK: - 워치로부터 메시지 수신 처리
+  func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
+    print("Received message from watch with replyHandler: \(message)")
+
+    // 워치로부터 받은 메시지 처리
+    if let action = message["action"] as? String {
+      switch action {
+      case "requestDeviceModelName":
+        // 디바이스 이름을 가져와서 워치에 전송
+        let deviceModel = getDeviceModelName()
+        print("iOS: 🔍 현재 기기 식별자: \(UIDevice.current.model)")
+        print("iOS: 📱 기본 이름 비교: UIDevice.name = \(UIDevice.current.name), 모델명 = \(deviceModel)")
+        
+        // 응답 데이터 준비
+        let response = [
+          "deviceName": deviceModel
+        ]
+        
+        // 직접 replyHandler를 통해 응답
+        replyHandler(response)
+        print("iOS: 📤 기기 모델명 응답 전송 완료: \(deviceModel)")
+      default:
+        // 알 수 없는 액션 처리
+        replyHandler(["error": "Unknown action: \(action)"])
+        print("iOS: ⚠️ 알 수 없는 워치 메시지 액션: \(action)")
+      }
+    } else {
+      // 액션이 없는 메시지 처리
+      replyHandler(["error": "No action specified"])
+      print("iOS: ⚠️ 액션이 지정되지 않은 워치 메시지")
+    }
+  }
   
-  func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-    print("Received message from watch: \(message)")
+  // 기존 didReceiveMessage 메서드도 유지 (replyHandler가 없는 메시지용)
+  func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+    print("Received message from watch without replyHandler: \(message)")
+    
+    // Flutter로 메시지 전달
     DispatchQueue.main.async { [weak self] in
       self?.watchChannel?.invokeMethod("watchMessage", arguments: message)
     }
   }
-  
+
   func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
     print("Received application context from watch: \(applicationContext)")
+    
+    // applicationContext를 통한 기기 이름 요청 처리
+    if let action = applicationContext["action"] as? String, action == "requestDeviceName" {
+      // iPhone의 모델명 가져오기
+      let deviceModel = getDeviceModelName()
+      print("iOS: 📱 applicationContext를 통한 기기 이름 요청 받음. 응답: \(deviceModel)")
+      
+      // 워치에 디바이스 이름 응답 전송
+      let response = [
+        "action": "deviceNameResponse",
+        "deviceName": deviceModel
+      ]
+      
+      // 응답도 applicationContext로 전송
+      do {
+        try session.updateApplicationContext(response)
+        print("iOS: 📱 기기 이름 응답 전송 성공 (applicationContext 사용)")
+      } catch {
+        print("iOS: ❌ 기기 이름 응답 전송 실패 - \(error.localizedDescription)")
+      }
+    }
+    
+    // Flutter로 메시지 전달
     DispatchQueue.main.async { [weak self] in
       self?.watchChannel?.invokeMethod("watchMessage", arguments: applicationContext)
     }

@@ -16,6 +16,7 @@ import WatchConnectivity
 class AppState: NSObject, ObservableObject, WCSessionDelegate {
     @Published var isConnected: Bool = false
     @Published var connectedDevice: String = "연결 중..."
+    private var pairedDeviceName: String? = nil // 페어링된 iPhone 모델명 저장 변수
     @Published var recentSessions: [Session] = []
     
     // 햅틱 피드백 관련 상태
@@ -95,8 +96,14 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
         self.isConnected = session.activationState == .activated && session.isReachable
         
         #if os(watchOS)
-        let deviceName = WKInterfaceDevice.current().name
-        self.connectedDevice = self.isConnected ? "연결됨: \(deviceName)" : "연결 안됨"
+        if self.isConnected {
+            // 연결된 상태에서는 여기에서 직접 페어링된 iPhone 모델명 표시
+            self.connectedDevice = getConnectedDeviceType()
+            print("Watch: ✅ 연결된 기기 타입 설정: \(self.connectedDevice)")
+        } else {
+            // 연결되지 않은 상태
+            self.connectedDevice = "연결 안됨"
+        }
         #endif
         
         print("Watch: Connection status updated - isConnected: \(self.isConnected), device: \(self.connectedDevice)")
@@ -176,10 +183,61 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
     }
     
     // MARK: - Message Handling
+    // 연결된 기기 타입 가져오기
+    private func getConnectedDeviceType() -> String {
+        // iPhone에 기기 모델명 요청
+        requestDeviceNameFromiPhone()
+        
+        // 응답을 기다리는 동안 기본값 반환
+        return self.pairedDeviceName ?? "iPhone"
+    }
+    
+    // iPhone에게 기기 모델명 요청
+    private func requestDeviceNameFromiPhone() {
+        guard WCSession.default.activationState == .activated,
+              WCSession.default.isReachable else {
+            print("Watch: ⚠️ iPhone이 도달 불가능한 상태, 기기 이름 요청 불가")
+            return
+        }
+        
+        let message = [
+            "action": "requestDeviceModelName",
+            "timestamp": Int(Date().timeIntervalSince1970)
+        ] as [String : Any]
+        
+        // replyHandler와 errorHandler를 명시적으로 구현한 sendMessage 사용
+        WCSession.default.sendMessage(message, replyHandler: { reply in
+            print("Watch: ✅ iPhone으로부터 응답 받음: \(reply)")
+            
+            if let deviceName = reply["deviceName"] as? String {
+                print("Watch: 📱 기기 이름 수신: \(deviceName)")
+                DispatchQueue.main.async {
+                    self.pairedDeviceName = deviceName
+                    self.connectedDevice = deviceName
+                    
+                    // UI 업데이트를 위해 isConnected 값 토글
+                    if self.isConnected {
+                        self.isConnected = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            self.isConnected = true
+                        }
+                    }
+                }
+            }
+        }, errorHandler: { error in
+            print("Watch: ❌ 기기 이름 요청 오류: \(error.localizedDescription)")
+        })
+        
+        print("Watch: 📤 iPhone에 기기 모델명 요청 전송")
+    }
+    
     private func handleMessageFromiPhone(_ message: [String: Any]) {
         guard let action = message["action"] as? String else { return }
         
         switch action {
+        // 필요 없어진 deviceNameResponse 케이스 제거
+        // 이제 디바이스 이름은 직접 getConnectedDeviceType()에서 제공
+            
         case "startSession":
             if let sessionType = message["sessionType"] as? String {
                 self.sessionType = sessionType
@@ -236,6 +294,7 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
                 }
             }
         default:
+            print("Watch: Unhandled action from iPhone: \(action)")
             break
         }
     }
