@@ -35,13 +35,13 @@ struct MainScreenView: View {
                         .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
                     
                     // 연결 상태
-                    if appState.isConnected {
+                    if appState.isConnected && appState.connectedDevice != "연결 안됨" {
                         HStack(spacing: 4) {
                             Circle()
                                 .fill(Color(.sRGB, red: 0.3, green: 0.69, blue: 0.31, opacity: 1.0)) // #4CAF50
                                 .frame(width: 6, height: 6)
                             
-                            Text(appState.connectedDevice)
+                            Text("연결됨 : " + appState.connectedDevice)
                                 .font(.system(size: 11))
                                 .foregroundColor(Color(.sRGB, red: 0.3, green: 0.69, blue: 0.31, opacity: 1.0)) // #4CAF50
                                 .lineLimit(1)
