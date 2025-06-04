@@ -20,70 +20,50 @@ struct MainScreenView: View {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
             
-            VStack(spacing: 15) {
-                // 앱 아이콘 및 상태 - 가운데 정렬
-                VStack(spacing: 2) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color(.sRGB, red: 0.25, green: 0.32, blue: 0.71, opacity: 1.0)) // #3F51B5
-                            .frame(width: 40, height: 40)
-                        
-                        Text("H")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
+            VStack {
+                Spacer()
+                
+                // 앱 아이콘 및 상태 - 화면 중앙에 배치
+                VStack(spacing: 12) {
+                    // 아이콘 - 사용자가 제공한 PNG 이미지 사용
+                    // Assets.xcassets에 'AppIconUI' 이름으로 추가해야 함
+                    Image("AppIconUI")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 60, height: 60)
+                        .clipShape(RoundedRectangle(cornerRadius: 15))
+                        .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
+                    
+                    // 연결 상태
+                    if appState.isConnected {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(Color(.sRGB, red: 0.3, green: 0.69, blue: 0.31, opacity: 1.0)) // #4CAF50
+                                .frame(width: 6, height: 6)
+                            
+                            Text(appState.connectedDevice)
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(.sRGB, red: 0.3, green: 0.69, blue: 0.31, opacity: 1.0)) // #4CAF50
+                                .lineLimit(1)
+                        }
+                    } else {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 6, height: 6)
+                            
+                            Text("연결 안됨")
+                                .font(.system(size: 11))
+                                .foregroundColor(.red)
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 
-                // 연결 상태
-                if appState.isConnected {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(Color(.sRGB, red: 0.3, green: 0.69, blue: 0.31, opacity: 1.0)) // #4CAF50
-                            .frame(width: 6, height: 6)
-                        
-                        Text(appState.connectedDevice)
-                            .font(.system(size: 11))
-                            .foregroundColor(Color(.sRGB, red: 0.3, green: 0.69, blue: 0.31, opacity: 1.0)) // #4CAF50
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                } else {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 6, height: 6)
-                        
-                        Text("연결 안됨")
-                            .font(.system(size: 11))
-                            .foregroundColor(.red)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                }
-                
                 Spacer()
                 
-                // 세션 시작 버튼
-                Button(action: {
-                    if appState.isConnected {
-                        // 세션 모드 선택 화면으로 이동
-                        showSessionModeSelection = true
-                    } else {
-                        // 연결되지 않은 경우 연결 상태 화면으로 이동
-                        showConnectionStatus = true
-                    }
-                }) {
-                    Text("세션 시작")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 20)
-                                .fill(Color(.sRGB, red: 0.25, green: 0.32, blue: 0.71, opacity: 1.0)) // #3F51B5
-                        )
-                }
-                .buttonStyle(PlainButtonStyle())
+                // 세션 시작 버튼 제거됨
+                Spacer().frame(height: 20)
                 
                 // 설정 버튼 - 세션 모드 자리에 배치
                 Button(action: {

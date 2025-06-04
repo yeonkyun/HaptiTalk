@@ -13,7 +13,7 @@ struct SessionModeSelectionView: View {
     @Environment(\.presentationMode) var presentationMode
     var onModeSelected: ((_ mode: String) -> Void)?
     
-    let sessionModes = ["소개팅 모드", "회의 모드", "발표 모드", "사용자 지정"]
+    let sessionModes = ["소개팅", "면접(인터뷰)", "발표"]
     
     var body: some View {
         ScrollView {

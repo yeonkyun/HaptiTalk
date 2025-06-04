@@ -178,24 +178,8 @@ struct SessionProgressView: View {
                     
                     Spacer()
                     
-                    // 종료 버튼
-                    Button(action: {
-                        // 세션 요약 저장
-                        saveSessionSummary()
-                        
-                        // 세션 종료 및 세션 요약 화면으로 이동
-                        showSessionSummary = true
-                    }) {
-                        Text("세션 종료")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color(.sRGB, red: 0.96, green: 0.26, blue: 0.21, opacity: 1.0)) // #F44336
-                            )
-                    }
+                    // 종료 버튼 제거됨
+                    Spacer().frame(height: 20)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)

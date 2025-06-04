@@ -106,17 +106,24 @@ class StartScreen extends StatelessWidget {
                       width: 120,
                       height: 120,
                       decoration: BoxDecoration(
-                        color: AppColors.primaryColor,
                         borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          "H",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 60,
-                            fontWeight: FontWeight.bold,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            spreadRadius: 1,
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
                           ),
+                        ],
+                      ),
+                      // iOS 네이티브 에셋 사용
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(30),
+                        child: Image.asset(
+                          'assets/images/app_icon.png', // Flutter에서 사용할 에셋 경로
+                          fit: BoxFit.cover, // contain에서 cover로 변경하여 경계까지 채우기
+                          width: 120,
+                          height: 120,
                         ),
                       ),
                     ),
