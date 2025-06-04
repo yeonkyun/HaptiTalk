@@ -344,7 +344,7 @@ services:
         response_buffering: true
       - name: report-analytics-routes
         paths:
-          - /api/v1/reports/analytics
+          - ~/api/v1/reports/analytics.*
         strip_path: false
         regex_priority: 1
         path_handling: v0
