@@ -52,7 +52,7 @@ const authMiddleware = {
                 if (process.env.NODE_ENV === 'production') {
                     try {
                         const response = await axios.get(
-                            `http://${process.env.AUTH_SERVICE_HOST || 'auth-service'}:${process.env.AUTH_SERVICE_PORT || '3001'}/api/v1/auth/validate`,
+                            `http://${process.env.AUTH_SERVICE_HOST || 'auth-service'}:${process.env.AUTH_SERVICE_PORT || '3000'}/api/v1/auth/validate`,
                             {
                                 headers: {
                                     Authorization: `Bearer ${token}`
