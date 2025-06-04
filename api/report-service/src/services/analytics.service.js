@@ -123,12 +123,41 @@ const updateSegment = async (sessionId, segmentIndex, userId, updateData) => {
  */
 const generateSessionAnalytics = async (sessionId, userId, sessionType, segments, totalDuration) => {
     try {
+        logger.info(`sessionAnalytics 생성 시작: sessionId=${sessionId}, userId=${userId}, sessionType=${sessionType}, segments=${segments.length}`);
+        
         const db = await getDb();
         const collection = db.collection('sessionAnalytics');
 
-        // 세그먼트 데이터 분석
-        const analytics = analyzeSegments(segments, sessionType, totalDuration);
-        
+        // 🔥 데이터 유효성 검사
+        if (!Array.isArray(segments)) {
+            logger.error(`잘못된 segments 데이터 타입: ${typeof segments}`);
+            throw new Error('segments는 배열이어야 합니다');
+        }
+
+        if (segments.length === 0) {
+            logger.warn(`세그먼트가 비어있음: sessionId=${sessionId}`);
+            // 빈 세그먼트에 대한 기본 analytics 생성
+            const emptyAnalytics = createEmptyAnalytics(sessionId, userId, sessionType, totalDuration);
+            const result = await collection.replaceOne(
+                { sessionId: sessionId },
+                sanitizeData(emptyAnalytics),
+                { upsert: true }
+            );
+            logger.info(`빈 sessionAnalytics 생성 완료: sessionId=${sessionId}`);
+            return emptyAnalytics;
+        }
+
+        // 🔥 단계별 분석 진행 (에러 발생 지점 추적)
+        let analytics;
+        try {
+            logger.info(`1단계: analyzeSegments 시작`);
+            analytics = analyzeSegments(segments, sessionType, totalDuration);
+            logger.info(`1단계: analyzeSegments 완료`);
+        } catch (error) {
+            logger.error(`analyzeSegments 실패: ${error.message}`, { sessionId, error: error.stack });
+            throw new Error(`세그먼트 분석 중 오류: ${error.message}`);
+        }
+
         // sessionAnalytics 컬렉션에 저장
         const sessionAnalytics = {
             sessionId: sessionId,
@@ -142,16 +171,23 @@ const generateSessionAnalytics = async (sessionId, userId, sessionType, segments
             specializedAnalysis: analytics.specializedAnalysis
         };
 
-        // 디버깅: 저장할 데이터 로깅
-        logger.info(`저장할 sessionAnalytics:`, JSON.stringify(sanitizeData(sessionAnalytics), null, 2));
+        try {
+            logger.info(`2단계: sanitizeData 시작`);
+            const sanitizedData = sanitizeData(sessionAnalytics);
+            logger.info(`2단계: sanitizeData 완료`);
 
-        const result = await collection.replaceOne(
-            { sessionId: sessionId },
-            sanitizeData(sessionAnalytics),
-            { upsert: true }
-        );
+            logger.info(`3단계: MongoDB 저장 시작`);
+            const result = await collection.replaceOne(
+                { sessionId: sessionId },
+                sanitizedData,
+                { upsert: true }
+            );
+            logger.info(`3단계: MongoDB 저장 완료: sessionId=${sessionId}, upserted=${result.upsertedCount > 0}`);
 
-        logger.info(`sessionAnalytics 생성 완료: sessionId=${sessionId}, upserted=${result.upsertedCount > 0}`);
+        } catch (error) {
+            logger.error(`데이터 정제 또는 MongoDB 저장 실패: ${error.message}`, { sessionId, error: error.stack });
+            throw new Error(`데이터 저장 중 오류: ${error.message}`);
+        }
 
         return sessionAnalytics;
 
@@ -162,48 +198,151 @@ const generateSessionAnalytics = async (sessionId, userId, sessionType, segments
 };
 
 /**
+ * 빈 세그먼트를 위한 기본 analytics 생성
+ */
+const createEmptyAnalytics = (sessionId, userId, sessionType, totalDuration) => {
+    return {
+        sessionId: sessionId,
+        userId: userId,
+        sessionType: sessionType,
+        createdAt: new Date(),
+        summary: {
+            duration: totalDuration || 0,
+            totalSegments: 0,
+            userSpeakingRatio: 0,
+            averageSpeakingSpeed: 0,
+            emotionScores: { positive: 0.5, neutral: 0.5, negative: 0 },
+            keyInsights: ['세션 데이터가 충분하지 않습니다.'],
+            wordsCount: 0
+        },
+        statistics: {
+            question_answer_ratio: 0,
+            interruptions: 0,
+            silence_periods: [],
+            habitual_phrases: [],
+            speaking_rate_variance: 0
+        },
+        timeline: [],
+        suggestions: ['더 많은 대화를 시도해보세요.', '마이크 상태를 확인해보세요.'],
+        specializedAnalysis: {
+            type: '기본 분석',
+            communication_effectiveness: '데이터 부족',
+            key_strengths: [],
+            improvement_areas: ['더 긴 세션 진행']
+        }
+    };
+};
+
+/**
  * 세그먼트 데이터를 분석하여 종합 결과 생성
  */
 const analyzeSegments = (segments, sessionType, totalDuration) => {
-    const totalSegments = segments.length;
-    const estimatedDuration = totalDuration || (totalSegments * 30); // 30초 단위
+    try {
+        logger.info(`analyzeSegments 시작: segments=${segments.length}, sessionType=${sessionType}`);
+        
+        const totalSegments = segments.length;
+        const estimatedDuration = totalDuration || (totalSegments * 30); // 30초 단위
 
-    // 1. 기본 통계 계산
-    const statistics = calculateBasicStatistics(segments);
+        // 1. 기본 통계 계산
+        let statistics;
+        try {
+            logger.info(`1-1: calculateBasicStatistics 시작`);
+            statistics = calculateBasicStatistics(segments);
+            logger.info(`1-1: calculateBasicStatistics 완료`);
+        } catch (error) {
+            logger.error(`calculateBasicStatistics 실패: ${error.message}`);
+            statistics = getDefaultStatistics();
+        }
 
-    // 2. 감정 분석
-    const emotionAnalysis = analyzeEmotions(segments);
+        // 2. 감정 분석
+        let emotionAnalysis;
+        try {
+            logger.info(`1-2: analyzeEmotions 시작`);
+            emotionAnalysis = analyzeEmotions(segments);
+            logger.info(`1-2: analyzeEmotions 완료`);
+        } catch (error) {
+            logger.error(`analyzeEmotions 실패: ${error.message}`);
+            emotionAnalysis = { averageScores: { positive: 0.5, neutral: 0.5, negative: 0 } };
+        }
 
-    // 3. 타임라인 생성
-    const timeline = generateTimeline(segments);
+        // 3. 타임라인 생성
+        let timeline;
+        try {
+            logger.info(`1-3: generateTimeline 시작`);
+            timeline = generateTimeline(segments);
+            logger.info(`1-3: generateTimeline 완료`);
+        } catch (error) {
+            logger.error(`generateTimeline 실패: ${error.message}`);
+            timeline = [];
+        }
 
-    // 4. 추천사항 생성
-    const suggestions = generateSuggestions(segments, sessionType, statistics);
+        // 4. 추천사항 생성
+        let suggestions;
+        try {
+            logger.info(`1-4: generateSuggestions 시작`);
+            suggestions = generateSuggestions(segments, sessionType, statistics);
+            logger.info(`1-4: generateSuggestions 완료`);
+        } catch (error) {
+            logger.error(`generateSuggestions 실패: ${error.message}`);
+            suggestions = ['더 적극적으로 대화에 참여해보세요.', '감정을 적절히 표현하며 대화하세요.'];
+        }
 
-    // 5. 전문화된 분석
-    const specializedAnalysis = generateSpecializedAnalysis(segments, sessionType);
+        // 5. 전문화된 분석
+        let specializedAnalysis;
+        try {
+            logger.info(`1-5: generateSpecializedAnalysis 시작`);
+            specializedAnalysis = generateSpecializedAnalysis(segments, sessionType);
+            logger.info(`1-5: generateSpecializedAnalysis 완료`);
+        } catch (error) {
+            logger.error(`generateSpecializedAnalysis 실패: ${error.message}`);
+            specializedAnalysis = {
+                type: '기본 분석',
+                communication_effectiveness: '보통',
+                key_strengths: ['적극적 참여'],
+                improvement_areas: ['다양한 표현 사용']
+            };
+        }
 
-    return {
-        summary: {
-            duration: estimatedDuration,
-            totalSegments: totalSegments,
-            userSpeakingRatio: statistics.speakingRatio,
-            averageSpeakingSpeed: statistics.averageSpeakingSpeed,
-            emotionScores: emotionAnalysis.averageScores,
-            keyInsights: generateKeyInsights(statistics, emotionAnalysis),
-            wordsCount: statistics.totalWords
-        },
-        statistics: {
-            question_answer_ratio: statistics.questionAnswerRatio,
-            interruptions: statistics.interruptions,
-            silence_periods: statistics.silencePeriods,
-            habitual_phrases: statistics.habitualPhrases,
-            speaking_rate_variance: statistics.speakingRateVariance
-        },
-        timeline: timeline,
-        suggestions: suggestions,
-        specializedAnalysis: specializedAnalysis
-    };
+        // 6. 핵심 인사이트 생성
+        let keyInsights;
+        try {
+            logger.info(`1-6: generateKeyInsights 시작`);
+            keyInsights = generateKeyInsights(statistics, emotionAnalysis);
+            logger.info(`1-6: generateKeyInsights 완료`);
+        } catch (error) {
+            logger.error(`generateKeyInsights 실패: ${error.message}`);
+            keyInsights = ['분석 데이터를 수집 중입니다.'];
+        }
+
+        const result = {
+            summary: {
+                duration: estimatedDuration,
+                totalSegments: totalSegments,
+                userSpeakingRatio: statistics.speakingRatio,
+                averageSpeakingSpeed: statistics.averageSpeakingSpeed,
+                emotionScores: emotionAnalysis.averageScores,
+                keyInsights: keyInsights,
+                wordsCount: statistics.totalWords
+            },
+            statistics: {
+                question_answer_ratio: statistics.questionAnswerRatio,
+                interruptions: statistics.interruptions,
+                silence_periods: statistics.silencePeriods,
+                habitual_phrases: statistics.habitualPhrases,
+                speaking_rate_variance: statistics.speakingRateVariance
+            },
+            timeline: timeline,
+            suggestions: suggestions,
+            specializedAnalysis: specializedAnalysis
+        };
+
+        logger.info(`analyzeSegments 완료`);
+        return result;
+
+    } catch (error) {
+        logger.error(`analyzeSegments 최상위 에러: ${error.message}`, { error: error.stack });
+        throw error;
+    }
 };
 
 /**
@@ -451,98 +590,127 @@ const generateKeyInsights = (stats, emotions) => {
 };
 
 const generateSuggestions = (segments, sessionType, stats) => {
-    const suggestions = [];
-    
-    // 세션 타입별 맞춤 제안
-    switch (sessionType) {
-        case 'dating':
-            suggestions.push('상대방의 관심사에 대해 더 많은 질문을 해보세요.');
-            if (stats.averageSpeakingSpeed > 150) {
-                suggestions.push('조금 더 천천히 말하면 매력적으로 들릴 수 있습니다.');
-            }
-            suggestions.push('공통 관심사를 찾아 대화를 이어가보세요.');
-            break;
-            
-        case 'interview':
-            suggestions.push('구체적인 경험과 성과를 바탕으로 답변하세요.');
-            if (stats.speakingRatio < 0.6) {
-                suggestions.push('더 자신감 있게 자신의 경험을 어필하세요.');
-            }
-            suggestions.push('질문의 의도를 파악하고 핵심을 짚어 답변하세요.');
-            break;
-            
-        case 'presentation':
-            suggestions.push('핵심 포인트를 먼저 말하고 세부사항을 설명하세요.');
-            if (stats.questionAnswerRatio < 0.1) {
-                suggestions.push('확인 질문을 통해 청중의 이해도를 체크하세요.');
-            }
-            suggestions.push('데이터와 사실을 기반으로 논리적으로 설명하세요.');
-            break;
-            
-        case 'coaching':
-            suggestions.push('경청과 공감을 통해 라포를 형성하세요.');
-            suggestions.push('열린 질문으로 상대방의 생각을 이끌어내세요.');
-            if (stats.interruptions > 2) {
-                suggestions.push('상대방의 말을 끝까지 들어주세요.');
-            }
-            break;
-            
-        default:
-            suggestions.push('상대방과의 소통을 더욱 활발히 해보세요.');
-            suggestions.push('감정을 적절히 표현하며 대화하세요.');
+    try {
+        const suggestions = [];
+        
+        // 📊 안전성 검사
+        if (!stats || typeof stats !== 'object') {
+            logger.warn('generateSuggestions: stats가 유효하지 않음, 기본 제안 반환');
+            return ['더 적극적으로 대화에 참여해보세요.', '감정을 적절히 표현하며 대화하세요.'];
+        }
+        
+        // 세션 타입별 맞춤 제안
+        switch (sessionType) {
+            case 'dating':
+                suggestions.push('상대방의 관심사에 대해 더 많은 질문을 해보세요.');
+                if (stats.averageSpeakingSpeed && stats.averageSpeakingSpeed > 150) {
+                    suggestions.push('조금 더 천천히 말하면 매력적으로 들릴 수 있습니다.');
+                }
+                suggestions.push('공통 관심사를 찾아 대화를 이어가보세요.');
+                break;
+                
+            case 'interview':
+                suggestions.push('구체적인 경험과 성과를 바탕으로 답변하세요.');
+                if (stats.speakingRatio && stats.speakingRatio < 0.6) {
+                    suggestions.push('더 자신감 있게 자신의 경험을 어필하세요.');
+                }
+                suggestions.push('질문의 의도를 파악하고 핵심을 짚어 답변하세요.');
+                break;
+                
+            case 'presentation':
+                suggestions.push('핵심 포인트를 먼저 말하고 세부사항을 설명하세요.');
+                if (stats.questionAnswerRatio && stats.questionAnswerRatio < 0.1) {
+                    suggestions.push('확인 질문을 통해 청중의 이해도를 체크하세요.');
+                }
+                suggestions.push('데이터와 사실을 기반으로 논리적으로 설명하세요.');
+                break;
+                
+            case 'coaching':
+                suggestions.push('경청과 공감을 통해 라포를 형성하세요.');
+                suggestions.push('열린 질문으로 상대방의 생각을 이끌어내세요.');
+                if (stats.interruptions && stats.interruptions > 2) {
+                    suggestions.push('상대방의 말을 끝까지 들어주세요.');
+                }
+                break;
+                
+            default:
+                suggestions.push('상대방과의 소통을 더욱 활발히 해보세요.');
+                suggestions.push('감정을 적절히 표현하며 대화하세요.');
+        }
+        
+        // 공통 제안사항 (안전성 검사 포함)
+        if (stats.silencePeriods && Array.isArray(stats.silencePeriods) && stats.silencePeriods.length > 3) {
+            suggestions.push('침묵이 길어질 때는 적절한 질문으로 대화를 이어가세요.');
+        }
+        
+        return suggestions.slice(0, 4); // 최대 4개 제안
+        
+    } catch (error) {
+        logger.error(`generateSuggestions 에러: ${error.message}`);
+        return ['더 적극적으로 대화에 참여해보세요.', '감정을 적절히 표현하며 대화하세요.'];
     }
-    
-    // 공통 제안사항
-    if (stats.silencePeriods.length > 3) {
-        suggestions.push('침묵이 길어질 때는 적절한 질문으로 대화를 이어가세요.');
-    }
-    
-    return suggestions.slice(0, 4); // 최대 4개 제안
 };
 
 const generateSpecializedAnalysis = (segments, sessionType) => {
-    const validSegments = segments.filter(s => s.transcription && s.transcription.trim().length > 0);
-    
-    switch (sessionType) {
-        case 'dating':
-            return {
-                type: '소개팅 분석',
-                rapport_building: analyzeDatingRapport(validSegments),
-                conversation_topics: analyzeDatingTopics(validSegments),
-                emotional_connection: analyzeDatingEmotion(validSegments)
-            };
-            
-        case 'interview':
-            return {
-                type: '면접 분석',
-                answer_structure: analyzeInterviewStructure(validSegments),
-                confidence_level: analyzeInterviewConfidence(validSegments),
-                technical_communication: analyzeInterviewTechnical(validSegments)
-            };
-            
-        case 'presentation':
-            return {
-                type: '발표 분석',
-                presentation_clarity: analyzePresentationClarity(validSegments),
-                persuasion_techniques: analyzePresentationPersuasion(validSegments),
-                audience_engagement: analyzePresentationEngagement(validSegments)
-            };
-            
-        case 'coaching':
-            return {
-                type: '코칭 분석',
-                listening_skills: analyzeCoachingListening(validSegments),
-                questioning_techniques: analyzeCoachingQuestions(validSegments),
-                empathy_building: analyzeCoachingEmpathy(validSegments)
-            };
-            
-        default:
-            return {
-                type: '일반 대화 분석',
-                communication_effectiveness: '보통',
-                key_strengths: ['적극적 참여'],
-                improvement_areas: ['다양한 표현 사용']
-            };
+    try {
+        // 📊 안전성 검사
+        if (!Array.isArray(segments)) {
+            logger.warn('generateSpecializedAnalysis: segments가 배열이 아님');
+            segments = [];
+        }
+        
+        const validSegments = segments.filter(s => s && s.transcription && s.transcription.trim().length > 0);
+        
+        switch (sessionType) {
+            case 'dating':
+                return {
+                    type: '소개팅 분석',
+                    rapport_building: analyzeDatingRapport(validSegments),
+                    conversation_topics: analyzeDatingTopics(validSegments),
+                    emotional_connection: analyzeDatingEmotion(validSegments)
+                };
+                
+            case 'interview':
+                return {
+                    type: '면접 분석',
+                    answer_structure: analyzeInterviewStructure(validSegments),
+                    confidence_level: analyzeInterviewConfidence(validSegments),
+                    technical_communication: analyzeInterviewTechnical(validSegments)
+                };
+                
+            case 'presentation':
+                return {
+                    type: '발표 분석',
+                    presentation_clarity: analyzePresentationClarity(validSegments),
+                    persuasion_techniques: analyzePresentationPersuasion(validSegments),
+                    audience_engagement: analyzePresentationEngagement(validSegments)
+                };
+                
+            case 'coaching':
+                return {
+                    type: '코칭 분석',
+                    listening_skills: analyzeCoachingListening(validSegments),
+                    questioning_techniques: analyzeCoachingQuestions(validSegments),
+                    empathy_building: analyzeCoachingEmpathy(validSegments)
+                };
+                
+            default:
+                return {
+                    type: '일반 대화 분석',
+                    communication_effectiveness: '보통',
+                    key_strengths: ['적극적 참여'],
+                    improvement_areas: ['다양한 표현 사용']
+                };
+        }
+        
+    } catch (error) {
+        logger.error(`generateSpecializedAnalysis 에러: ${error.message}`);
+        return {
+            type: '기본 분석',
+            communication_effectiveness: '데이터 부족',
+            key_strengths: [],
+            improvement_areas: ['더 긴 세션 진행']
+        };
     }
 };
 
