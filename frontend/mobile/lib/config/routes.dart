@@ -49,7 +49,11 @@ class AppRoutes {
         final args =
             ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
         final sessionId = args?['sessionId'] ?? 'default_session_id';
-        return RealtimeAnalysisScreen(sessionId: sessionId);
+        final sessionType = args?['sessionType'] as String?;
+        return RealtimeAnalysisScreen(
+          sessionId: sessionId,
+          sessionType: sessionType,
+        );
       },
       // analysisSummary: (context) => const AnalysisSummaryScreen(),
       sessionsHistory: (context) => const HistoryScreen(),

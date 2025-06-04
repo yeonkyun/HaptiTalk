@@ -16,6 +16,7 @@ class STTWebSocketService {
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
   String _language = 'ko';
+  String _scenario = 'dating';
   String? _connectionId;
   
   static const int maxReconnectAttempts = 3;
@@ -33,12 +34,13 @@ class STTWebSocketService {
   factory STTWebSocketService() => _instance;
 
   // WebSocket 연결
-  Future<void> connect({String language = 'ko'}) async {
+  Future<void> connect({String language = 'ko', String scenario = 'dating'}) async {
     try {
       _language = language;
+      _scenario = scenario;
       
-      // STT WebSocket URL 생성
-      final sttUrl = '${AppConfig.sttBaseUrl}/api/v1/stt/stream?language=$_language';
+      // STT WebSocket URL 생성 (scenario 파라미터 추가)
+      final sttUrl = '${AppConfig.sttBaseUrl}/api/v1/stt/stream?language=$_language&scenario=$scenario';
       
       print('🔌 STT WebSocket 연결 시도: $sttUrl');
       
@@ -177,7 +179,7 @@ class STTWebSocketService {
     print('🔄 STT WebSocket 재연결 시도 ${_reconnectAttempts}/${maxReconnectAttempts}');
     
     _reconnectTimer = Timer(reconnectDelay, () {
-      connect(language: _language);
+      connect(language: _language, scenario: _scenario);
     });
   }
 
@@ -200,7 +202,7 @@ class STTWebSocketService {
   Future<void> forceReconnect() async {
     disconnect();
     await Future.delayed(Duration(milliseconds: 500));
-    await connect(language: _language);
+    await connect(language: _language, scenario: _scenario);
   }
 
   // 연결 상태 확인

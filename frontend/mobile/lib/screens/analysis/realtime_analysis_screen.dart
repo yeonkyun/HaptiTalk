@@ -19,9 +19,13 @@ import '../../services/auth_service.dart';
 
 class RealtimeAnalysisScreen extends StatefulWidget {
   final String sessionId;
+  final String? sessionType;
 
-  const RealtimeAnalysisScreen({Key? key, required this.sessionId})
-      : super(key: key);
+  const RealtimeAnalysisScreen({
+    Key? key, 
+    required this.sessionId,
+    this.sessionType,
+  }) : super(key: key);
 
   @override
   _RealtimeAnalysisScreenState createState() => _RealtimeAnalysisScreenState();
@@ -30,6 +34,7 @@ class RealtimeAnalysisScreen extends StatefulWidget {
 class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
   late Timer _timer;
   late Timer _watchSyncTimer;
+  Timer? _segmentSaveTimer; // 세그먼트 저장 타이머 추가
   final WatchService _watchService = WatchService();
   final AudioService _audioService = AudioService();
   final RealtimeService _realtimeService = RealtimeService();
@@ -64,14 +69,29 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     'reaction': DateTime.now().subtract(Duration(hours: 1)),   // 상대방 반응 (R)
   };
 
+  // 마지막 전송된 Watch 햅틱 피드백 추적
+  String _lastSentWatchFeedback = '';
+
+  // 세그먼트 저장 관련 변수들
+  int _currentSegmentIndex = 0;
+  Map<String, dynamic> _currentSegmentData = {};
+  List<Map<String, dynamic>> _segmentHapticFeedbacks = [];
+  DateTime? _segmentStartTime;
+
   @override
   void initState() {
     super.initState();
+    
+    // 세션 타입을 STT 시나리오로 변환
+    _currentScenario = _convertSessionTypeToScenario(widget.sessionType);
+    print('🎯 현재 세션 모드: ${widget.sessionType} → STT 시나리오: $_currentScenario');
+    
     _initializeServices();
     _startTimer();
     _checkWatchConnection();
     _startWatchSync();
     _subscribeToWatchMessages();
+    _startSegmentSaveTimer(); // 🔥 세그먼트 저장 타이머 시작
 
     // 초기 추천 주제 설정
     _suggestedTopics = ['여행 경험', '좋아하는 여행지', '사진 취미', '역사적 장소', '제주도 명소'];
@@ -94,6 +114,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
   void dispose() {
     _timer.cancel();
     _watchSyncTimer.cancel();
+    _segmentSaveTimer?.cancel();
     _sttSubscription?.cancel();
     _watchMessageSubscription?.cancel();
     _audioService.dispose();
@@ -149,13 +170,13 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     }
 
     try {
-      print('🎤 자동 녹음 시작 시도...');
-      final success = await _audioService.startRealTimeRecording();
+      print('🎤 자동 녹음 시작 시도... (scenario: $_currentScenario)');
+      final success = await _audioService.startRealTimeRecording(scenario: _currentScenario);
       if (success) {
         setState(() {
           _isRecording = true;
         });
-        print('✅ 자동 녹음 시작 성공');
+        print('✅ 자동 녹음 시작 성공 (scenario: $_currentScenario)');
       } else {
         print('❌ 자동 녹음 시작 실패');
         _showErrorSnackBar('자동 녹음 시작에 실패했습니다. 수동으로 녹음을 시작해주세요.');
@@ -209,6 +230,16 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     final hapticPattern = feedbackData['hapticPattern'] as String?;
     final visualCue = feedbackData['visualCue'] as Map<String, dynamic>?;
     
+    // 🔥 현재 세그먼트에 햅틱 피드백 추가
+    if (feedbackType != null) {
+      _segmentHapticFeedbacks.add({
+        'type': feedbackType,
+        'pattern': hapticPattern,
+        'timestamp': DateTime.now().toIso8601String(),
+        'message': message,
+      });
+    }
+    
     // UI 업데이트
     if (message != null) {
       setState(() {
@@ -224,22 +255,13 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     // 시각적 피드백 표시
     if (visualCue != null) {
       _showVisualFeedback(visualCue);
+    } else if (message != null && feedbackType != null) {
+      // visualCue가 없으면 기본 우선순위로 표시
+      _showRealtimeVisualFeedback(message, feedbackType);
     }
   }
 
-  /// Apple Watch 햅틱 전송
-  Future<void> _sendHapticToWatch(String type, String pattern, String message) async {
-    try {
-      // WatchService는 message 파라미터만 받으므로 형식을 맞춰서 전송
-      final hapticMessage = '$type: $message';
-      await _watchService.sendHapticFeedback(hapticMessage);
-      print('📱 Apple Watch 햅틱 전송: $type - $pattern');
-    } catch (e) {
-      print('❌ Apple Watch 햅틱 전송 실패: $e');
-    }
-  }
-
-  /// 시각적 피드백 표시
+  /// 시각적 피드백 표시 (피드백 서비스에서 온 visualCue 데이터용)
   void _showVisualFeedback(Map<String, dynamic> visualCue) {
     final color = visualCue['color'] as String?;
     final text = visualCue['text'] as String?;
@@ -252,6 +274,86 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
           duration: const Duration(seconds: 2),
         ),
       );
+    }
+  }
+
+  /// 실시간 분석용 시각적 피드백 표시
+  void _showRealtimeVisualFeedback(String message, String priority) {
+    // 우선순위에 따른 색상 설정
+    Color backgroundColor;
+    IconData icon;
+    
+    switch (priority) {
+      case 'high':
+        backgroundColor = Colors.red.withOpacity(0.9);
+        icon = Icons.warning;
+        break;
+      case 'medium':
+        backgroundColor = Colors.orange.withOpacity(0.9);
+        icon = Icons.info;
+        break;
+      case 'low':
+        backgroundColor = Colors.blue.withOpacity(0.9);
+        icon = Icons.lightbulb;
+        break;
+      default:
+        backgroundColor = AppColors.primary.withOpacity(0.9);
+        icon = Icons.notifications;
+        break;
+    }
+
+    // SnackBar로 시각적 피드백 표시
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: backgroundColor,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+
+    // 추가로 UI 상태에도 반영
+    setState(() {
+      _feedback = message;
+    });
+
+    // 5초 후 피드백 메시지 클리어
+    Timer(const Duration(seconds: 5), () {
+      if (mounted && _feedback == message) {
+        setState(() {
+          _feedback = '';
+        });
+      }
+    });
+  }
+
+  /// Apple Watch 햅틱 전송
+  Future<void> _sendHapticToWatch(String type, String pattern, String message) async {
+    try {
+      // WatchService는 message 파라미터만 받으므로 형식을 맞춰서 전송
+      final hapticMessage = '$type: $message';
+      await _watchService.sendHapticFeedback(hapticMessage);
+      print('📱 Apple Watch 햅틱 전송: $type - $pattern');
+    } catch (e) {
+      print('❌ Apple Watch 햅틱 전송 실패: $e');
     }
   }
 
@@ -480,12 +582,10 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       
       // 텍스트 내용 기반 피드백 생성
       final text = response.text ?? '';
-      if (text.isNotEmpty) {
-        _generateTextBasedFeedback(text, speechMetrics);
-        
-        // 💡 텍스트 내용 기반 추천 토픽 업데이트
-        _updateSuggestedTopics(text, speechMetrics);
-      }
+      _generateTextBasedFeedback(text, speechMetrics);
+      
+      // 💡 텍스트 내용 기반 추천 토픽 업데이트
+      _updateSuggestedTopics(text, speechMetrics);
       
       print('🔍 최종 업데이트된 값들 - 속도: $_speakingSpeed, 감정: $_emotionState, 관심: $_interest, 호감: $_likability');
       
@@ -540,7 +640,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     List<Map<String, dynamic>> hapticEvents = [];
 
     // 📊 S1: 속도 조절 패턴 (화자 행동)
-    final speedDiff = (_speakingSpeed - prevSpeakingSpeed).abs();
+    final speedDiff = (prevSpeakingSpeed - _speakingSpeed).abs();
     if (speedDiff >= 20 && _canSendHaptic('speaker', now)) {
       if (_speakingSpeed >= 160) {  // 매우 빠름
         hapticEvents.add({
@@ -562,7 +662,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
           'patternId': 'R1',
           'message': '🎉 환상적인 대화입니다!',
           'priority': 'high',
-          'pattern': 'likability_high'
+          'pattern': 'likability_up'
         });
       } else if (_likability >= 60) {
         hapticEvents.add({
@@ -587,20 +687,43 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       });
     }
 
-    // 📊 감정 상태 변화 감지 (상대방 반응)
-    if (_emotionState != prevEmotionState && _emotionState != '대기 중' && _canSendHaptic('reaction', now)) {
+    // 📊 L1: 경청 강화 패턴 (청자 행동) - 감정 상태 변화 감지
+    if (_emotionState != prevEmotionState && _emotionState != '대기 중' && _canSendHaptic('listener', now)) {
+      if (_emotionState == '침착함' || _emotionState == '안정적') {
+        hapticEvents.add({
+          'category': 'listener',
+          'patternId': 'L1',
+          'message': '👂 더 적극적으로 경청해보세요',
+          'priority': 'medium',
+          'pattern': 'listening_enhancement'
+        });
+      }
+    }
+
+    // 📊 F1: 주제 전환 패턴 (대화 흐름) - 호감도는 높지만 관심도가 낮을 때
+    if (_likability >= 60 && _interest <= 40 && _canSendHaptic('flow', now)) {
       hapticEvents.add({
-        'category': 'reaction',
-        'patternId': 'R3',
-        'message': '😊 감정 상태: $_emotionState',
+        'category': 'flow',
+        'patternId': 'F1',
+        'message': '🔄 주제를 자연스럽게 바꿔보세요',
         'priority': 'medium',
-        'pattern': 'emotion_change'
+        'pattern': 'topic_change'
       });
     }
 
+    // 📊 L3: 질문 제안 패턴 (청자 행동) - 대화가 단조로울 때
+    if (_interest <= 50 && _likability <= 50 && _canSendHaptic('listener', now)) {
+      hapticEvents.add({
+        'category': 'listener',
+        'patternId': 'L3',
+        'message': '❓ 상대방에게 질문해보세요',
+        'priority': 'medium',
+        'pattern': 'question_suggestion'
+      });
+    }
+
+    // 📊 S2: 음량 조절 패턴 (화자 행동) - 추후 구현 (음성 볼륨 분석 필요)
     // 📊 F2: 침묵 관리 패턴 (대화 흐름) - 별도 타이머에서 처리 예정
-    // 📊 L1: 경청 강화 패턴 (청자 행동) - 추후 구현
-    // 📊 L3: 질문 제안 패턴 (청자 행동) - 추후 구현
 
     // 🚀 우선순위별 햅틱 이벤트 전송 (최대 2개)
     if (hapticEvents.isNotEmpty) {
@@ -620,6 +743,9 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
           category: event['category'],
           patternId: event['patternId']
         );
+        
+        // 🎨 시각적 피드백 표시
+        _showRealtimeVisualFeedback(event['message'], event['priority']);
         
         // 카테고리별 마지막 전송 시간 업데이트
         _lastHapticByCategory[event['category']] = now;
@@ -741,9 +867,8 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
         feedback = '말하기 속도가 조금 빠른 편입니다. 천천히 말해보세요';
       } else if (speedCategory == 'very_slow') {
         feedback = '조금 더 활발하게 대화해보세요';
-      } else if (speedCategory == 'normal') {
-        feedback = '자연스러운 말하기 속도입니다';
       }
+      // 🔄 정상적인 속도일 때는 피드백을 생성하지 않음 (중복 방지)
       
       // 발화 패턴 피드백
       final speechPattern = speechMetrics['speech_pattern'] as String?;
@@ -759,8 +884,10 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       feedback += '좋습니다! 적극적으로 대화하고 있어요';
     }
     
-    if (feedback.isNotEmpty) {
+    // 🔄 새로운 피드백이 있고 기존 피드백과 다를 때만 업데이트
+    if (feedback.isNotEmpty && feedback != _feedback) {
       _feedback = feedback;
+      print('📝 새로운 피드백 생성: $feedback');
     }
   }
 
@@ -841,10 +968,9 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
         elapsedTime: _formatTime(_seconds),
       );
 
-      // 중요한 피드백이 있을 때만 별도 햅틱 알림
-      if (_feedback.isNotEmpty && _feedback.contains('속도')) {
-        await _watchService.sendHapticFeedback(_feedback);
-      }
+      // 🔄 속도 관련 피드백은 _sendImmediateHapticFeedback에서만 처리
+      // 정상적인 속도일 때는 햅틱을 보내지 않음
+      
     } catch (e) {
       print('Watch 동기화 실패: $e');
     }
@@ -865,7 +991,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
 
     if (_isRecording) {
       // 녹음 중지
-      await _audioService.stopRecording();
+      await _audioService.pauseRecording();
       setState(() {
         _isRecording = false;
       });
@@ -885,6 +1011,10 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
   void _endSession() async {
     _timer.cancel();
     _watchSyncTimer.cancel();
+    _segmentSaveTimer?.cancel(); // 🔥 세그먼트 저장 타이머 취소
+
+    // 🔥 세션 종료 전 최종 데이터 저장 및 분석
+    await _finalizeSession();
 
     // 오디오 녹음 중지
     await _audioService.stopRecording();
@@ -1146,6 +1276,247 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
         print('⚠️ 알 수 없는 Watch 메시지: $action');
         break;
     }
+  }
+
+  /// 세션 타입을 STT 시나리오로 변환
+  String _convertSessionTypeToScenario(String? sessionType) {
+    switch (sessionType) {
+      case '발표':
+        return 'presentation';
+      case '소개팅':
+        return 'dating';
+      case '면접':
+        return 'interview';
+      case '코칭':
+        return 'presentation';  // 코칭도 presentation으로 매핑
+      case '회의':  // 혹시 모를 레거시 케이스
+        return 'presentation';
+      default:
+        return 'dating';  // 기본값
+    }
+  }
+
+  /// 🔥 세그먼트 저장 타이머 시작 (30초마다)
+  void _startSegmentSaveTimer() {
+    _segmentStartTime = DateTime.now();
+    _segmentSaveTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      _saveCurrentSegment();
+      _currentSegmentIndex++;
+      _resetSegmentData();
+    });
+    print('📊 세그먼트 저장 타이머 시작 (30초 간격)');
+  }
+
+  /// 🔥 현재 세그먼트 데이터를 서버에 저장
+  Future<void> _saveCurrentSegment() async {
+    if (!_isRecording || _segmentStartTime == null) {
+      print('⏸️ 녹음 중이 아니거나 세그먼트 시작 시간이 없어 저장 건너뜀');
+      return;
+    }
+
+    try {
+      final segmentData = {
+        'segmentIndex': _currentSegmentIndex,
+        'timestamp': _segmentStartTime!.toIso8601String(),
+        'transcription': _transcription,
+        'analysis': {
+          'emotionState': _emotionState,
+          'speakingSpeed': _speakingSpeed,
+          'likability': _likability,
+          'interest': _interest,
+          'confidence': _calculateConfidence(), // 실제 신뢰도 값 계산
+          'volume': _calculateVolume(), // 실제 볼륨 값 계산
+          'pitch': _calculatePitch(), // 실제 피치 값 계산
+        },
+        'hapticFeedbacks': List.from(_segmentHapticFeedbacks),
+        'suggestedTopics': List.from(_suggestedTopics),
+      };
+
+      final success = await _realtimeService.saveSegment(widget.sessionId, segmentData);
+      
+      if (success) {
+        print('✅ 세그먼트 $_currentSegmentIndex 저장 완료');
+      } else {
+        print('❌ 세그먼트 $_currentSegmentIndex 저장 실패');
+      }
+
+    } catch (e) {
+      print('❌ 세그먼트 저장 중 오류: $e');
+    }
+  }
+
+  /// 🔥 세그먼트 데이터 초기화
+  void _resetSegmentData() {
+    _segmentHapticFeedbacks.clear();
+    _segmentStartTime = DateTime.now();
+    print('🔄 세그먼트 $_currentSegmentIndex 데이터 초기화');
+  }
+
+  /// 🔥 세션 종료 처리
+  Future<void> _finalizeSession() async {
+    try {
+      // 마지막 세그먼트 저장
+      await _saveCurrentSegment();
+      
+      // 세션 타입 변환 (presentation -> business 등)
+      final sessionType = _convertSessionTypeToAnalytics(widget.sessionType);
+      final totalDuration = _seconds;
+      
+      // 서버에서 모든 segments를 종합하여 sessionAnalytics 생성
+      final success = await _realtimeService.finalizeSession(
+        widget.sessionId, 
+        sessionType,
+        totalDuration: totalDuration,
+      );
+      
+      if (success) {
+        print('✅ 세션 데이터 통합 완료');
+      } else {
+        print('❌ 세션 종료 처리 실패');
+      }
+    } catch (e) {
+      print('❌ 세션 종료 처리 중 오류: $e');
+    }
+  }
+
+  /// 🔥 세션 타입을 analytics 형식으로 변환
+  String _convertSessionTypeToAnalytics(String? sessionType) {
+    switch (sessionType) {
+      case 'presentation':
+        return 'presentation';
+      case 'dating':
+        return 'dating';
+      case 'interview':
+        return 'interview';
+      case 'coaching':
+        return 'coaching';
+      default:
+        return 'presentation';
+    }
+  }
+
+  /// 🔥 음성 신뢰도 계산 (transcription 품질 기반)
+  double _calculateConfidence() {
+    if (_transcription.isEmpty) return 0.0;
+    
+    // 텍스트 길이와 완성도를 기반으로 신뢰도 계산
+    double baseConfidence = 0.5;
+    
+    // 텍스트 길이에 따른 점수 (긴 텍스트일수록 높은 신뢰도)
+    if (_transcription.length > 50) {
+      baseConfidence += 0.3;
+    } else if (_transcription.length > 20) {
+      baseConfidence += 0.2;
+    } else if (_transcription.length > 10) {
+      baseConfidence += 0.1;
+    }
+    
+    // 완전한 문장 여부 확인 (마침표, 물음표, 느낌표 등)
+    if (_transcription.contains('.') || _transcription.contains('?') || 
+        _transcription.contains('!') || _transcription.contains('다') ||
+        _transcription.contains('요')) {
+      baseConfidence += 0.2;
+    }
+    
+    // 노이즈 단어가 많으면 신뢰도 감소
+    final noiseWords = ['음', '어', 'ㅋㅋ', 'ㅎㅎ'];
+    final noiseCount = noiseWords.where((word) => _transcription.contains(word)).length;
+    baseConfidence -= (noiseCount * 0.1);
+    
+    return max(0.0, min(1.0, baseConfidence));
+  }
+
+  /// 🔥 음성 볼륨 레벨 계산 (음성 활동 기반)
+  double _calculateVolume() {
+    // 현재 말하기 상태와 속도를 기반으로 볼륨 추정
+    double baseVolume = 0.3; // 기본 볼륨
+    
+    // 말하기 속도가 빠를수록 볼륨이 클 가능성
+    if (_speakingSpeed > 150) {
+      baseVolume += 0.3;
+    } else if (_speakingSpeed > 120) {
+      baseVolume += 0.2;
+    } else if (_speakingSpeed > 100) {
+      baseVolume += 0.1;
+    }
+    
+    // 감정 상태에 따른 볼륨 조정
+    switch (_emotionState) {
+      case 'excited':
+      case 'happy':
+        baseVolume += 0.2;
+        break;
+      case 'nervous':
+      case 'anxious':
+        baseVolume += 0.1;
+        break;
+      case 'calm':
+      case 'relaxed':
+        baseVolume -= 0.1;
+        break;
+    }
+    
+    // 텍스트에 감탄사나 강조 표현이 있으면 볼륨 증가
+    if (_transcription.contains('!') || _transcription.contains('ㅋㅋ') || 
+        _transcription.contains('와') || _transcription.contains('어머')) {
+      baseVolume += 0.15;
+    }
+    
+    return max(0.0, min(1.0, baseVolume));
+  }
+
+  /// 🔥 음성 피치 계산 (감정과 말하기 패턴 기반)
+  double _calculatePitch() {
+    double basePitch = 150.0; // 기본 피치 (Hz)
+    
+    // 감정 상태에 따른 피치 조정
+    switch (_emotionState) {
+      case 'excited':
+      case 'happy':
+        basePitch += 30.0; // 높은 피치
+        break;
+      case 'nervous':
+      case 'anxious':
+        basePitch += 20.0; // 약간 높은 피치
+        break;
+      case 'sad':
+      case 'disappointed':
+        basePitch -= 20.0; // 낮은 피치
+        break;
+      case 'angry':
+        basePitch += 15.0; // 약간 높고 거친 피치
+        break;
+      case 'calm':
+      case 'relaxed':
+        basePitch -= 10.0; // 안정적인 낮은 피치
+        break;
+    }
+    
+    // 질문 형태면 피치 상승
+    if (_transcription.contains('?') || _transcription.contains('뭐') || 
+        _transcription.contains('어떻게') || _transcription.contains('왜')) {
+      basePitch += 25.0;
+    }
+    
+    // 감탄사가 있으면 피치 변화 증가
+    if (_transcription.contains('!') || _transcription.contains('와') || 
+        _transcription.contains('어머') || _transcription.contains('대박')) {
+      basePitch += 20.0;
+    }
+    
+    // 말하기 속도가 빠르면 피치도 약간 상승하는 경향
+    if (_speakingSpeed > 160) {
+      basePitch += 10.0;
+    } else if (_speakingSpeed < 100) {
+      basePitch -= 10.0;
+    }
+    
+    // 피치 범위 제한 (인간 음성 범위 내)
+    return max(80.0, min(300.0, basePitch));
   }
 
   @override

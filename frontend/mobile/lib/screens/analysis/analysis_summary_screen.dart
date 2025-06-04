@@ -8,6 +8,7 @@ import '../../models/session/session_model.dart';
 import '../../providers/analysis_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../widgets/analysis/metrics_card.dart';
+import '../../screens/analysis/detailed_report_screen.dart';
 
 class AnalysisSummaryScreen extends StatefulWidget {
   final String sessionId;
@@ -754,7 +755,15 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         Expanded(
           child: ElevatedButton.icon(
             onPressed: () {
-              // 전체 보고서 보기 기능 구현
+              // 🔥 전체 보고서 보기 기능 구현 - DetailedReportScreen으로 이동
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => DetailedReportScreen(
+                    sessionId: widget.sessionId,
+                  ),
+                ),
+              );
             },
             icon: const Icon(Icons.analytics),
             label: Column(

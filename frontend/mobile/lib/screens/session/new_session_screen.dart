@@ -13,8 +13,8 @@ class NewSessionScreen extends StatefulWidget {
 }
 
 class _NewSessionScreenState extends State<NewSessionScreen> {
-  // 선택된 세션 모드 (기본값: 소개팅)
-  String _selectedSessionMode = '소개팅';
+  // 선택된 세션 모드 (기본값: 발표)
+  String _selectedSessionMode = '발표';
 
   // 세션 모드 목록과 설명
   final Map<String, String> _sessionModes = {
@@ -523,12 +523,16 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
   // 세션 모드에 따른 아이콘 반환
   IconData _getIconForSessionMode(String mode) {
     switch (mode) {
+      case '발표':
+        return Icons.present_to_all;
       case '소개팅':
         return Icons.favorite_border;
       case '면접(인터뷰)':
         return Icons.business_center;
-      case '발표':
-        return Icons.mic;
+      case '비즈니스':
+        return Icons.handshake;
+      case '코칭':
+        return Icons.psychology;
       default:
         return Icons.chat_bubble_outline;
     }
