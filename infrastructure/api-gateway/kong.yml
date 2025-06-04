@@ -334,6 +334,26 @@ services:
         paths:
           - /api/v1/reports
         strip_path: false
+        regex_priority: 0
+        path_handling: v0
+        preserve_host: false
+        protocols:
+          - http
+          - https
+        request_buffering: true
+        response_buffering: true
+      - name: report-analytics-routes
+        paths:
+          - /api/v1/reports/analytics
+        strip_path: false
+        regex_priority: 1
+        path_handling: v0
+        preserve_host: false
+        protocols:
+          - http
+          - https
+        request_buffering: true
+        response_buffering: true
       - name: report-api-docs-route
         paths:
           - /api/docs/reports
