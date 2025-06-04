@@ -34,7 +34,7 @@ db.createCollection("sessionAnalytics", {
         },
         sessionType: {
           bsonType: "string",
-          enum: ["dating", "interview", "business", "coaching"],
+          enum: ["dating", "interview", "business", "coaching", "presentation"],
           description: "세션 유형"
         },
         createdAt: {

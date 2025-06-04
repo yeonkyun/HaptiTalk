@@ -4,6 +4,7 @@ import 'package:haptitalk/config/routes.dart';
 import 'package:haptitalk/services/navigation_service.dart';
 import 'package:haptitalk/services/watch_service.dart';
 import 'package:haptitalk/widgets/common/buttons/primary_button.dart';
+import 'package:uuid/uuid.dart';
 
 class NewSessionScreen extends StatefulWidget {
   const NewSessionScreen({super.key});
@@ -293,6 +294,10 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
                   height: 55,
                   child: ElevatedButton(
                     onPressed: () async {
+                      // UUID 생성
+                      final uuid = Uuid();
+                      final sessionId = uuid.v4();
+
                       // Watch에 세션 시작 알림
                       await WatchService().startSession(_selectedSessionMode);
 
@@ -300,7 +305,7 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
                       NavigationService.navigateTo(
                         AppRoutes.realtimeAnalysis,
                         arguments: {
-                          'sessionId': 'default_session_id',
+                          'sessionId': sessionId,
                           'sessionName': _sessionNameController.text.isEmpty
                               ? '세션 - $_selectedSessionMode'
                               : _sessionNameController.text,

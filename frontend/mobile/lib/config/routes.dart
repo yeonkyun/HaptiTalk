@@ -15,6 +15,7 @@ import 'package:haptitalk/screens/profile/statistics_detail_screen.dart';
 import 'package:haptitalk/screens/profile/help_support_screen.dart';
 import 'package:haptitalk/screens/debug/watch_debug_screen.dart';
 import 'package:haptitalk/screens/practice/haptic_practice_screen.dart';
+import 'package:uuid/uuid.dart';
 
 class AppRoutes {
   // 라우트 이름 정의
@@ -48,7 +49,7 @@ class AppRoutes {
       realtimeAnalysis: (context) {
         final args =
             ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-        final sessionId = args?['sessionId'] ?? 'default_session_id';
+        final sessionId = args?['sessionId'] ?? const Uuid().v4();
         final sessionType = args?['sessionType'] as String?;
         return RealtimeAnalysisScreen(
           sessionId: sessionId,

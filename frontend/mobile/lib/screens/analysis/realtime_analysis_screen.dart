@@ -78,6 +78,8 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
   List<Map<String, dynamic>> _segmentHapticFeedbacks = [];
   DateTime? _segmentStartTime;
 
+  String _lastWatchSyncData = '';
+
   @override
   void initState() {
     super.initState();
@@ -948,7 +950,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
 
   // Watch와 주기적 동기화
   void _startWatchSync() {
-    _watchSyncTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    _watchSyncTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       _syncWithWatch();
     });
   }
@@ -958,6 +960,19 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     if (!_isWatchConnected) return;
 
     try {
+      // 🔥 상태 변경이 있을 때만 동기화 (불필요한 전송 방지)
+      String currentStatus = '$_likability:$_interest:$_speakingSpeed:$_emotionState:${_feedback.hashCode}';
+      if (_lastWatchSyncData == currentStatus) {
+        print('⏭️ Watch 동기화 스킵: 상태 변경 없음 (완전 동일)');
+        return;
+      }
+      
+      // 🔥 초기 상태(모든 값이 0 또는 기본값)일 때는 전송하지 않음
+      if (_likability == 0 && _interest == 0 && _speakingSpeed == 0 && _emotionState == '대기 중' && _feedback.isEmpty) {
+        print('⏭️ Watch 동기화 스킵: 초기 상태 (의미있는 데이터 없음)');
+        return;
+      }
+      
       // 실시간 분석 데이터를 구조화된 형태로 전송
       await _watchService.sendRealtimeAnalysis(
         likability: _likability,
@@ -968,8 +983,8 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
         elapsedTime: _formatTime(_seconds),
       );
 
-      // 🔄 속도 관련 피드백은 _sendImmediateHapticFeedback에서만 처리
-      // 정상적인 속도일 때는 햅틱을 보내지 않음
+      _lastWatchSyncData = currentStatus;
+      print('📊 Watch 동기화 완료: L$_likability I$_interest S$_speakingSpeed E$_emotionState F:${_feedback.length}');
       
     } catch (e) {
       print('Watch 동기화 실패: $e');
@@ -1030,12 +1045,15 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     Provider.of<AnalysisProvider>(context, listen: false)
         .stopAnalysis(widget.sessionId);
 
-    // 메인 화면의 분석 탭으로 이동 (인덱스 1)
-    Navigator.pushNamedAndRemoveUntil(
+    // 🔥 세션 분석 완료 - 바로 해당 세션의 분석 요약 화면으로 이동
+    Navigator.pushAndRemoveUntil(
       context,
-      '/main',
-      (route) => false,
-      arguments: {'initialTabIndex': 1},
+      MaterialPageRoute(
+        builder: (context) => AnalysisSummaryScreen(
+          sessionId: widget.sessionId,
+        ),
+      ),
+      (route) => false, // 모든 이전 화면 제거
     );
   }
 
@@ -1072,31 +1090,8 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       // 3. 추가 대기 시간 (Watch 앱 화면 전환 대기)
       await Future.delayed(Duration(seconds: 3));
       
-      // 4. 세션 시작 햅틱 피드백 전송
-      if (_isWatchConnected) {
-        await _watchService.sendHapticFeedback('🎙️ HaptiTalk 실시간 분석이 시작되었습니다!');
-        print('📳 세션 시작 햅틱 피드백 전송 완료');
-        
-        // 5. 음성 인식 안내 햅틱 (5초 후)
-        await Future.delayed(Duration(seconds: 3));
-        await _watchService.sendHapticFeedback('💡 음성을 인식하고 있습니다. 자연스럽게 대화해보세요!');
-        print('📳 음성 인식 안내 햅틱 피드백 전송 완료');
-        
-        // 6. 초기 분석 데이터 동기화
-        await Future.delayed(Duration(seconds: 2));
-        await _watchService.sendRealtimeAnalysis(
-          likability: _likability,
-          interest: _interest,
-          speakingSpeed: _speakingSpeed,
-          emotion: _emotionState,
-          feedback: '실시간 분석을 시작합니다',
-          elapsedTime: _formatTime(_seconds),
-        );
-        print('📊 초기 분석 데이터 동기화 완료');
-        
-      } else {
-        print('⚠️ Watch가 연결되지 않아 햅틱 피드백을 보낼 수 없습니다');
-      }
+      // 🔥 세션 시작 햅틱 피드백 제거 (불필요한 진동 방지)
+      print('⏭️ 세션 시작 햅틱 피드백 스킵 (불필요한 진동 방지)');
       
       print('🎉 Watch 세션 시작 프로세스 완료');
       
@@ -1386,15 +1381,24 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
   /// 🔥 세션 타입을 analytics 형식으로 변환
   String _convertSessionTypeToAnalytics(String? sessionType) {
     switch (sessionType) {
+      case '발표':
+        return 'presentation';
       case 'presentation':
         return 'presentation';
+      case '소개팅':
+        return 'dating';
       case 'dating':
         return 'dating';
+      case '면접':
+        return 'interview';
       case 'interview':
         return 'interview';
+      case '코칭':
+        return 'coaching';
       case 'coaching':
         return 'coaching';
       default:
+        print('⚠️ 알 수 없는 세션 타입: $sessionType, 기본값 presentation 사용');
         return 'presentation';
     }
   }
