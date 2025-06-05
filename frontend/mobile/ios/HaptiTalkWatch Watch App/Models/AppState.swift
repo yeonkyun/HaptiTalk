@@ -15,7 +15,7 @@ import WatchConnectivity
 @available(watchOS 6.0, *)
 class AppState: NSObject, ObservableObject, WCSessionDelegate {
     @Published var isConnected: Bool = false
-    @Published var connectedDevice: String = "연결 중..."
+    @Published var connectedDevice: String = "연결 안됨"
     private var pairedDeviceName: String? = nil // 페어링된 iPhone 모델명 저장 변수
     @Published var recentSessions: [Session] = []
     
@@ -97,12 +97,20 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
         
         #if os(watchOS)
         if self.isConnected {
-            // 연결된 상태에서는 여기에서 직접 페어링된 iPhone 모델명 표시
-            self.connectedDevice = getConnectedDeviceType()
-            print("Watch: ✅ 연결된 기기 타입 설정: \(self.connectedDevice)")
+            // 연결된 상태에서는 기기 이름 요청
+            // iPhone의 응답이 있을 떄 그때 connectedDevice가 업데이트됨
+            // 처음 연결시에는 "연결 안됨"으로 유지
+            if self.pairedDeviceName == nil {
+                requestDeviceNameFromiPhone()
+            } else {
+                // 이미 기기 이름을 받았다면 사용
+                self.connectedDevice = self.pairedDeviceName ?? "연결 안됨"
+                print("Watch: ✅ 연결된 기기 타입 설정: \(self.connectedDevice)")
+            }
         } else {
             // 연결되지 않은 상태
             self.connectedDevice = "연결 안됨"
+            self.pairedDeviceName = nil // 연결이 끊기면 저장된 기기 이름 초기화
         }
         #endif
         
@@ -183,13 +191,13 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
     }
     
     // MARK: - Message Handling
-    // 연결된 기기 타입 가져오기
+    // 이 함수는 사용하지 않음 - 비활성화
     private func getConnectedDeviceType() -> String {
-        // iPhone에 기기 모델명 요청
-        requestDeviceNameFromiPhone()
+        // iPhone에 기기 모델명 요청 - 연결시 자동 요청으로 변경
+        // requestDeviceNameFromiPhone()
         
-        // 응답을 기다리는 동안 기본값 반환
-        return self.pairedDeviceName ?? "iPhone"
+        // 기본값 수정 (연결 안됨 메시지로)
+        return self.pairedDeviceName ?? "연결 안됨"
     }
     
     // iPhone에게 기기 모델명 요청
@@ -211,16 +219,18 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
             
             if let deviceName = reply["deviceName"] as? String {
                 print("Watch: 📱 기기 이름 수신: \(deviceName)")
+                
+                // 중요: UI 업데이트는 반드시 메인 스레드에서 수행
                 DispatchQueue.main.async {
+                    // 기기 이름 업데이트 및 UI 갱신
                     self.pairedDeviceName = deviceName
                     self.connectedDevice = deviceName
                     
-                    // UI 업데이트를 위해 isConnected 값 토글
-                    if self.isConnected {
-                        self.isConnected = false
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            self.isConnected = true
-                        }
+                    print("Watch: ✅ 기기 이름 업데이트 (메인 스레드): \(deviceName)")
+                    
+                    // UI가 확실히 갱신되도록 상태 업데이트
+                    if !self.isConnected {
+                        self.isConnected = true
                     }
                 }
             }
