@@ -3,7 +3,7 @@ import 'package:haptitalk/constants/colors.dart';
 import 'package:haptitalk/screens/main/home_screen.dart';
 import 'package:haptitalk/screens/history/history_screen.dart';
 import 'package:haptitalk/screens/profile/profile_screen.dart';
-import 'package:haptitalk/screens/analysis/analysis_screen.dart';
+import 'package:haptitalk/screens/settings/settings_screen.dart';
 
 class MainTabScreen extends StatefulWidget {
   const MainTabScreen({super.key});
@@ -17,9 +17,9 @@ class _MainTabScreenState extends State<MainTabScreen> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    const AnalysisScreen(),
     const HistoryScreen(),
     const ProfileScreen(),
+    const SettingsScreen(),
   ];
 
   @override
@@ -99,19 +99,19 @@ class _MainTabScreenState extends State<MainTabScreen> {
               label: '홈',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.show_chart_outlined),
-              activeIcon: Icon(Icons.show_chart),
-              label: '분석',
-            ),
-            BottomNavigationBarItem(
               icon: Icon(Icons.history_outlined),
               activeIcon: Icon(Icons.history),
               label: '기록',
-            ),
+            ),            
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),
               activeIcon: Icon(Icons.person),
               label: '프로필',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.settings_outlined),
+              activeIcon: Icon(Icons.settings),
+              label: '설정',
             ),
           ],
         ),

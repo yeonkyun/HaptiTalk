@@ -169,8 +169,12 @@ class RealtimeService {
   /// 세그먼트 데이터를 report-service/analytics에 저장 (30초마다 호출)
   Future<bool> saveSegment(String sessionId, Map<String, dynamic> segmentData) async {
     try {
+      final url = '${AppConfig.apiBaseUrl}/reports/analytics/segments/$sessionId';
+      _logger.i('📤 세그먼트 저장 요청 URL: $url');
+      _logger.i('📤 AppConfig.apiBaseUrl: ${AppConfig.apiBaseUrl}');
+      
       final response = await http.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/reports/analytics/segments/$sessionId'),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${await _getAccessToken()}',
@@ -200,8 +204,12 @@ class RealtimeService {
         if (totalDuration != null) 'totalDuration': totalDuration,
       };
 
+      final url = '${AppConfig.apiBaseUrl}/reports/analytics/$sessionId/finalize';
+      _logger.i('📤 세션 종료 요청 URL: $url');
+      _logger.i('📤 AppConfig.apiBaseUrl: ${AppConfig.apiBaseUrl}');
+
       final response = await http.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/reports/analytics/$sessionId/finalize'),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${await _getAccessToken()}',

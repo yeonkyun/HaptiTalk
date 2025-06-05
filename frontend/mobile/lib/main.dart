@@ -103,8 +103,8 @@ class StartScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     Container(
-                      width: 120,
-                      height: 120,
+                      width: 100,
+                      height: 100,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(30),
                         boxShadow: [
@@ -122,8 +122,8 @@ class StartScreen extends StatelessWidget {
                         child: Image.asset(
                           'assets/images/app_icon.png', // Flutter에서 사용할 에셋 경로
                           fit: BoxFit.cover, // contain에서 cover로 변경하여 경계까지 채우기
-                          width: 120,
-                          height: 120,
+                          width: 100,
+                          height: 100,
                         ),
                       ),
                     ),

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import '../../constants/assets.dart';
 import '../../constants/colors.dart';
 import '../../widgets/session_card.dart';
 import '../../models/session.dart';
+import '../../providers/analysis_provider.dart';
+import '../../models/analysis/analysis_result.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({Key? key}) : super(key: key);
@@ -19,6 +22,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     '전체',
     '소개팅',
     '면접',
+    '발표',
     '비즈니스',
     '코칭',
     '최근 일주일',
@@ -26,69 +30,114 @@ class _HistoryScreenState extends State<HistoryScreen> {
   ];
   final List<String> _sortOptions = ['최신순', '평가순'];
 
-  // 더미 데이터
-  final List<Session> _sessions = [
-    Session(
-      id: '1',
-      title: '첫번째 소개팅',
-      date: '2024년 3월 23일',
-      duration: '1:32:05',
-      type: '소개팅',
-      metrics: {
-        '호감도': 88,
-        '경청 지수': 92,
-      },
-      progress: 0.7,
-    ),
-    Session(
-      id: '2',
-      title: '팀 프로젝트 미팅',
-      date: '2024년 3월 20일',
-      duration: '45:12',
-      type: '비즈니스',
-      metrics: {
-        '설득력': 82,
-        '명확성': 85,
-      },
-      progress: 0.6,
-    ),
-    Session(
-      id: '3',
-      title: '영어 스피킹 연습',
-      date: '2024년 3월 15일',
-      duration: '35:48',
-      type: '코칭',
-      metrics: {
-        '발음': 75,
-        '유창성': 80,
-      },
-      progress: 0.5,
-    ),
-    Session(
-      id: '4',
-      title: '직무 면접 연습',
-      date: '2024년 3월 10일',
-      duration: '58:24',
-      type: '면접',
-      metrics: {
-        '자신감': 78,
-        '명확성': 83,
-      },
-      progress: 0.65,
-    ),
-    Session(
-      id: '5',
-      title: '두번째 소개팅',
-      date: '2024년 3월 5일',
-      duration: '1:05:19',
-      type: '소개팅',
-      metrics: {
-        '호감도': 85,
-        '경청 지수': 87,
-      },
-      progress: 0.75,
-    ),
-  ];
+  bool _isLoading = false;
+  List<Session> _sessions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSessionHistory();
+  }
+
+  // 🔥 실제 API에서 세션 기록 로드
+  Future<void> _loadSessionHistory() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      print('📋 세션 기록 로드 시작');
+      
+      // AnalysisProvider를 통해 실제 분석 기록 조회
+      final analysisProvider = Provider.of<AnalysisProvider>(context, listen: false);
+      await analysisProvider.fetchAnalysisHistory(); // void 메서드 호출
+      
+      // getter로 업데이트된 분석 결과 가져오기
+      final analysisResults = analysisProvider.analysisHistory;
+      
+      // AnalysisResult를 Session 모델로 변환
+      _sessions = _convertAnalysisResultsToSessions(analysisResults);
+      
+      print('✅ 세션 기록 로드 완료: ${_sessions.length}개');
+    } catch (e) {
+      print('❌ 세션 기록 로드 실패: $e');
+      // 오류 발생 시 빈 목록으로 초기화
+      _sessions = [];
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // AnalysisResult를 Session으로 변환
+  List<Session> _convertAnalysisResultsToSessions(List<AnalysisResult> analysisResults) {
+    return analysisResults.map((analysis) {
+      // 주요 지표 추출
+      Map<String, int> metrics = {};
+      
+      switch (analysis.category) {
+        case '소개팅':
+          metrics = {
+            '호감도': analysis.metrics.emotionMetrics.averageLikeability.round(),
+            '경청 지수': analysis.metrics.conversationMetrics.listeningScore.round(),
+          };
+          break;
+        case '면접':
+          metrics = {
+            '자신감': analysis.metrics.emotionMetrics.averageLikeability.round(),
+            '명확성': analysis.metrics.speakingMetrics.clarity.round(),
+          };
+          break;
+        case '발표':
+          metrics = {
+            '설득력': analysis.metrics.conversationMetrics.contributionRatio.round(),
+            '명확성': analysis.metrics.speakingMetrics.clarity.round(),
+          };
+          break;
+        case '비즈니스':
+          metrics = {
+            '설득력': analysis.metrics.conversationMetrics.contributionRatio.round(),
+            '명확성': analysis.metrics.speakingMetrics.clarity.round(),
+          };
+          break;
+        case '코칭':
+          metrics = {
+            '발음': analysis.metrics.speakingMetrics.tonality.round(),
+            '유창성': analysis.metrics.speakingMetrics.speechRate > 100 ? 80 : 60,
+          };
+          break;
+        default:
+          metrics = {
+            '전체 점수': analysis.metrics.emotionMetrics.averageLikeability.round(),
+          };
+      }
+
+      return Session(
+        id: analysis.sessionId,
+        title: analysis.title,
+        date: _formatDate(analysis.date),
+        duration: analysis.getFormattedDuration(),
+        type: analysis.category,
+        metrics: metrics,
+        progress: _calculateProgress(analysis),
+      );
+    }).toList();
+  }
+
+  // 날짜 포맷팅
+  String _formatDate(DateTime date) {
+    return '${date.year}년 ${date.month}월 ${date.day}일';
+  }
+
+  // 진행률 계산 (여러 지표의 평균)
+  double _calculateProgress(AnalysisResult analysis) {
+    final likeability = analysis.metrics.emotionMetrics.averageLikeability;
+    final listening = analysis.metrics.conversationMetrics.listeningScore;
+    final clarity = analysis.metrics.speakingMetrics.clarity;
+    
+    return (likeability + listening + clarity) / 300; // 0~1 사이 값으로 정규화
+  }
 
   List<Session> get filteredSessions {
     List<Session> filtered = List.from(_sessions);
@@ -142,6 +191,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
             onPressed: () {
               // 검색 기능 구현
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            color: AppColors.secondaryTextColor,
+            onPressed: _loadSessionHistory,
           ),
         ],
       ),
@@ -262,48 +316,52 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
           // 세션 목록
           Expanded(
-            child: filteredSessions.isEmpty
+            child: _isLoading
                 ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          Assets.emptyState,
-                          width: 120,
-                          height: 120,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          '세션 기록이 없습니다',
-                          style: TextStyle(
-                            color: AppColors.textColor,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '새로운 세션을 시작해보세요',
-                          style: TextStyle(
-                            color: AppColors.secondaryTextColor,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
+                    child: CircularProgressIndicator(),
                   )
-                : ListView.builder(
-                    padding:
-                        const EdgeInsets.only(left: 20, right: 20, bottom: 20),
-                    itemCount: filteredSessions.length,
-                    itemBuilder: (context, index) {
-                      final session = filteredSessions[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 15),
-                        child: SessionCard(session: session),
-                      );
-                    },
-                  ),
+                : filteredSessions.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.history_outlined,
+                              size: 120,
+                              color: AppColors.secondaryTextColor.withOpacity(0.3),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              '세션 기록이 없습니다',
+                              style: TextStyle(
+                                color: AppColors.textColor,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '새로운 세션을 시작해보세요',
+                              style: TextStyle(
+                                color: AppColors.secondaryTextColor,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding:
+                            const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+                        itemCount: filteredSessions.length,
+                        itemBuilder: (context, index) {
+                          final session = filteredSessions[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 15),
+                            child: SessionCard(session: session),
+                          );
+                        },
+                      ),
           ),
         ],
       ),

@@ -95,8 +95,15 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     _subscribeToWatchMessages();
     _startSegmentSaveTimer(); // 🔥 세그먼트 저장 타이머 시작
 
-    // 초기 추천 주제 설정
-    _suggestedTopics = ['여행 경험', '좋아하는 여행지', '사진 취미', '역사적 장소', '제주도 명소'];
+    // 세션 타입에 따른 초기 추천 주제 설정
+    if (widget.sessionType == '발표') {
+      _suggestedTopics = ['핵심 포인트 강조', '청중과의 소통', '시각적 자료 활용', '명확한 결론', '질의응답 준비'];
+    } else if (widget.sessionType == '면접' || widget.sessionType == '면접(인터뷰)') {
+      _suggestedTopics = ['경력 소개', '성장 경험', '회사 지원 동기', '미래 계획', '강점과 약점'];
+    } else {
+      // 소개팅 모드 (기본)
+      _suggestedTopics = ['여행 경험', '좋아하는 여행지', '사진 취미', '역사적 장소', '제주도 명소'];
+    }
     
     // STT 스트림 구독 상태 주기적 확인
     Timer.periodic(Duration(seconds: 10), (timer) {
@@ -1007,7 +1014,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     if (_isRecording) {
       // 녹음 중지
       await _audioService.pauseRecording();
-      setState(() {
+    setState(() {
         _isRecording = false;
       });
     } else {
@@ -1084,7 +1091,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       }
       
       // 2. Watch 세션 시작 (자동 화면 전환 포함)
-      await _watchService.startSession('소개팅');
+      await _watchService.startSession(widget.sessionType ?? '소개팅');
       print('✅ Watch 세션 시작 신호 전송 완료');
       
       // 3. 추가 대기 시간 (Watch 앱 화면 전환 대기)
@@ -1573,10 +1580,10 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.people, color: Colors.white, size: 18),
+                Icon(_getSessionIcon(widget.sessionType), color: Colors.white, size: 18),
                 const SizedBox(width: 5),
                 Text(
-                  '소개팅',
+                  widget.sessionType ?? '소개팅',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -1678,8 +1685,8 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
               const SizedBox(width: 8),
               Text(
                 '실시간 음성 인식',
-                style: TextStyle(
-                  color: AppColors.lightText,
+        style: TextStyle(
+          color: AppColors.lightText,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -1707,9 +1714,9 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
             _transcription.isEmpty ? '음성을 30초 단위로 분석하고 있습니다...' : _transcription,
             style: TextStyle(
               color: _transcription.isEmpty ? AppColors.disabledText : AppColors.lightText,
-              fontSize: 16,
-              height: 1.5,
-            ),
+          fontSize: 16,
+          height: 1.5,
+        ),
           ),
         ],
       ),
@@ -1747,49 +1754,141 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
             ],
           ),
           const SizedBox(height: 15),
-          Row(
-            children: [
-              Expanded(
-                child: _buildMetricCard(
-                  title: '감정 상태',
-                  value: _emotionState,
-                  icon: Icons.sentiment_satisfied_alt,
-                  isTextValue: true,
+          // 세션 타입에 따라 다른 지표 표시
+          if (widget.sessionType == '발표') ...[
+            Row(
+              children: [
+                Expanded(
+                  child: _buildMetricCard(
+                    title: '자신감',
+                    value: '$_likability%',
+                    icon: Icons.psychology,
+                    progressValue: _likability / 100,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildMetricCard(
-                  title: '말하기 속도',
-                  value: _getSpeedText(_speakingSpeed),
-                  icon: Icons.speed,
-                  progressValue: _speakingSpeed > 0 ? _speakingSpeed / 200 : 0,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildMetricCard(
+                    title: '말하기 속도',
+                    value: _getSpeedText(_speakingSpeed),
+                    icon: Icons.speed,
+                    progressValue: _speakingSpeed > 0 ? _speakingSpeed / 200 : 0,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildMetricCard(
-                  title: '호감도',
-                  value: '$_likability%',
-                  icon: Icons.favorite,
-                  progressValue: _likability / 100,
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildMetricCard(
+                    title: '설득력',
+                    value: '$_interest%',
+                    icon: Icons.trending_up,
+                    progressValue: _interest / 100,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildMetricCard(
-                  title: '관심도',
-                  value: '$_interest%',
-                  icon: Icons.star,
-                  progressValue: _interest / 100,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildMetricCard(
+                    title: '명확성',
+                    value: _emotionState,
+                    icon: Icons.radio_button_checked,
+                    isTextValue: true,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ] else if (widget.sessionType == '면접' || widget.sessionType == '면접(인터뷰)') ...[
+            Row(
+              children: [
+                Expanded(
+                  child: _buildMetricCard(
+                    title: '자신감',
+                    value: '$_likability%',
+                    icon: Icons.psychology,
+                    progressValue: _likability / 100,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildMetricCard(
+                    title: '말하기 속도',
+                    value: _getSpeedText(_speakingSpeed),
+                    icon: Icons.speed,
+                    progressValue: _speakingSpeed > 0 ? _speakingSpeed / 200 : 0,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildMetricCard(
+                    title: '명확성',
+                    value: '$_interest%',
+                    icon: Icons.radio_button_checked,
+                    progressValue: _interest / 100,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildMetricCard(
+                    title: '안정감',
+                    value: _emotionState,
+                    icon: Icons.sentiment_satisfied_alt,
+                    isTextValue: true,
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            // 소개팅 모드 (기본)
+            Row(
+              children: [
+                Expanded(
+                  child: _buildMetricCard(
+                    title: '감정 상태',
+                    value: _emotionState,
+                    icon: Icons.sentiment_satisfied_alt,
+                    isTextValue: true,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildMetricCard(
+                    title: '말하기 속도',
+                    value: _getSpeedText(_speakingSpeed),
+                    icon: Icons.speed,
+                    progressValue: _speakingSpeed > 0 ? _speakingSpeed / 200 : 0,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildMetricCard(
+                    title: '호감도',
+                    value: '$_likability%',
+                    icon: Icons.favorite,
+                    progressValue: _likability / 100,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildMetricCard(
+                    title: '관심도',
+                    value: '$_interest%',
+                    icon: Icons.star,
+                    progressValue: _interest / 100,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -1988,5 +2087,24 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
         ],
       ),
     );
+  }
+
+  /// 세션 타입에 따른 아이콘 반환
+  IconData _getSessionIcon(String? sessionType) {
+    switch (sessionType) {
+      case '발표':
+        return Icons.present_to_all;
+      case '소개팅':
+        return Icons.people;
+      case '면접(인터뷰)':
+      case '면접':
+        return Icons.business_center;
+      case '코칭':
+        return Icons.psychology;
+      case '비즈니스':
+        return Icons.handshake;
+      default:
+        return Icons.people;
+    }
   }
 }
