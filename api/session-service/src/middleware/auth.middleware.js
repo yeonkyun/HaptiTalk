@@ -96,6 +96,52 @@ const authMiddleware = {
                 message: '인증 처리 중 오류가 발생했습니다.'
             });
         }
+    },
+
+    /**
+     * 서비스 간 통신을 위한 토큰 검증 미들웨어
+     * @param {Object} req - Express 요청 객체 
+     * @param {Object} res - Express 응답 객체
+     * @param {Function} next - Express 다음 미들웨어 함수
+     */
+    validateServiceToken: (req, res, next) => {
+        try {
+            const authHeader = req.headers.authorization;
+            
+            if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                return res.status(httpStatus.UNAUTHORIZED).json({
+                    success: false,
+                    message: '인증 토큰이 필요합니다'
+                });
+            }
+            
+            const token = authHeader.split(' ')[1];
+            
+            // 환경 변수에서 서비스 토큰 가져오기
+            const serviceToken = process.env.INTER_SERVICE_TOKEN || 'default-service-token';
+            
+            // 간단한 토큰 비교 (실제 환경에서는 더 안전한 방식 사용 권장)
+            if (token !== serviceToken) {
+                return res.status(httpStatus.FORBIDDEN).json({
+                    success: false,
+                    message: '유효하지 않은 서비스 토큰입니다'
+                });
+            }
+            
+            // 서비스 요청임을 표시
+            req.isServiceRequest = true;
+            req.service = {
+                name: 'realtime-service' // 기본값
+            };
+            
+            next();
+        } catch (error) {
+            logger.error(`서비스 토큰 검증 오류: ${error.message}`);
+            return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+                success: false,
+                message: '인증 처리 중 오류가 발생했습니다'
+            });
+        }
     }
 };
 

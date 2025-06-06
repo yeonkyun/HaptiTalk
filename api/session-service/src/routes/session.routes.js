@@ -11,7 +11,23 @@ const router = express.Router();
  * 세션 라우트 정의
  */
 
-// JWT 토큰 검증 미들웨어 적용
+/**
+ * @route POST /api/v1/sessions/validate
+ * @desc 세션 유효성 검증 (서비스 간 통신용)
+ * @access Service
+ */
+router.post(
+    '/validate',
+    authMiddleware.validateServiceToken, // 서비스 토큰 검증
+    [
+        body('sessionId').isUUID(4).withMessage('유효한 세션 ID가 아닙니다'),
+        body('userId').isUUID(4).withMessage('유효한 사용자 ID가 아닙니다'),
+        validationMiddleware.validate
+    ],
+    sessionController.validateSession
+);
+
+// JWT 토큰 검증 미들웨어 적용 (validate 엔드포인트 제외)
 router.use(authMiddleware.verifyToken);
 
 /**
@@ -195,21 +211,6 @@ router.get(
         validationMiddleware.validate
     ],
     sessionController.getTimerStatus
-);
-
-/**
- * @route POST /api/v1/sessions/validate
- * @desc 세션 유효성 검증
- * @access Private
- */
-router.post(
-    '/validate',
-    [
-        body('sessionId').isUUID(4).withMessage('유효한 세션 ID가 아닙니다'),
-        body('userId').isUUID(4).withMessage('유효한 사용자 ID가 아닙니다'),
-        validationMiddleware.validate
-    ],
-    sessionController.validateSession
 );
 
 /**
