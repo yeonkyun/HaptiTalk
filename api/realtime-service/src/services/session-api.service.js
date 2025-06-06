@@ -99,6 +99,23 @@ class SessionApiService {
       throw new Error(`세션 상태 조회 실패: ${error.message}`);
     }
   }
+
+  /**
+   * 세션 생성
+   * @param {Object} sessionData - 세션 생성 데이터
+   * @returns {Promise<Object>} - 생성된 세션 정보
+   */
+  async createSession(sessionData) {
+    try {
+      logger.debug(`세션 서비스 API 호출: 세션 생성`, { sessionData });
+      const response = await sessionServiceClient.post('/api/v1/sessions', sessionData);
+      
+      return response.data;
+    } catch (error) {
+      logger.error(`세션 생성 API 오류: ${error.message}`);
+      throw new Error(`세션 생성 실패: ${error.message}`);
+    }
+  }
 }
 
 module.exports = new SessionApiService(); 

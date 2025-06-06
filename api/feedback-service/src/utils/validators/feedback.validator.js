@@ -96,7 +96,7 @@ const processSTTAnalysis = [
     body('scenario')
         .optional()
         .isString().withMessage('시나리오는 문자열이어야 합니다.')
-        .isIn(['interview', 'dating', 'business', 'general']).withMessage('유효하지 않은 시나리오입니다.'),
+        .isIn(['interview', 'dating', 'business', 'presentation', 'general']).withMessage('유효하지 않은 시나리오입니다.'),
 
     body('language')
         .optional()
