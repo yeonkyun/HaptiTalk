@@ -18,6 +18,9 @@ const ConnectionManager = require('./utils/connection-manager');
 const SocketMonitor = require('./utils/socket-monitor');
 const { v4: uuidv4 } = require('uuid');
 const { swaggerUi, specs } = require('./utils/swagger');
+const compression = require('compression');
+const jwt = require('jsonwebtoken');
+const Redis = require('ioredis');
 
 // 기본 설정
 const PORT = process.env.PORT || 3001;
@@ -31,7 +34,12 @@ const KAFKA_TOPIC_ANALYSIS_RESULTS = process.env.KAFKA_TOPIC_ANALYSIS_RESULTS ||
 const KAFKA_TOPIC_FEEDBACK_COMMANDS = process.env.KAFKA_TOPIC_FEEDBACK_COMMANDS || 'haptitalk-feedback-commands';
 
 // Redis 클라이언트 초기화
-const redisClient = createRedisClient();
+const redisClient = new Redis({
+  host: config.redis.host,
+  port: config.redis.port,
+  retryDelayOnFailure: 100,
+  maxRetriesPerRequest: 3,
+});
 
 // Express 앱 초기화
 const app = express();
@@ -242,6 +250,21 @@ io.on('connection', (socket) => {
     });
 });
 
+// 🔥 서비스 간 인증 토큰 설정
+const initializeServiceAuth = () => {
+  try {
+    const serviceToken = process.env.INTER_SERVICE_TOKEN;
+    if (serviceToken) {
+      setServiceAuthToken(serviceToken);
+      logger.info('✅ 서비스 간 인증 토큰 설정 완료');
+    } else {
+      logger.warn('⚠️ INTER_SERVICE_TOKEN 환경변수가 설정되지 않음');
+    }
+  } catch (error) {
+    logger.error('❌ 서비스 간 인증 토큰 설정 실패:', error);
+  }
+};
+
 // 서버 시작
 const startServer = async () => {
     try {
@@ -253,11 +276,7 @@ const startServer = async () => {
         });
 
         // 서비스 간 통신을 위한 API 토큰 설정
-        setServiceAuthToken(INTER_SERVICE_TOKEN);
-        logger.info('서비스 간 통신을 위한 인증 토큰이 설정되었습니다', {
-            component: 'auth',
-            status: 'configured'
-        });
+        initializeServiceAuth();
         
         // 연결 관리자 초기화
         connectionManager.initialize();
