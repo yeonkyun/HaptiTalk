@@ -49,6 +49,8 @@ const authMiddleware = {
 
                 // 토큰의 사용자 ID를 사용해 추가 검증 수행 (선택 사항)
                 // 마이크로서비스 환경에서는 auth-service에 검증 요청을 보낼 수 있음
+                // 임시로 비활성화 - JWT 토큰 자체 검증만 사용
+                /*
                 if (process.env.NODE_ENV === 'production') {
                     try {
                         const response = await axios.get(
@@ -71,6 +73,7 @@ const authMiddleware = {
                         });
                     }
                 }
+                */
 
                 next();
             } catch (error) {
