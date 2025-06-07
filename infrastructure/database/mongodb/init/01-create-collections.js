@@ -14,6 +14,7 @@ db.createCollection("hapticFeedbacks");
 db.createCollection("speechFeatures");
 db.createCollection("userModels");
 db.createCollection("sessionSegments");
+db.createCollection("sessions");
 
 // 컬렉션 설명 추가
 db.sessionAnalytics.stats();
@@ -208,6 +209,70 @@ db.createCollection("sessionSegments", {
           bsonType: "array",
           description: "추천 대화 주제",
           items: { bsonType: "string" }
+        }
+      }
+    }
+  }
+});
+
+// sessions 컬렉션 정의 (PostgreSQL 세션 데이터의 MongoDB 미러링)
+db.sessions.stats();
+db.sessions.drop();
+db.createCollection("sessions", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["sessionId", "userId", "title", "type", "status", "createdAt"],
+      properties: {
+        sessionId: {
+          bsonType: "string",
+          description: "PostgreSQL sessions.id와 동일한 세션 ID"
+        },
+        userId: {
+          bsonType: "string",
+          description: "사용자 ID (PostgreSQL auth.users.id 참조)"
+        },
+        title: {
+          bsonType: "string",
+          description: "세션 제목"
+        },
+        type: {
+          bsonType: "string",
+          enum: ["dating", "interview", "business", "presentation"],
+          description: "세션 유형"
+        },
+        status: {
+          bsonType: "string",
+          enum: ["created", "active", "paused", "ended"],
+          description: "세션 상태"
+        },
+        startTime: {
+          bsonType: "date",
+          description: "세션 시작 시간"
+        },
+        endTime: {
+          bsonType: "date",
+          description: "세션 종료 시간"
+        },
+        duration: {
+          bsonType: "int",
+          description: "세션 지속 시간 (초)"
+        },
+        settings: {
+          bsonType: "object",
+          description: "세션 설정"
+        },
+        metadata: {
+          bsonType: "object",
+          description: "세션 메타데이터"
+        },
+        createdAt: {
+          bsonType: "date",
+          description: "세션 생성 시간"
+        },
+        updatedAt: {
+          bsonType: "date",
+          description: "세션 수정 시간"
         }
       }
     }

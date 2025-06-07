@@ -3,6 +3,8 @@ const {redisUtils, CHANNELS} = require('../config/redis');
 const logger = require('../utils/logger');
 const {Op} = require('sequelize');
 const {Participant} = require('../models/participant.model');
+const { v4: uuidv4 } = require('uuid');
+const { getCollection } = require('../config/mongodb');
 
 /**
  * 세션 서비스 클래스
@@ -28,6 +30,11 @@ class SessionService {
         // 사용자 커스텀 설정과 기본 설정 병합
         const mergedSettings = this.mergeSettings(defaultSettings, custom_settings);
 
+        logger.info(`새 세션 생성 시작: 사용자 ${user_id}, 타입 ${type}`, {
+            title,
+            settings: mergedSettings
+        });
+
         try {
             // 세션 레코드 생성
             const session = await Session.create({
@@ -43,6 +50,29 @@ class SessionService {
                     tags: sessionData.tags || [],
                 }
             });
+
+            // MongoDB에도 세션 정보 저장
+            try {
+                const sessionsCollection = await getCollection('sessions');
+                await sessionsCollection.insertOne({
+                    sessionId: session.id,
+                    userId: session.user_id,
+                    title: session.title,
+                    type: session.type,
+                    status: session.status,
+                    startTime: session.start_time,
+                    endTime: session.end_time,
+                    duration: session.duration,
+                    settings: session.settings,
+                    metadata: session.metadata,
+                    createdAt: session.created_at,
+                    updatedAt: session.updated_at
+                });
+                logger.info(`MongoDB에 세션 정보 저장 성공: ${session.id}`);
+            } catch (mongoError) {
+                logger.warn(`MongoDB 세션 저장 실패: ${mongoError.message}`, { sessionId: session.id });
+                // MongoDB 저장 실패해도 PostgreSQL 세션은 유지
+            }
 
             // Redis에 세션 구성 캐싱
             await redisUtils.set(
@@ -87,15 +117,14 @@ class SessionService {
             });
 
             logger.info(`세션 생성 성공: ${session.id}`, {
-                userId: user_id,
-                sessionType: type,
-                title: title,
-                sessionId: session.id
+                userId: session.user_id,
+                sessionType: session.type,
+                sessionTitle: session.title
             });
             
             return session;
         } catch (error) {
-            logger.error('Error creating session:', error);
+            logger.error('Error in createSession:', error);
             throw error;
         }
     }
@@ -107,16 +136,14 @@ class SessionService {
      */
     async getSession(sessionId) {
         try {
-            // 먼저 Redis에서 세션 구성 확인
-            const cachedConfig = await redisUtils.get(redisUtils.keys.sessionConfig(sessionId));
+            // 1차: Redis 캐시에서 조회
             const cachedStatus = await redisUtils.get(redisUtils.keys.sessionStatus(sessionId));
 
-            // 캐시에 있으면 데이터베이스 조회와 함께 통합하여 반환
-            if (cachedConfig && cachedStatus) {
+            if (cachedStatus) {
+                // 캐시된 상태가 있으면 데이터베이스에서 세션 정보 조회
                 const dbSession = await Session.findByPk(sessionId);
 
                 if (!dbSession) {
-                    logger.warn(`세션 조회 실패 - 존재하지 않는 세션: ${sessionId}`);
                     throw new Error(`Session not found: ${sessionId}`);
                 }
 
@@ -127,10 +154,36 @@ class SessionService {
                 };
             }
 
-            // 캐시에 없으면 데이터베이스에서만 조회
-            const session = await Session.findByPk(sessionId);
+            // 2차: PostgreSQL에서 조회
+            let session = await Session.findByPk(sessionId);
 
             if (!session) {
+                // 3차: MongoDB에서 조회 (백업)
+                try {
+                    const sessionsCollection = await getCollection('sessions');
+                    const mongoSession = await sessionsCollection.findOne({ sessionId });
+                    
+                    if (mongoSession) {
+                        logger.debug(`세션 조회 성공 (MongoDB): ${sessionId}`);
+                        return {
+                            id: mongoSession.sessionId,
+                            user_id: mongoSession.userId,
+                            title: mongoSession.title,
+                            type: mongoSession.type,
+                            status: mongoSession.status,
+                            start_time: mongoSession.startTime,
+                            end_time: mongoSession.endTime,
+                            duration: mongoSession.duration,
+                            settings: mongoSession.settings,
+                            metadata: mongoSession.metadata,
+                            created_at: mongoSession.createdAt,
+                            updated_at: mongoSession.updatedAt
+                        };
+                    }
+                } catch (mongoError) {
+                    logger.warn(`MongoDB에서 세션 조회 실패: ${mongoError.message}`, { sessionId });
+                }
+
                 logger.warn(`세션 조회 실패 - 존재하지 않는 세션: ${sessionId}`);
                 throw new Error(`Session not found: ${sessionId}`);
             }
