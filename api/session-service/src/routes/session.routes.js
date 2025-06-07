@@ -71,6 +71,7 @@ router.post(
  */
 router.get(
     '/',
+    authMiddleware.verifyToken, // JWT 토큰 검증 추가
     [
         query('status').optional().isString().withMessage('유효한 상태 값이 아닙니다'),
         query('type').optional().isIn(Object.values(SESSION_TYPES)).withMessage('유효한 세션 타입이 아닙니다'),
@@ -90,6 +91,7 @@ router.get(
  */
 router.get(
     '/:id',
+    authMiddleware.verifyToken, // JWT 토큰 검증 추가
     [
         param('id').isUUID(4).withMessage('유효한 세션 ID가 아닙니다'),
         validationMiddleware.validate
@@ -104,6 +106,7 @@ router.get(
  */
 router.put(
     '/:id',
+    authMiddleware.verifyToken, // JWT 토큰 검증 추가
     [
         param('id').isUUID(4).withMessage('유효한 세션 ID가 아닙니다'),
         body('title').optional().isString().withMessage('세션 제목은 문자열이어야 합니다'),
@@ -122,6 +125,7 @@ router.put(
  */
 router.post(
     '/:id/end',
+    authMiddleware.verifyToken, // JWT 토큰 검증 추가
     [
         param('id').isUUID(4).withMessage('유효한 세션 ID가 아닙니다'),
         body('summary').optional().isObject().withMessage('세션 요약은 객체 형태여야 합니다'),
@@ -137,6 +141,7 @@ router.post(
  */
 router.put(
     '/:id/summary',
+    authMiddleware.verifyToken, // JWT 토큰 검증 추가
     [
         param('id').isUUID(4).withMessage('유효한 세션 ID가 아닙니다'),
         body('summary').isObject().withMessage('세션 요약은 객체 형태여야 합니다'),
@@ -152,6 +157,7 @@ router.put(
  */
 router.post(
     '/:id/timer/setup',
+    authMiddleware.verifyToken, // JWT 토큰 검증 추가
     [
         param('id').isUUID(4).withMessage('유효한 세션 ID가 아닙니다'),
         body('duration_minutes').optional().isInt({min: 1, max: 180}).withMessage('발표 시간은 1-180분 사이여야 합니다'),
@@ -168,6 +174,7 @@ router.post(
  */
 router.post(
     '/:id/timer/start',
+    authMiddleware.verifyToken, // JWT 토큰 검증 추가
     [
         param('id').isUUID(4).withMessage('유효한 세션 ID가 아닙니다'),
         validationMiddleware.validate
@@ -182,6 +189,7 @@ router.post(
  */
 router.post(
     '/:id/timer/pause',
+    authMiddleware.verifyToken, // JWT 토큰 검증 추가
     [
         param('id').isUUID(4).withMessage('유효한 세션 ID가 아닙니다'),
         validationMiddleware.validate
@@ -196,6 +204,7 @@ router.post(
  */
 router.post(
     '/:id/timer/resume',
+    authMiddleware.verifyToken, // JWT 토큰 검증 추가
     [
         param('id').isUUID(4).withMessage('유효한 세션 ID가 아닙니다'),
         validationMiddleware.validate
@@ -210,6 +219,7 @@ router.post(
  */
 router.post(
     '/:id/timer/reset',
+    authMiddleware.verifyToken, // JWT 토큰 검증 추가
     [
         param('id').isUUID(4).withMessage('유효한 세션 ID가 아닙니다'),
         validationMiddleware.validate
@@ -224,6 +234,7 @@ router.post(
  */
 router.get(
     '/:id/timer',
+    authMiddleware.verifyToken, // JWT 토큰 검증 추가
     [
         param('id').isUUID(4).withMessage('유효한 세션 ID가 아닙니다'),
         validationMiddleware.validate
@@ -238,6 +249,7 @@ router.get(
  */
 router.get(
     '/:id/status',
+    authMiddleware.verifyToken, // JWT 토큰 검증 추가
     [
         param('id').isUUID(4).withMessage('유효한 세션 ID가 아닙니다'),
         validationMiddleware.validate
