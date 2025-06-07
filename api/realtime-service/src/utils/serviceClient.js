@@ -110,7 +110,8 @@ const sessionServiceClient = createServiceClient('session', process.env.SESSION_
     logger,
     headers: {
         'X-Service-Name': 'realtime-service',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.INTER_SERVICE_TOKEN}`
     }
 });
 
@@ -118,7 +119,8 @@ const feedbackServiceClient = createServiceClient('feedback', process.env.FEEDBA
     logger,
     headers: {
         'X-Service-Name': 'realtime-service',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.INTER_SERVICE_TOKEN}`
     }
 });
 
