@@ -23,6 +23,8 @@ struct SessionProgressView: View {
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
+    // 햅틱 피드백 구독은 이제 AppState에서 관리됨
+    
     var recommendedTopics = ["여행 경험", "취미 활동", "좋아하는 음식"]
     
     // AppState에서 실시간 데이터 가져오기
@@ -52,6 +54,13 @@ struct SessionProgressView: View {
     var body: some View {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
+            
+            // 시각적 피드백 오버레이 추가
+            if appState.showVisualFeedback {
+                WatchVisualFeedbackView()
+                    .transition(.opacity)
+                    .zIndex(10) // 다른 UI 요소보다 위에 표시
+            }
             
             ScrollView(.vertical) {
                 VStack(spacing: 0) {
@@ -187,8 +196,6 @@ struct SessionProgressView: View {
                 .padding(.top, -10)
             }
             .padding(.top, -10)
-            
-            // 🎨 시각적 피드백 오버레이는 이제 ContentView에서 글로벌로 처리됨
         }
         .fullScreenCover(isPresented: $showSessionSummary) {
             SessionSummaryView(
@@ -214,6 +221,15 @@ struct SessionProgressView: View {
             // 시각적 피드백 상태 변화 감지 및 로깅
             if newValue {
                 print("🎨 Watch: 시각적 피드백 시작 - 패턴: \(appState.currentVisualPattern)")
+                
+                // 시각적 피드백 자동 종료 타이머 설정 (5초)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                    if appState.showVisualFeedback {
+                        withAnimation {
+                            appState.showVisualFeedback = false
+                        }
+                    }
+                }
             } else {
                 print("🎨 Watch: 시각적 피드백 종료")
             }
@@ -300,7 +316,28 @@ struct SessionProgressView: View {
         appState.sendToiPhone(message: sessionStartedMessage)
         print("📡 Watch: iPhone에 세션 진입 완료 신호 전송")
         
+        // 5. 햅틱 이벤트 구독 설정
+        setupHapticSubscriptions()
+        
         print("✅ Watch: 세션 초기화 완료")
+    }
+}
+
+// 햅틱 이벤트 구독 설정 메소드 추가
+extension SessionProgressView {
+    private func setupHapticSubscriptions() {
+        // AppState에서 햅틱 피드백 이벤트 구독 설정
+        appState.setupSessionViewHapticSubscription { [self] message in
+            // 햅틱 알림 표시
+            showHapticNotification(message: message)
+            
+            // 시각적 피드백 표시 (햅틱과 동시에)
+            if !appState.currentVisualPattern.isEmpty {
+                withAnimation {
+                    appState.showVisualFeedback = true
+                }
+            }
+        }
     }
 }
 
