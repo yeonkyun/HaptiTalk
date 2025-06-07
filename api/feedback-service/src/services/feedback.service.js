@@ -463,11 +463,21 @@ const processSTTAnalysisAndGenerateFeedback = async (params) => {
  */
 const decideFeedbackFromSTTAnalysis = ({ text, speechMetrics, emotionAnalysis, scenario, language, userSettings }) => {
     try {
-        // 🎯 S1: 말하기 속도 기반 피드백 (가장 우선순위 높음)
+        logger.debug('피드백 결정 분석 시작:', {
+            wpm: speechMetrics?.evaluationWpm,
+            emotion: emotionAnalysis?.primaryEmotion?.emotionKr,
+            probability: emotionAnalysis?.primaryEmotion?.probability,
+            scenario,
+            textLength: text?.length
+        });
+
+        // 🎯 S1: 말하기 속도 기반 피드백 (조건 완화)
         if (speechMetrics?.evaluationWpm) {
             const wpm = speechMetrics.evaluationWpm;
             
-            if (wpm > 150) {
+            // 조건 완화: 130 이상이면 빠름 (기존 150)
+            if (wpm > 130) {
+                logger.info('속도 빠름 피드백 생성', { wpm, threshold: 130 });
                 return {
                     type: 'speaking_pace_fast',
                     priority: 'high',
@@ -480,11 +490,14 @@ const decideFeedbackFromSTTAnalysis = ({ text, speechMetrics, emotionAnalysis, s
                     trigger: {
                         type: 'speech_analysis',
                         value: 'wpm_too_fast',
-                        confidence: Math.min((wpm - 150) / 50, 1.0),
-                        data: { currentWpm: wpm, threshold: 150 }
+                        confidence: Math.min((wpm - 130) / 50, 1.0),
+                        data: { currentWpm: wpm, threshold: 130 }
                     }
                 };
-            } else if (wpm < 80) {
+            } 
+            // 조건 완화: 60 미만이면 느림 (기존 80)
+            else if (wpm < 60) {
+                logger.info('속도 느림 피드백 생성', { wpm, threshold: 60 });
                 return {
                     type: 'speaking_pace_slow',
                     priority: 'medium',
@@ -497,20 +510,43 @@ const decideFeedbackFromSTTAnalysis = ({ text, speechMetrics, emotionAnalysis, s
                     trigger: {
                         type: 'speech_analysis',
                         value: 'wpm_too_slow',
-                        confidence: Math.min((80 - wpm) / 30, 1.0),
-                        data: { currentWpm: wpm, threshold: 80 }
+                        confidence: Math.min((60 - wpm) / 30, 1.0),
+                        data: { currentWpm: wpm, threshold: 60 }
+                    }
+                };
+            }
+            // 정상 범위에서도 가끔 피드백 생성 (테스트용)
+            else if (wpm > 100) {
+                logger.info('정상 속도 격려 피드백 생성', { wpm });
+                return {
+                    type: 'speaking_pace_good',
+                    priority: 'low',
+                    message: '적절한 속도로 말하고 있습니다. 계속 유지하세요!',
+                    visualCue: {
+                        color: '#4CAF50',
+                        icon: 'check_circle',
+                        text: '좋아요!'
+                    },
+                    trigger: {
+                        type: 'speech_analysis',
+                        value: 'wpm_good',
+                        confidence: 0.8,
+                        data: { currentWpm: wpm }
                     }
                 };
             }
         }
 
-        // 🎯 R1 & R2: 감정 분석 기반 피드백 (시나리오별)
+        // 🎯 R1 & R2: 감정 분석 기반 피드백 (조건 완화)
         if (emotionAnalysis?.primaryEmotion) {
             const emotion = emotionAnalysis.primaryEmotion.emotionKr;
             const probability = emotionAnalysis.primaryEmotion.probability;
 
-            // 면접 시나리오에서 긴장/불안 → L1 (경청 강화) 패턴
-            if (scenario === 'interview' && (emotion === '불안' || emotion === '긴장') && probability > 0.7) {
+            logger.debug('감정 분석 확인:', { emotion, probability, scenario });
+
+            // 면접 시나리오에서 긴장/불안 → L1 (조건 완화: 0.5로 낮춤)
+            if (scenario === 'interview' && (emotion === '불안' || emotion === '긴장') && probability > 0.5) {
+                logger.info('불안 감정 피드백 생성', { emotion, probability });
                 return {
                     type: 'emotion_anxiety',
                     priority: 'medium',
@@ -529,9 +565,10 @@ const decideFeedbackFromSTTAnalysis = ({ text, speechMetrics, emotionAnalysis, s
                 };
             }
 
-            // 소개팅/일반 대화에서 무감정/지루함 → R2 (관심도 하락) 패턴
+            // 소개팅/일반 대화에서 무감정/지루함 → R2 (조건 완화: 0.4로 낮춤)
             if ((scenario === 'dating' || scenario === 'general') && 
-                (emotion === '무감정' || emotion === '지루함') && probability > 0.6) {
+                (emotion === '무감정' || emotion === '지루함') && probability > 0.4) {
+                logger.info('무감정 피드백 생성', { emotion, probability });
                 return {
                     type: 'emotion_lack_enthusiasm',
                     priority: 'high',
@@ -550,8 +587,9 @@ const decideFeedbackFromSTTAnalysis = ({ text, speechMetrics, emotionAnalysis, s
                 };
             }
 
-            // 긍정적 감정 → R1 (호감도 상승) 패턴
-            if ((emotion === '기쁨' || emotion === '행복' || emotion === '만족') && probability > 0.7) {
+            // 긍정적 감정 → R1 (조건 완화: 0.5로 낮춤)
+            if ((emotion === '기쁨' || emotion === '행복' || emotion === '만족') && probability > 0.5) {
+                logger.info('긍정 감정 피드백 생성', { emotion, probability });
                 return {
                     type: 'emotion_positive',
                     priority: 'low',
@@ -569,10 +607,32 @@ const decideFeedbackFromSTTAnalysis = ({ text, speechMetrics, emotionAnalysis, s
                     }
                 };
             }
+
+            // 기타 감정에도 피드백 제공 (테스트용)
+            if (probability > 0.6) {
+                logger.info('일반 감정 피드백 생성', { emotion, probability });
+                return {
+                    type: 'emotion_general',
+                    priority: 'low',
+                    message: `${emotion} 감정이 감지되었습니다. 대화 상황에 맞게 조절해보세요.`,
+                    visualCue: {
+                        color: '#9C27B0',
+                        icon: 'mood',
+                        text: '감정 인식'
+                    },
+                    trigger: {
+                        type: 'emotion_analysis',
+                        value: 'emotion_detected',
+                        confidence: probability,
+                        data: { emotion, probability: Math.round(probability * 100) }
+                    }
+                };
+            }
         }
 
-        // 🎯 F1: 일시정지가 너무 많은 경우 → 주제 전환 제안
-        if (speechMetrics?.pauseMetrics?.count > 5 && speechMetrics?.pauseMetrics?.averageDuration > 1.5) {
+        // 🎯 F1: 일시정지가 많은 경우 (조건 완화: 3회 이상, 평균 1초 이상)
+        if (speechMetrics?.pauseMetrics?.count > 3 && speechMetrics?.pauseMetrics?.averageDuration > 1.0) {
+            logger.info('일시정지 피드백 생성', speechMetrics.pauseMetrics);
             return {
                 type: 'speech_flow_pauses',
                 priority: 'medium',
@@ -594,11 +654,29 @@ const decideFeedbackFromSTTAnalysis = ({ text, speechMetrics, emotionAnalysis, s
             };
         }
 
-        // 🎯 S2: 음량 문제 (추후 음량 데이터가 추가되면 구현 예정)
-        // 🎯 F2: 침묵 관리 (추후 침묵 지속시간 데이터가 추가되면 구현 예정)
-        // 🎯 L3: 질문 제안 (대화 맥락 분석을 통해 추후 구현 예정)
+        // 텍스트 길이 기반 피드백 (새로 추가)
+        if (text && text.length > 50) {
+            logger.info('텍스트 길이 기반 피드백 생성', { textLength: text.length });
+            return {
+                type: 'text_engagement',
+                priority: 'low',
+                message: '적극적으로 대화에 참여하고 있어요. 계속 유지하세요!',
+                visualCue: {
+                    color: '#4CAF50',
+                    icon: 'chat',
+                    text: '대화 활발'
+                },
+                trigger: {
+                    type: 'text_analysis',
+                    value: 'active_participation',
+                    confidence: Math.min(text.length / 100, 1.0),
+                    data: { textLength: text.length }
+                }
+            };
+        }
 
         // 특별한 피드백이 필요하지 않은 경우
+        logger.debug('피드백 생성 조건 미충족');
         return null;
 
     } catch (error) {
