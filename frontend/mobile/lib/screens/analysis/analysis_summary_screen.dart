@@ -108,17 +108,20 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSessionInfoSection(),
+          _buildSessionInfoSection(analysis),
           const SizedBox(height: 24),
-          _buildEmotionChartSection(analysis),
+          _buildTimelineChartSection(analysis),
           const SizedBox(height: 24),
           _buildMetricsSection(analysis),
           const SizedBox(height: 24),
-          _buildSpeakingRatioSection(),
+          // 시나리오별로 비율 섹션 표시 여부 결정
+          if (analysis.category != '발표') ...[
+            _buildSpeakingRatioSection(analysis),
+            const SizedBox(height: 24),
+          ],
+          _buildInsightsSection(analysis),
           const SizedBox(height: 24),
-          _buildInsightsSection(),
-          const SizedBox(height: 24),
-          _buildSuggestionsSection(),
+          _buildSuggestionsSection(analysis),
           const SizedBox(height: 24),
           _buildActionButtonsSection(),
         ],
@@ -126,7 +129,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     );
   }
 
-  Widget _buildSessionInfoSection() {
+  Widget _buildSessionInfoSection(AnalysisResult analysis) {
     return FutureBuilder<SessionModel>(
       future: Provider.of<SessionProvider>(context, listen: false)
           .fetchSessionDetails(widget.sessionId)
@@ -163,7 +166,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
           analysisLevel: AnalysisLevel.standard,
           recordingRetention: RecordingRetention.sevenDays,
           createdAt: DateTime.now(),
-          duration: Duration(minutes: 15), // 기본값
+          duration: Duration(minutes: (analysis.metrics.totalDuration ~/ 60).toInt(), seconds: (analysis.metrics.totalDuration % 60).toInt()),
           isSmartWatchConnected: false,
         );
       }),
@@ -175,9 +178,11 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
             ? snapshot.data!.mode 
             : SessionMode.dating;
 
-        final sessionDuration = snapshot.hasData
-            ? '${snapshot.data!.duration.inMinutes}분 ${snapshot.data!.duration.inSeconds % 60}초'
-            : '15분 00초'; // 기본값
+        // 실제 분석 결과에서 duration 가져오기
+        final totalSeconds = analysis.metrics.totalDuration.toInt();
+        final minutes = totalSeconds ~/ 60;
+        final seconds = totalSeconds % 60;
+        final sessionDuration = '${minutes}분 ${seconds}초';
 
         return Card(
           elevation: 2,
@@ -261,8 +266,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     );
   }
 
-  Widget _buildEmotionChartSection(AnalysisResult analysis) {
-    // 피그마에서의 감정 변화 그래프 부분
+  Widget _buildTimelineChartSection(AnalysisResult analysis) {
     return Card(
       elevation: 0,
       color: Colors.grey[100],
@@ -279,7 +283,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
                 Icon(Icons.timeline, size: 18, color: AppColors.text),
                 const SizedBox(width: 8),
                 Text(
-                  '감정 변화 그래프',
+                  _getChartTitle(analysis.category),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -292,152 +296,155 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
             Container(
               height: 160,
               padding: const EdgeInsets.only(right: 16),
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: 100,
-                  minY: 0,
-                  barTouchData: BarTouchData(enabled: false),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          const labels = [
-                            '0:00',
-                            '0:15',
-                            '0:30',
-                            '0:45',
-                            '1:00',
-                            '1:15',
-                            '1:30'
-                          ];
-                          if (value.toInt() < 0 ||
-                              value.toInt() >= labels.length) {
-                            return const SizedBox.shrink();
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              labels[value.toInt()],
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 11,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                  ),
-                  gridData: FlGridData(
-                    show: true,
-                    horizontalInterval: 25,
-                    getDrawingHorizontalLine: (value) {
-                      return FlLine(
-                        color: Colors.grey.withOpacity(0.1),
-                        strokeWidth: 1,
-                      );
-                    },
-                    drawVerticalLine: false,
-                  ),
-                  borderData: FlBorderData(show: false),
-                  barGroups: [
-                    BarChartGroupData(
-                      x: 0,
-                      barRods: [
-                        BarChartRodData(
-                          toY: 60,
-                          color: AppColors.primary,
-                          width: 8,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ],
-                    ),
-                    BarChartGroupData(
-                      x: 1,
-                      barRods: [
-                        BarChartRodData(
-                          toY: 75,
-                          color: AppColors.primary,
-                          width: 8,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ],
-                    ),
-                    BarChartGroupData(
-                      x: 2,
-                      barRods: [
-                        BarChartRodData(
-                          toY: 80,
-                          color: AppColors.primary,
-                          width: 8,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ],
-                    ),
-                    BarChartGroupData(
-                      x: 3,
-                      barRods: [
-                        BarChartRodData(
-                          toY: 90,
-                          color: AppColors.primary,
-                          width: 8,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ],
-                    ),
-                    BarChartGroupData(
-                      x: 4,
-                      barRods: [
-                        BarChartRodData(
-                          toY: 85,
-                          color: AppColors.primary,
-                          width: 8,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ],
-                    ),
-                    BarChartGroupData(
-                      x: 5,
-                      barRods: [
-                        BarChartRodData(
-                          toY: 82,
-                          color: AppColors.primary,
-                          width: 8,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ],
-                    ),
-                    BarChartGroupData(
-                      x: 6,
-                      barRods: [
-                        BarChartRodData(
-                          toY: 70,
-                          color: AppColors.primary,
-                          width: 8,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+              child: _buildTimelineChart(analysis),
             ),
           ],
         ),
       ),
     );
+  }
+
+  String _getChartTitle(String category) {
+    switch (category) {
+      case '발표':
+        return '발표 성과 변화';
+      case '면접':
+        return '면접 퍼포먼스 변화';
+      default:
+        return '감정 변화 그래프';
+    }
+  }
+
+  Widget _buildTimelineChart(AnalysisResult analysis) {
+    // 시나리오별로 다른 데이터 표시
+    List<double> values;
+    
+    if (analysis.category == '발표') {
+      // 발표: 자신감 + 설득력 평균
+      values = _generatePresentationData(analysis);
+    } else if (analysis.category == '면접') {
+      // 면접: 안정감 + 명확성 평균
+      values = _generateInterviewData(analysis);
+    } else {
+      // 소개팅: 감정 데이터
+      values = _generateEmotionData(analysis);
+    }
+
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: 100,
+        minY: 0,
+        barTouchData: BarTouchData(enabled: false),
+        titlesData: FlTitlesData(
+          show: true,
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) {
+                final totalMinutes = (analysis.metrics.totalDuration / 60).ceil();
+                final interval = (totalMinutes / 6).ceil();
+                const labels = ['시작', '25%', '50%', '75%', '완료'];
+                
+                if (value.toInt() < 0 || value.toInt() >= labels.length) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    labels[value.toInt()],
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 11,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+        ),
+        gridData: FlGridData(
+          show: true,
+          horizontalInterval: 25,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: Colors.grey.withOpacity(0.1),
+              strokeWidth: 1,
+            );
+          },
+          drawVerticalLine: false,
+        ),
+        borderData: FlBorderData(show: false),
+        barGroups: values.asMap().entries.map((entry) {
+          return BarChartGroupData(
+            x: entry.key,
+            barRods: [
+              BarChartRodData(
+                toY: entry.value,
+                color: AppColors.primary,
+                width: 8,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  List<double> _generatePresentationData(AnalysisResult analysis) {
+    // 발표 시나리오: 자신감과 설득력의 평균을 시간대별로 시뮬레이션
+    final confidence = analysis.metrics.emotionMetrics.averageLikeability;
+    final persuasion = analysis.metrics.emotionMetrics.averageInterest;
+    final average = (confidence + persuasion) / 2;
+    
+    // 발표는 보통 시작할 때 낮고 중간에 높아지는 패턴
+    return [
+      average * 0.7,   // 시작: 조금 낮음
+      average * 0.85,  // 25%: 점점 상승
+      average * 1.1,   // 50%: 최고점
+      average * 1.05,  // 75%: 약간 하락
+      average * 0.95,  // 완료: 마무리
+    ];
+  }
+
+  List<double> _generateInterviewData(AnalysisResult analysis) {
+    // 면접 시나리오: 안정감과 명확성 평균
+    final stability = analysis.metrics.speakingMetrics.tonality;
+    final clarity = analysis.metrics.speakingMetrics.clarity;
+    final average = (stability + clarity) / 2;
+    
+    // 면접은 보통 초반에 긴장하다가 안정됨
+    return [
+      average * 0.6,   // 시작: 긴장
+      average * 0.8,   // 25%: 적응
+      average * 1.0,   // 50%: 안정
+      average * 1.1,   // 75%: 최고점
+      average * 1.05,  // 완료: 마무리
+    ];
+  }
+
+  List<double> _generateEmotionData(AnalysisResult analysis) {
+    // 소개팅 시나리오: 호감도 기반
+    final likeability = analysis.metrics.emotionMetrics.averageLikeability;
+    
+    // 소개팅은 점진적으로 상승하는 패턴
+    return [
+      likeability * 0.8,   // 시작
+      likeability * 0.9,   // 25%
+      likeability * 1.0,   // 50%
+      likeability * 1.1,   // 75%
+      likeability * 1.05,  // 완료
+    ];
   }
 
   Widget _buildMetricsSection(AnalysisResult analysis) {
@@ -459,35 +466,97 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           childAspectRatio: 1.2,
-          children: [
-            _buildMetricCard(
-              '말하기 속도',
-              '${analysis.metrics.speakingMetrics.speechRate.toInt()}/분',
-              Icons.speed,
-              '적절한 속도로 말했습니다',
-            ),
-            _buildMetricCard(
-              '톤 & 억양',
-              '85%',
-              Icons.graphic_eq,
-              '자연스러운 억양',
-            ),
-            _buildMetricCard(
-              '호감도',
-              '${analysis.metrics.emotionMetrics.averageLikeability.toInt()}%',
-              Icons.favorite,
-              '매우 우호적인 반응',
-            ),
-            _buildMetricCard(
-              '경청 지수',
-              '92%',
-              Icons.headset,
-              '우수한 경청 능력',
-            ),
-          ],
+          children: _buildMetricCards(analysis),
         ),
       ],
     );
+  }
+
+  List<Widget> _buildMetricCards(AnalysisResult analysis) {
+    // 시나리오별 지표 설정
+    if (analysis.category == '발표') {
+      return [
+        _buildMetricCard(
+          '자신감',
+          '${analysis.metrics.emotionMetrics.averageLikeability.toInt()}%',
+          Icons.psychology,
+          _getConfidenceDescription(analysis.metrics.emotionMetrics.averageLikeability),
+        ),
+        _buildMetricCard(
+          '말하기 속도',
+          '${analysis.metrics.speakingMetrics.speechRate.toInt()}WPM',
+          Icons.speed,
+          _getSpeedDescription(analysis.metrics.speakingMetrics.speechRate),
+        ),
+        _buildMetricCard(
+          '설득력',
+          '${analysis.metrics.emotionMetrics.averageInterest.toInt()}%',
+          Icons.trending_up,
+          _getPersuasionDescription(analysis.metrics.emotionMetrics.averageInterest),
+        ),
+        _buildMetricCard(
+          '명확성',
+          '${analysis.metrics.speakingMetrics.clarity.toInt()}%',
+          Icons.radio_button_checked,
+          _getClarityDescription(analysis.metrics.speakingMetrics.clarity),
+        ),
+      ];
+    } else if (analysis.category == '면접') {
+      return [
+        _buildMetricCard(
+          '자신감',
+          '${analysis.metrics.emotionMetrics.averageLikeability.toInt()}%',
+          Icons.psychology,
+          _getConfidenceDescription(analysis.metrics.emotionMetrics.averageLikeability),
+        ),
+        _buildMetricCard(
+          '말하기 속도',
+          '${analysis.metrics.speakingMetrics.speechRate.toInt()}WPM',
+          Icons.speed,
+          _getSpeedDescription(analysis.metrics.speakingMetrics.speechRate),
+        ),
+        _buildMetricCard(
+          '명확성',
+          '${analysis.metrics.speakingMetrics.clarity.toInt()}%',
+          Icons.radio_button_checked,
+          _getClarityDescription(analysis.metrics.speakingMetrics.clarity),
+        ),
+        _buildMetricCard(
+          '안정감',
+          '${analysis.metrics.speakingMetrics.tonality.toInt()}%',
+          Icons.sentiment_satisfied_alt,
+          _getStabilityDescription(analysis.metrics.speakingMetrics.tonality),
+        ),
+      ];
+    } else {
+      // 소개팅 모드 (기본)
+      return [
+        _buildMetricCard(
+          '말하기 속도',
+          '${analysis.metrics.speakingMetrics.speechRate.toInt()}WPM',
+          Icons.speed,
+          _getSpeedDescription(analysis.metrics.speakingMetrics.speechRate),
+        ),
+        _buildMetricCard(
+          '톤 & 억양',
+          '${analysis.metrics.speakingMetrics.tonality.toInt()}%',
+          Icons.graphic_eq,
+          _getTonalityDescription(analysis.metrics.speakingMetrics.tonality),
+        ),
+        _buildMetricCard(
+          '호감도',
+          '${analysis.metrics.emotionMetrics.averageLikeability.toInt()}%',
+          Icons.favorite,
+          _getLikeabilityDescription(analysis.metrics.emotionMetrics.averageLikeability),
+        ),
+        _buildMetricCard(
+          '경청 지수',
+          '${analysis.metrics.conversationMetrics.listeningScore.toInt()}%',
+          Icons.headset,
+          _getListeningDescription(analysis.metrics.conversationMetrics.listeningScore),
+        ),
+      ];
+    }
   }
 
   Widget _buildMetricCard(
@@ -540,7 +609,11 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     );
   }
 
-  Widget _buildSpeakingRatioSection() {
+  Widget _buildSpeakingRatioSection(AnalysisResult analysis) {
+    final contributionRatio = analysis.metrics.conversationMetrics.contributionRatio;
+    final myRatio = contributionRatio.toInt();
+    final otherRatio = (100 - contributionRatio).toInt();
+    
     return Card(
       elevation: 0,
       color: Colors.grey[100],
@@ -564,7 +637,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
               ),
               child: Center(
                 child: Text(
-                  '60%',
+                  '$myRatio%',
                   style: TextStyle(
                     color: AppColors.primary,
                     fontWeight: FontWeight.bold,
@@ -597,7 +670,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '60%',
+                        '$myRatio%',
                         style: TextStyle(
                           color: Colors.grey[800],
                           fontWeight: FontWeight.bold,
@@ -627,7 +700,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '40%',
+                        '$otherRatio%',
                         style: TextStyle(
                           color: Colors.grey[800],
                           fontWeight: FontWeight.bold,
@@ -645,7 +718,9 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     );
   }
 
-  Widget _buildInsightsSection() {
+  Widget _buildInsightsSection(AnalysisResult analysis) {
+    final insights = _generateInsights(analysis);
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -657,20 +732,92 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        _buildInsightItem(
-          1,
-          '여행과 사진에 관한 이야기를 나눌 때 상대방의 호감도가 가장 높았습니다.',
-        ),
-        _buildInsightItem(
-          2,
-          '대화 중 상대방의 질문에 대한 응답 시간이 빨라 대화 참여도가 높았습니다.',
-        ),
-        _buildInsightItem(
-          3,
-          '상대방의 말을 경청하고 관련 질문을 이어가는 패턴이 효과적이었습니다.',
-        ),
+        ...insights.asMap().entries.map((entry) => 
+          _buildInsightItem(entry.key + 1, entry.value)
+        ).toList(),
       ],
     );
+  }
+
+  List<String> _generateInsights(AnalysisResult analysis) {
+    List<String> insights = [];
+    
+    if (analysis.category == '발표') {
+      // 발표 시나리오 인사이트
+      final confidence = analysis.metrics.emotionMetrics.averageLikeability;
+      final persuasion = analysis.metrics.emotionMetrics.averageInterest;
+      final speed = analysis.metrics.speakingMetrics.speechRate;
+      
+      if (confidence >= 70) {
+        insights.add('발표 중 자신감이 높아 청중들의 주의를 잘 끌었습니다.');
+      } else {
+        insights.add('발표 중 자신감을 더 보여주면 더 설득력 있는 발표가 될 것입니다.');
+      }
+      
+      if (persuasion >= 70) {
+        insights.add('논리적이고 설득력 있는 내용 구성으로 메시지가 잘 전달되었습니다.');
+      } else {
+        insights.add('핵심 메시지를 더 명확하게 강조하면 설득력을 높일 수 있습니다.');
+      }
+      
+      if (speed >= 120 && speed <= 150) {
+        insights.add('적절한 말하기 속도로 청중이 이해하기 쉬웠을 것입니다.');
+      } else if (speed > 150) {
+        insights.add('말하기 속도가 빨라 중요한 내용을 놓칠 가능성이 있습니다.');
+      } else {
+        insights.add('말하기 속도를 조금 빠르게 하면 더 역동적인 발표가 될 것입니다.');
+      }
+      
+    } else if (analysis.category == '면접') {
+      // 면접 시나리오 인사이트
+      final confidence = analysis.metrics.emotionMetrics.averageLikeability;
+      final clarity = analysis.metrics.speakingMetrics.clarity;
+      final stability = analysis.metrics.speakingMetrics.tonality;
+      
+      if (confidence >= 70) {
+        insights.add('면접관에게 자신감 있는 모습을 잘 보여주었습니다.');
+      } else {
+        insights.add('답변 시 더 확신을 가지고 말하면 좋은 인상을 줄 수 있습니다.');
+      }
+      
+      if (clarity >= 70) {
+        insights.add('질문에 대한 답변이 명확하고 체계적이었습니다.');
+      } else {
+        insights.add('답변을 더 구체적이고 명확하게 하면 더 좋을 것 같습니다.');
+      }
+      
+      if (stability >= 70) {
+        insights.add('안정적인 태도로 면접에 임했습니다.');
+      } else {
+        insights.add('긴장을 줄이고 더 자연스럽게 대화하는 연습이 필요합니다.');
+      }
+      
+    } else {
+      // 소개팅 시나리오 인사이트 (기본)
+      final likeability = analysis.metrics.emotionMetrics.averageLikeability;
+      final interest = analysis.metrics.emotionMetrics.averageInterest;
+      final listening = analysis.metrics.conversationMetrics.listeningScore;
+      
+      if (likeability >= 70) {
+        insights.add('상대방에게 긍정적인 인상을 주는 대화를 나눴습니다.');
+      } else {
+        insights.add('더 친근하고 편안한 분위기로 대화하면 좋을 것 같습니다.');
+      }
+      
+      if (interest >= 70) {
+        insights.add('흥미로운 주제들로 활발한 대화를 이어갔습니다.');
+      } else {
+        insights.add('공통 관심사를 찾아 더 깊이 있는 대화를 나누어보세요.');
+      }
+      
+      if (listening >= 70) {
+        insights.add('상대방의 말을 잘 들어주는 좋은 경청자였습니다.');
+      } else {
+        insights.add('상대방의 이야기에 더 관심을 보이고 반응해주세요.');
+      }
+    }
+    
+    return insights;
   }
 
   Widget _buildInsightItem(int number, String text) {
@@ -713,7 +860,9 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     );
   }
 
-  Widget _buildSuggestionsSection() {
+  Widget _buildSuggestionsSection(AnalysisResult analysis) {
+    final suggestions = _generateSuggestions(analysis);
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -728,21 +877,99 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: [
-              _buildSuggestionCard(
-                '말 끊기 줄이기',
-                '상대방의 말이 끝날 때까지 기다린 후 대화를 이어가면 더 긍정적인 인상을 줄 수 있습니다.',
-              ),
-              const SizedBox(width: 12),
-              _buildSuggestionCard(
-                '공감 표현 늘리기',
-                '"정말요?", "그렇군요" 같은 공감 표현을 더 자주 사용하면 상대방이 더 편안하게 대화할 수 있습니다.',
-              ),
-            ],
+            children: suggestions.asMap().entries.map((entry) {
+              final suggestion = entry.value;
+              return Row(
+                children: [
+                  _buildSuggestionCard(suggestion['title']!, suggestion['content']!),
+                  if (entry.key < suggestions.length - 1) const SizedBox(width: 12),
+                ],
+              );
+            }).toList(),
           ),
         ),
       ],
     );
+  }
+
+  List<Map<String, String>> _generateSuggestions(AnalysisResult analysis) {
+    List<Map<String, String>> suggestions = [];
+    
+    if (analysis.category == '발표') {
+      // 발표 시나리오 제안
+      final confidence = analysis.metrics.emotionMetrics.averageLikeability;
+      final speed = analysis.metrics.speakingMetrics.speechRate;
+      final clarity = analysis.metrics.speakingMetrics.clarity;
+      
+      if (confidence < 60) {
+        suggestions.add({
+          'title': '자신감 향상',
+          'content': '발표 전 충분한 연습과 준비를 통해 자신감을 높이세요. 어깨를 펴고 시선을 청중에게 향하는 것도 도움이 됩니다.'
+        });
+      }
+      
+      if (speed > 150) {
+        suggestions.add({
+          'title': '말하기 속도 조절',
+          'content': '중요한 포인트에서는 잠시 멈춤을 활용하고, 전체적으로 조금 더 천천히 말해보세요.'
+        });
+      }
+      
+      if (clarity < 60) {
+        suggestions.add({
+          'title': '발음 명확성',
+          'content': '핵심 단어는 더 명확하게 발음하고, 문장의 끝까지 또렷하게 말하는 연습을 해보세요.'
+        });
+      }
+      
+    } else if (analysis.category == '면접') {
+      // 면접 시나리오 제안
+      final confidence = analysis.metrics.emotionMetrics.averageLikeability;
+      final clarity = analysis.metrics.speakingMetrics.clarity;
+      
+      if (confidence < 60) {
+        suggestions.add({
+          'title': '자신감 있는 답변',
+          'content': '답변 시 "아마도", "일 것 같다" 보다는 확신있는 표현을 사용해보세요. 구체적인 경험을 들어 답변하면 더 좋습니다.'
+        });
+      }
+      
+      if (clarity < 60) {
+        suggestions.add({
+          'title': '구조적 답변',
+          'content': '답변을 할 때는 "첫째, 둘째" 같은 구조를 활용하거나 STAR 기법(상황-과제-행동-결과)을 사용해보세요.'
+        });
+      }
+      
+    } else {
+      // 소개팅 시나리오 제안 (기본)
+      final likeability = analysis.metrics.emotionMetrics.averageLikeability;
+      final listening = analysis.metrics.conversationMetrics.listeningScore;
+      
+      if (likeability < 60) {
+        suggestions.add({
+          'title': '공감 표현 늘리기',
+          'content': '"정말요?", "그렇군요", "재밌네요" 같은 공감 표현을 더 자주 사용하면 상대방이 더 편안하게 대화할 수 있습니다.'
+        });
+      }
+      
+      if (listening < 60) {
+        suggestions.add({
+          'title': '적극적 경청',
+          'content': '상대방의 말이 끝날 때까지 기다린 후 관련된 질문을 이어가면 더 깊이 있는 대화를 나눌 수 있습니다.'
+        });
+      }
+    }
+    
+    // 기본 제안 (모든 시나리오 공통)
+    if (suggestions.isEmpty) {
+      suggestions.add({
+        'title': '자연스러운 대화',
+        'content': '현재 수준을 잘 유지하면서 더 자연스럽고 편안한 대화를 이어가세요.'
+      });
+    }
+    
+    return suggestions;
   }
 
   Widget _buildSuggestionCard(String title, String content) {
@@ -879,5 +1106,62 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       default:
         return Icons.help;
     }
+  }
+
+  // 지표별 설명 생성 메서드들
+  String _getConfidenceDescription(double confidence) {
+    if (confidence >= 80) return '매우 자신감 있는 발표';
+    if (confidence >= 60) return '안정적인 자신감';
+    if (confidence >= 40) return '보통의 자신감';
+    return '자신감 향상 필요';
+  }
+
+  String _getSpeedDescription(double speed) {
+    if (speed >= 150) return '빠른 속도';
+    if (speed >= 120) return '적절한 속도';
+    if (speed >= 90) return '천천히 말함';
+    return '매우 느린 속도';
+  }
+
+  String _getPersuasionDescription(double persuasion) {
+    if (persuasion >= 80) return '매우 설득력 있음';
+    if (persuasion >= 60) return '적절한 설득력';
+    if (persuasion >= 40) return '보통의 설득력';
+    return '설득력 향상 필요';
+  }
+
+  String _getClarityDescription(double clarity) {
+    if (clarity >= 80) return '매우 명확한 발음';
+    if (clarity >= 60) return '명확한 전달';
+    if (clarity >= 40) return '보통의 명확성';
+    return '명확성 향상 필요';
+  }
+
+  String _getStabilityDescription(double stability) {
+    if (stability >= 80) return '매우 안정적';
+    if (stability >= 60) return '안정적인 태도';
+    if (stability >= 40) return '보통의 안정감';
+    return '안정감 향상 필요';
+  }
+
+  String _getTonalityDescription(double tonality) {
+    if (tonality >= 80) return '자연스러운 억양';
+    if (tonality >= 60) return '적절한 톤';
+    if (tonality >= 40) return '보통의 억양';
+    return '톤 개선 필요';
+  }
+
+  String _getLikeabilityDescription(double likeability) {
+    if (likeability >= 80) return '매우 우호적인 반응';
+    if (likeability >= 60) return '긍정적인 인상';
+    if (likeability >= 40) return '보통의 호감';
+    return '호감도 향상 필요';
+  }
+
+  String _getListeningDescription(double listening) {
+    if (listening >= 80) return '우수한 경청 능력';
+    if (listening >= 60) return '적절한 경청';
+    if (listening >= 40) return '보통의 경청';
+    return '경청 능력 향상 필요';
   }
 }

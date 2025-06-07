@@ -30,10 +30,10 @@ class SessionDetailTabSpeaking extends StatelessWidget {
                     // 말하기 속도 카드
                     _buildMetricCard(
                       title: '말하기 속도',
-                      value: '${speakingMetrics.speechRate.toInt()}/분',
+                      value: '${speakingMetrics.speechRate.toInt()}WPM',
                       percentage:
                           speakingMetrics.speechRate / 120, // 최대 속도를 120으로 가정
-                      description: '적절한 속도 (평균 80-120단어/분)',
+                      description: '적절한 속도 (평균 80-120WPM)',
                     ),
                     SizedBox(height: 15),
                     // 명확성 카드

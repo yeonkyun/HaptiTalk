@@ -632,15 +632,15 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     if (wpm == 0) return '측정 중';
     
     if (wpm < 80) {
-      return '천천히 ($wpm단어/분)';
+      return '천천히 (${wpm}WPM)';
     } else if (wpm < 120) {
-      return '적당히 ($wpm단어/분)';
+      return '적당히 (${wpm}WPM)';
     } else if (wpm < 160) {
-      return '보통 ($wpm단어/분)';
+      return '보통 (${wpm}WPM)';
     } else if (wpm < 200) {
-      return '빠르게 ($wpm단어/분)';
+      return '빠르게 (${wpm}WPM)';
     } else {
-      return '매우 빠르게 ($wpm단어/분)';
+      return '매우 빠르게 (${wpm}WPM)';
     }
   }
 
@@ -1056,19 +1056,68 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       barrierDismissible: false,
       builder: (context) => Center(
         child: Container(
-          padding: const EdgeInsets.all(20),
+          margin: const EdgeInsets.symmetric(horizontal: 40),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.black87,
-            borderRadius: BorderRadius.circular(10),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: AppColors.primary),
-              const SizedBox(height: 16),
-              Text(
-                '분석 결과를 생성하고 있습니다...',
-                style: TextStyle(color: Colors.white, fontSize: 16),
+              // 아이콘과 애니메이션
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.analytics_outlined,
+                    color: AppColors.primaryColor,
+                    size: 30,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // 로딩 인디케이터
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: CircularProgressIndicator(
+                  color: AppColors.primaryColor,
+                  strokeWidth: 3,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // 제목
+              const Text(
+                '분석 결과 생성 중',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // 설명
+              const Text(
+                '대화 내용을 분석하고\n개인화된 피드백을 준비하고 있습니다',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF757575),
+                  height: 1.4,
+                ),
               ),
             ],
           ),
@@ -2178,7 +2227,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
             backgroundColor: Colors.red,
             child: IconButton(
               icon: const Icon(Icons.stop, color: Colors.white),
-              onPressed: _endSession,
+              onPressed: _showEndSessionDialog,
             ),
           ),
           CircleAvatar(
@@ -2216,5 +2265,79 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       default:
         return Icons.people;
     }
+  }
+
+  void _showEndSessionDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.stop_circle_outlined,
+                color: Colors.red[600],
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                '세션 종료',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textColor,
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            '현재 진행 중인 분석 세션을 종료하고\n결과를 생성하시겠습니까?',
+            style: TextStyle(
+              fontSize: 16,
+              color: Color(0xFF757575),
+              height: 1.4,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              child: const Text(
+                '계속 진행',
+                style: TextStyle(
+                  color: Color(0xFF757575),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // 다이얼로그 닫기
+                _endSession(); // 세션 종료
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[600],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                '종료하기',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
