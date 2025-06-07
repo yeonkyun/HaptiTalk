@@ -15,22 +15,36 @@ const sessionController = {
      */
     createSession: async (req, res, next) => {
         try {
-            const {title, type, custom_settings, device_info, location, participants, tags} = req.body;
+            const {title, type, custom_settings, device_info, location, participants, tags, id, user_id} = req.body;
 
-            // JWT 인증 미들웨어에서 설정한 사용자 ID 가져오기
-            const user_id = req.user.id;
+            // 사용자 ID 결정 (서비스 요청 vs 사용자 요청)
+            let sessionUserId;
+            if (req.isServiceRequest) {
+                // 서비스 간 통신의 경우 body에서 user_id 사용
+                if (!user_id) {
+                    return res.status(httpStatus.BAD_REQUEST).json({
+                        success: false,
+                        message: '서비스 요청 시 user_id가 필요합니다.'
+                    });
+                }
+                sessionUserId = user_id;
+            } else {
+                // JWT 인증 미들웨어에서 설정한 사용자 ID 가져오기
+                sessionUserId = req.user.id;
+            }
 
             // 세션 생성 서비스 호출 (회복성 패턴 적용)
             const session = await withMongoResilience(
                 async () => sessionService.createSession({
-                    user_id,
+                    user_id: sessionUserId,
                     title,
                     type,
                     custom_settings,
                     device_info,
                     location,
                     participants,
-                    tags
+                    tags,
+                    id  // 서비스에서 전달한 특정 ID 사용 (있는 경우)
                 }),
                 { operationName: 'create_session' }
             );

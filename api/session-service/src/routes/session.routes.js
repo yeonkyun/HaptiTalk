@@ -27,16 +27,34 @@ router.post(
     sessionController.validateSession
 );
 
-// JWT 토큰 검증 미들웨어 적용 (validate 엔드포인트 제외)
-router.use(authMiddleware.verifyToken);
-
 /**
  * @route POST /api/v1/sessions
- * @desc 새 세션 생성
- * @access Private
+ * @desc 새 세션 생성 (사용자 요청 및 서비스 간 통신 모두 지원)
+ * @access Private or Service
  */
 router.post(
     '/',
+    // 서비스 토큰 또는 JWT 토큰 둘 다 허용
+    (req, res, next) => {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                message: '인증 토큰이 필요합니다.'
+            });
+        }
+        
+        const token = authHeader.split(' ')[1];
+        const serviceToken = process.env.INTER_SERVICE_TOKEN || 'default-service-token';
+        
+        // 서비스 토큰인 경우
+        if (token === serviceToken) {
+            return authMiddleware.validateServiceToken(req, res, next);
+        } else {
+            // JWT 토큰인 경우
+            return authMiddleware.verifyToken(req, res, next);
+        }
+    },
     [
         body('title').isString().notEmpty().withMessage('세션 제목은 필수입니다'),
         body('type').isIn(Object.values(SESSION_TYPES)).withMessage('유효한 세션 타입이 아닙니다'),
