@@ -25,6 +25,9 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
     @Published var sessionType: String = "소개팅"
     @Published var elapsedTime: String = "00:00:00"
     
+    // 세션뷰의 햅틱 구독 관리용 변수
+    private var sessionViewHapticCancellable: AnyCancellable?
+    
     // 실시간 분석 데이터
     @Published var currentLikability: Int = 78
     @Published var currentInterest: Int = 92
@@ -811,7 +814,7 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
         showVisualFeedback = true
         print("🎨 Watch: 시각적 피드백 표시 시작 - 색상: \(visualPatternColor), 강도: \(visualAnimationIntensity)")
         
-        // 🔥 패턴별 실제 햅틱 지속시간에 맞춘 시각적 피드백 지속시간
+        // 🔥 패턴별 실제 햅틱 지속시간에 맞춤 시각적 피드백 지속시간
         let duration: Double
         switch patternId {
         case "S1": // 속도 조절: 3회 진동, 0.8+1.6=2.4초 + 여유 0.6초
@@ -838,6 +841,26 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
             print("🎨 Watch: 시각적 피드백 자동 종료 - 패턴: \(patternId), 지속시간: \(duration)초")
             self.showVisualFeedback = false
         }
+    }
+    
+    // MARK: - 세션뷰 햅틱 구독 관리
+    /// 세션뷰에서 햅틱 피드백 이벤트를 처리하기 위한 구독 설정
+    func setupSessionViewHapticSubscription(messageHandler: @escaping (String) -> Void) {
+        // 기존 구독 취소
+        sessionViewHapticCancellable?.cancel()
+        
+        // 햅틱 피드백 이벤트 구독
+        sessionViewHapticCancellable = $showHapticFeedback
+            .filter { $0 }
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                
+                // 햅틱 메시지 처리하기 위한 콜백 호출
+                messageHandler(self.hapticFeedbackMessage)
+                
+                // 햅틱 피드백 플래그 초기화
+                self.showHapticFeedback = false
+            }
     }
 }
 
