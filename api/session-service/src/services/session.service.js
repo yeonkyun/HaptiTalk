@@ -17,7 +17,7 @@ class SessionService {
      * @returns {Promise<Object>} 생성된 세션 객체
      */
     async createSession(sessionData) {
-        const {user_id, title, type, custom_settings = {}} = sessionData;
+        const {user_id, title, type, custom_settings = {}, id} = sessionData;
 
         // 세션 타입 유효성 검사
         if (!Object.values(SESSION_TYPES).includes(type)) {
@@ -32,12 +32,13 @@ class SessionService {
 
         logger.info(`새 세션 생성 시작: 사용자 ${user_id}, 타입 ${type}`, {
             title,
-            settings: mergedSettings
+            settings: mergedSettings,
+            customId: id
         });
 
         try {
-            // 세션 레코드 생성
-            const session = await Session.create({
+            // 세션 레코드 생성 (id가 제공되면 사용, 없으면 자동 생성)
+            const sessionRecord = {
                 user_id,
                 title,
                 type,
@@ -49,7 +50,14 @@ class SessionService {
                     participants: sessionData.participants || [],
                     tags: sessionData.tags || [],
                 }
-            });
+            };
+
+            // id가 제공되면 사용
+            if (id) {
+                sessionRecord.id = id;
+            }
+
+            const session = await Session.create(sessionRecord);
 
             // MongoDB에도 세션 정보 저장
             try {
