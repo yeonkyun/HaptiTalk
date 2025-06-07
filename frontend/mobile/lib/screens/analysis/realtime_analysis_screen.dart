@@ -85,7 +85,9 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     super.initState();
     
     // 세션 타입을 STT 시나리오로 변환
+    print('🎯 원본 세션 타입: ${widget.sessionType}');
     _currentScenario = _convertSessionTypeToScenario(widget.sessionType);
+    print('🎯 변환된 STT 시나리오: $_currentScenario');
     print('🎯 현재 세션 모드: ${widget.sessionType} → STT 시나리오: $_currentScenario');
     
     _initializeServices();
@@ -102,7 +104,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       _suggestedTopics = ['경력 소개', '성장 경험', '회사 지원 동기', '미래 계획', '강점과 약점'];
     } else {
       // 소개팅 모드 (기본)
-      _suggestedTopics = ['여행 경험', '좋아하는 여행지', '사진 취미', '역사적 장소', '제주도 명소'];
+    _suggestedTopics = ['여행 경험', '좋아하는 여행지', '사진 취미', '역사적 장소', '제주도 명소'];
     }
     
     // STT 스트림 구독 상태 주기적 확인
@@ -209,7 +211,12 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
         return;
       }
       
-      final connected = await _realtimeService.connect(widget.sessionId, accessToken);
+      final connected = await _realtimeService.connect(
+        widget.sessionId, 
+        accessToken,
+        sessionType: widget.sessionType ?? '발표',
+        sessionTitle: '실시간 ${widget.sessionType ?? '발표'} 연습',
+      );
       
       setState(() {
         _isRealtimeConnected = connected;
@@ -497,6 +504,11 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
         
       case 'status':
         print('ℹ️ STT 상태: ${response.message}');
+        break;
+        
+      case 'recording_stopped':
+        print('🔴 STT 녹음 중지: ${response.message ?? "녹음이 중지되었습니다"}');
+        // 녹음 중지 시 특별한 처리가 필요하면 여기에 추가
         break;
         
       case 'error':
@@ -917,6 +929,9 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
         return;
       }
       
+      print('📤 STT 결과 전송 - 실제 scenario 값: $_currentScenario');
+      print('📤 STT 결과 전송 - 세션 타입: ${widget.sessionType}');
+      
       final success = await _realtimeService.sendSTTResult(
         sessionId: widget.sessionId,
         sttResponse: response,
@@ -1019,7 +1034,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       });
     } else {
       // 녹음 시작
-      final success = await _audioService.startRealTimeRecording();
+      final success = await _audioService.startRealTimeRecording(scenario: _currentScenario);
       if (success) {
         setState(() {
           _isRecording = true;
@@ -1035,11 +1050,38 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     _watchSyncTimer.cancel();
     _segmentSaveTimer?.cancel(); // 🔥 세그먼트 저장 타이머 취소
 
-    // 🔥 세션 종료 전 최종 데이터 저장 및 분석
-    await _finalizeSession();
+    // 로딩 표시
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: AppColors.primary),
+              const SizedBox(height: 16),
+              Text(
+                '분석 결과를 생성하고 있습니다...',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
 
-    // 오디오 녹음 중지
-    await _audioService.stopRecording();
+    try {
+      // 🔥 세션 종료 전 최종 데이터 저장 및 분석
+      await _finalizeSession();
+
+      // 오디오 녹음 중지
+      await _audioService.stopRecording();
 
     // Watch에 세션 종료 알림
     try {
@@ -1052,16 +1094,84 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     Provider.of<AnalysisProvider>(context, listen: false)
         .stopAnalysis(widget.sessionId);
 
-    // 🔥 세션 분석 완료 - 바로 해당 세션의 분석 요약 화면으로 이동
-    Navigator.pushAndRemoveUntil(
+      // 🔥 분석 결과가 준비될 때까지 잠시 대기 (서버 처리 시간)
+      await Future.delayed(Duration(seconds: 3));
+
+      // 🔥 분석 결과 존재 여부 확인
+      final analysisProvider = Provider.of<AnalysisProvider>(context, listen: false);
+      bool analysisReady = false;
+      int retryCount = 0;
+      const maxRetries = 5;
+
+      while (!analysisReady && retryCount < maxRetries) {
+        try {
+          final analysis = await analysisProvider.getSessionAnalysis(widget.sessionId);
+          if (analysis != null) {
+            analysisReady = true;
+            print('✅ 분석 결과 확인 완료');
+          } else {
+            print('⏳ 분석 결과 대기 중... (${retryCount + 1}/$maxRetries)');
+            await Future.delayed(Duration(seconds: 2));
+            retryCount++;
+          }
+        } catch (e) {
+          print('⚠️ 분석 결과 확인 실패: $e');
+          await Future.delayed(Duration(seconds: 2));
+          retryCount++;
+        }
+      }
+
+      // 로딩 다이얼로그 닫기
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (analysisReady) {
+        // 🔥 세션 분석 완료 - 바로 해당 세션의 분석 요약 화면으로 이동
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AnalysisSummaryScreen(
+                sessionId: widget.sessionId,
+                sessionType: widget.sessionType,
+              ),
+            ),
+            (route) => false, // 모든 이전 화면 제거
+          );
+        }
+      } else {
+        // 분석 결과를 불러올 수 없는 경우, 에러 메시지와 함께 홈으로 이동
+        if (mounted) {
+          _showErrorSnackBar('분석 결과를 생성하는 데 시간이 걸리고 있습니다. 잠시 후 분석 탭에서 확인해주세요.');
+          
+          // 홈 화면으로 이동
+    Navigator.pushNamedAndRemoveUntil(
       context,
-      MaterialPageRoute(
-        builder: (context) => AnalysisSummaryScreen(
-          sessionId: widget.sessionId,
-        ),
-      ),
-      (route) => false, // 모든 이전 화면 제거
-    );
+      '/main',
+      (route) => false,
+            arguments: {'initialTabIndex': 0}, // 홈 탭
+          );
+        }
+      }
+
+    } catch (e) {
+      print('❌ 세션 종료 처리 중 오류: $e');
+      
+      // 로딩 다이얼로그 닫기
+      if (mounted) {
+        Navigator.of(context).pop();
+        _showErrorSnackBar('세션 종료 처리 중 오류가 발생했습니다: $e');
+        
+        // 오류 발생 시에도 홈으로 이동
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/main',
+          (route) => false,
+          arguments: {'initialTabIndex': 0},
+        );
+      }
+    }
   }
 
   void _showErrorSnackBar(String message) {
@@ -1284,17 +1394,17 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
   String _convertSessionTypeToScenario(String? sessionType) {
     switch (sessionType) {
       case '발표':
-        return 'presentation';
+        return 'presentation'; // presentation 시나리오 사용
       case '소개팅':
-        return 'dating';
+        return 'dating'; // dating 시나리오 사용
       case '면접':
-        return 'interview';
+        return 'interview'; // interview 시나리오 사용
       case '코칭':
-        return 'presentation';  // 코칭도 presentation으로 매핑
+        return 'business'; // 코칭은 business로 매핑
       case '회의':  // 혹시 모를 레거시 케이스
-        return 'presentation';
+        return 'business';
       default:
-        return 'dating';  // 기본값
+        return 'general';  // 기본값을 general로 변경
     }
   }
 
@@ -1845,49 +1955,49 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
             ),
           ] else ...[
             // 소개팅 모드 (기본)
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMetricCard(
-                    title: '감정 상태',
-                    value: _emotionState,
-                    icon: Icons.sentiment_satisfied_alt,
-                    isTextValue: true,
-                  ),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricCard(
+                  title: '감정 상태',
+                  value: _emotionState,
+                  icon: Icons.sentiment_satisfied_alt,
+                  isTextValue: true,
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildMetricCard(
-                    title: '말하기 속도',
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildMetricCard(
+                  title: '말하기 속도',
                     value: _getSpeedText(_speakingSpeed),
-                    icon: Icons.speed,
+                  icon: Icons.speed,
                     progressValue: _speakingSpeed > 0 ? _speakingSpeed / 200 : 0,
-                  ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMetricCard(
-                    title: '호감도',
-                    value: '$_likability%',
-                    icon: Icons.favorite,
-                    progressValue: _likability / 100,
-                  ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricCard(
+                  title: '호감도',
+                  value: '$_likability%',
+                  icon: Icons.favorite,
+                  progressValue: _likability / 100,
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildMetricCard(
-                    title: '관심도',
-                    value: '$_interest%',
-                    icon: Icons.star,
-                    progressValue: _interest / 100,
-                  ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildMetricCard(
+                  title: '관심도',
+                  value: '$_interest%',
+                  icon: Icons.star,
+                  progressValue: _interest / 100,
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
           ],
         ],
       ),

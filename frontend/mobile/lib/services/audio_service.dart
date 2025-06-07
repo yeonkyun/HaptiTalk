@@ -253,7 +253,8 @@ class AudioService {
     
     if (_isInitialized) {
       print('🔄 오디오 스트림 자동 재시작 시도...');
-      final restarted = await startRealTimeRecording();
+      // 현재 시나리오 유지 (기본값 사용 - 실제 scenario는 상위에서 관리)
+      final restarted = await startRealTimeRecording(scenario: 'general');
       if (restarted) {
         print('✅ 오디오 스트림 자동 재시작 성공');
       } else {

@@ -22,14 +22,61 @@ class AnalysisRepository {
     try {
       print('📊 세션 분석 결과 조회: $sessionId');
       
-      // 🔥 실제 report-service API 호출로 변경 (올바른 경로)
-      final response = await _apiService.post('/reports/generate/$sessionId', body: {});
+      // 🔥 1단계: 먼저 사용자의 리포트 목록을 조회해서 해당 세션의 리포트가 있는지 확인
+      try {
+        final reportsResponse = await _apiService.get('/reports');
+        
+        if (reportsResponse['success'] == true && reportsResponse['data'] != null) {
+          final reportsData = reportsResponse['data']['reports'] as List<dynamic>;
+          print('✅ 리포트 목록 조회 성공: ${reportsData.length}개');
+          
+          // 해당 세션 ID의 리포트 찾기
+          final sessionReport = reportsData.firstWhere(
+            (report) => report['sessionId'] == sessionId,
+            orElse: () => null,
+          );
+          
+          if (sessionReport != null) {
+            // 🔥 2단계: 기존 리포트가 있으면 리포트 ID로 조회
+            final reportId = sessionReport['id'] ?? sessionReport['_id'];
+            
+            // reportId가 null이 아닌 경우에만 조회 시도
+            if (reportId != null && reportId.toString().isNotEmpty && reportId.toString() != 'null') {
+              print('✅ 기존 리포트 발견: $reportId');
+              
+              try {
+                final reportResponse = await _apiService.get('/reports/$reportId');
+                if (reportResponse['success'] == true && reportResponse['data'] != null) {
+                  print('✅ 기존 분석 결과 조회 성공');
+                  return AnalysisResult.fromApiResponse(reportResponse['data']);
+                }
+              } catch (e) {
+                print('⚠️ 기존 리포트 조회 실패: $e, 새로 생성 시도');
+              }
+            } else {
+              print('⚠️ 리포트 ID가 null이거나 비어있음: $reportId, 새로 생성 시도');
+            }
+          } else {
+            print('⚠️ 해당 세션의 기존 리포트 없음, 새로 생성 시도');
+          }
+        }
+      } catch (e) {
+        print('⚠️ 기존 리포트 조회 실패: $e, 새로 생성 시도');
+      }
       
-      if (response['success'] == true && response['data'] != null) {
-        print('✅ 실제 분석 결과 조회 성공');
-        return AnalysisResult.fromApiResponse(response['data']);
+      // 🔥 3단계: 기존 리포트가 없으면 새로 생성
+      print('🔄 새 리포트 생성 시작: $sessionId');
+      final generateResponse = await _apiService.post('/reports/generate/$sessionId', body: {
+        'format': 'json',
+        'includeCharts': true,
+        'detailLevel': 'detailed'
+      });
+      
+      if (generateResponse['success'] == true && generateResponse['data'] != null) {
+        print('✅ 새 분석 결과 생성 성공');
+        return AnalysisResult.fromApiResponse(generateResponse['data']);
       } else {
-        print('⚠️ API 응답 오류, 데모 데이터 사용: ${response['success']}');
+        print('⚠️ API 응답 오류, 데모 데이터 사용: ${generateResponse['success']}');
         // API 오류 시 데모 데이터 폴백
         return await _loadDemoAnalysisResult(sessionId);
       }
@@ -56,13 +103,14 @@ class AnalysisRepository {
         List<AnalysisResult> results = [];
         for (var reportData in reportsData) {
           try {
-            // 각 리포트에 대해 상세 정보 조회 (올바른 경로)
-            final detailResponse = await _apiService.post('/reports/generate/${reportData['sessionId']}', body: {});
+            // 🔥 이미 생성된 리포트이므로 리포트 ID로 조회
+            final reportId = reportData['id'];
+            final detailResponse = await _apiService.get('/reports/$reportId');
             if (detailResponse['success'] == true && detailResponse['data'] != null) {
               results.add(AnalysisResult.fromApiResponse(detailResponse['data']));
             }
           } catch (e) {
-            print('⚠️ 개별 리포트 조회 실패: ${reportData['sessionId']} - $e');
+            print('⚠️ 개별 리포트 조회 실패: ${reportData['id'] ?? reportData['sessionId']} - $e');
             // 개별 실패는 무시하고 계속 진행
           }
         }
