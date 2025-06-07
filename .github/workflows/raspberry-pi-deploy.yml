@@ -806,6 +806,7 @@ jobs:
           echo "JWT_ACCESS_EXPIRES_IN=15m" >> .env
           echo "JWT_REFRESH_EXPIRES_IN=7d" >> .env
           echo "JWT_SESSION_EXPIRES_IN=7d" >> .env
+          echo "INTER_SERVICE_TOKEN=${{ secrets.INTER_SERVICE_TOKEN }}" >> .env
           echo "" >> .env
           echo "KAFKA_TOPIC_SESSION_EVENTS=session-events" >> .env
           echo "KAFKA_TOPIC_ANALYSIS_RESULTS=analysis-results" >> .env
