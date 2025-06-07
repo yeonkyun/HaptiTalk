@@ -35,8 +35,8 @@ const KAFKA_TOPIC_FEEDBACK_COMMANDS = process.env.KAFKA_TOPIC_FEEDBACK_COMMANDS 
 
 // Redis 클라이언트 초기화
 const redisClient = new Redis({
-  host: config.redis.host,
-  port: config.redis.port,
+  host: process.env.REDIS_HOST || 'localhost',
+  port: process.env.REDIS_PORT || 6379,
   retryDelayOnFailure: 100,
   maxRetriesPerRequest: 3,
 });
