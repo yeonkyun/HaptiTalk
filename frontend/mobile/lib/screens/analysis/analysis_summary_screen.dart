@@ -1014,7 +1014,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Expanded(
-          child: ElevatedButton.icon(
+          child: ElevatedButton(
             onPressed: () {
               // 🔥 전체 보고서 보기 기능 구현 - DetailedReportScreen으로 이동
               Navigator.push(
@@ -1026,14 +1026,6 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
                 ),
               );
             },
-            icon: const Icon(Icons.analytics),
-            label: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Text('전체 보고서'),
-                Text('보기'),
-              ],
-            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -1046,16 +1038,46 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.analytics,
+                  size: 20,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Text(
+                      '전체 보고서',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      '보기',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: ElevatedButton.icon(
+          child: ElevatedButton(
             onPressed: () {
               // 내보내기 기능 구현
             },
-            icon: const Icon(Icons.share),
-            label: const Text('내보내기'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.grey[100],
               foregroundColor: Colors.grey[800],
@@ -1067,6 +1089,25 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.share,
+                  size: 20,
+                  color: Colors.grey[800],
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '내보내기',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ],
             ),
           ),
         ),
