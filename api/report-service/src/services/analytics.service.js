@@ -329,6 +329,21 @@ const analyzeSegments = (segments, sessionType, totalDuration) => {
             };
         }
 
+        // 🔥 8. 대화 주제 분석 추가
+        let topicAnalysis;
+        try {
+            logger.info(`1-8: analyzeConversationTopics 시작`);
+            topicAnalysis = analyzeConversationTopics(segments, sessionType);
+            logger.info(`1-8: analyzeConversationTopics 완료: ${topicAnalysis.topics?.length || 0}개 주제`);
+        } catch (error) {
+            logger.error(`analyzeConversationTopics 실패: ${error.message}`);
+            topicAnalysis = {
+                topics: [],
+                diversity: 0.5,
+                primary_topic: '일반 대화'
+            };
+        }
+
         const result = {
             summary: {
                 duration: estimatedDuration,
@@ -343,7 +358,7 @@ const analyzeSegments = (segments, sessionType, totalDuration) => {
                 question_answer_ratio: statistics.questionAnswerRatio,
                 interruptions: statistics.interruptions,
                 silence_periods: statistics.silencePeriods,
-                habitual_phrases: statistics.habitualPhrases,
+                habitualPhrases: statistics.habitualPhrases, // 🔥 camelCase로 수정
                 speaking_rate_variance: statistics.speakingRateVariance,
                 // 새로운 STT 기반 통계 추가
                 speaking_consistency: statistics.speakingConsistency,
@@ -355,6 +370,8 @@ const analyzeSegments = (segments, sessionType, totalDuration) => {
             emotionMetrics: emotionAnalysis,
             // 세션별 특화 지표 추가
             sessionSpecificMetrics: sessionSpecificMetrics,
+            // 🔥 주제 분석 결과 추가
+            topicAnalysis: topicAnalysis,
             timeline: timeline,
             suggestions: suggestions,
             specializedAnalysis: {
