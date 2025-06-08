@@ -65,20 +65,40 @@ class SessionDetailTabTopics extends StatelessWidget {
                     SizedBox(height: 20),
 
                     // 주제 막대 차트 (실제 데이터 기반)
-                    ...topicMetrics.topics.take(6).map((topic) => 
-                      _buildTopicBar(topic, context)
-                    ).toList(),
-                    
-                    if (topicMetrics.topics.isEmpty)
+                    if (topicMetrics.topics.isNotEmpty)
+                      ...topicMetrics.topics.take(6).map((topic) => 
+                        _buildTopicBar(topic, context)
+                      ).toList()
+                    else
                       Container(
                         padding: EdgeInsets.all(20),
                         child: Center(
-                          child: Text(
-                            '주제 분석 데이터가 충분하지 않습니다.',
-                            style: TextStyle(
-                              color: Color(0xFF616161),
-                              fontSize: 14,
-                            ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.analytics_outlined,
+                                size: 48,
+                                color: Color(0xFFBDBDBD),
+                              ),
+                              SizedBox(height: 12),
+                              Text(
+                                '대화 내용 분석 중...',
+                                style: TextStyle(
+                                  color: Color(0xFF616161),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                '더 많은 대화를 진행하시면\n상세한 주제 분석이 가능합니다.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Color(0xFF9E9E9E),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -367,9 +387,9 @@ class SessionDetailTabTopics extends StatelessWidget {
     switch (sessionType) {
       case 'presentation':
         cards.add(_buildKeyPointCard(
-          '청중 반응 포인트',
-          Icons.groups,
-          _getPresentationAudienceAnalysis(),
+          '발표 자신감 지표',
+          Icons.psychology,
+          _getPresentationConfidenceAnalysis(),
           Colors.blue,
         ));
         cards.add(SizedBox(height: 15));
@@ -464,14 +484,17 @@ class SessionDetailTabTopics extends StatelessWidget {
   }
 
   // 세션별 분석 텍스트들
-  String _getPresentationAudienceAnalysis() {
-    final interest = analysisResult.metrics.emotionMetrics.averageInterest;
-    if (interest >= 70) {
-      return '청중의 적극적인 참여와 높은 관심도를 유지했습니다. 질문과 상호작용이 활발하게 이루어져 효과적인 소통이 가능했습니다.';
-    } else if (interest >= 50) {
-      return '청중의 기본적인 관심은 유지했으나, 더 다양한 참여 유도 기법을 활용하면 몰입도를 높일 수 있을 것 같습니다.';
+  String _getPresentationConfidenceAnalysis() {
+    final likeability = analysisResult.metrics.emotionMetrics.averageLikeability;
+    final speechRate = analysisResult.metrics.speakingMetrics.speechRate;
+    final clarity = analysisResult.metrics.speakingMetrics.clarity;
+    
+    if (likeability >= 70) {
+      return '발표 중 높은 자신감을 보였습니다. 안정적인 말하기 속도(${speechRate.toInt()}WPM)와 명확한 전달력(${clarity.toInt()}%)으로 메시지 전달이 효과적이었습니다. 확신 있는 표현과 명확한 구조화가 인상적이었습니다.';
+    } else if (likeability >= 50) {
+      return '기본적인 발표 자신감은 갖추었으나, 더 확신 있는 어조와 제스처를 사용하면 설득력을 높일 수 있습니다. 핵심 포인트에서 목소리 톤 강조를 활용해보세요.';
     }
-    return '청중의 참여를 더 적극적으로 유도해보세요. 질문이나 간단한 활동으로 관심을 끌어보는 것이 좋겠습니다.';
+    return '발표 자신감 향상이 필요합니다. 충분한 준비와 연습을 통해 확신을 가지고 발표해보세요. 말하기 속도를 조절하고 중요한 내용에서 강조 톤을 사용하면 도움이 됩니다.';
   }
 
   String _getPresentationEffectivenessAnalysis() {

@@ -103,14 +103,29 @@ class AnalysisRepository {
         List<AnalysisResult> results = [];
         for (var reportData in reportsData) {
           try {
-            // 🔥 이미 생성된 리포트이므로 리포트 ID로 조회
-            final reportId = reportData['id'];
-            final detailResponse = await _apiService.get('/reports/$reportId');
+            // 🔥 리포트 ID가 있으면 그대로 사용, 없으면 _id 사용, 그것도 없으면 sessionId 사용
+            final reportId = reportData['id'] ?? reportData['_id']?.toString() ?? reportData['sessionId'];
+            if (reportId == null) {
+              print('⚠️ 리포트 ID를 찾을 수 없음: $reportData');
+              continue;
+            }
+            
+            // 🔧 reportId가 MongoDB ObjectId 형식이면 리포트 ID로, 그렇지 않으면 세션 ID로 조회
+            String endpoint;
+            if (reportId.length == 24 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(reportId)) {
+              // MongoDB ObjectId 형식 (24자리 16진수)
+              endpoint = '/reports/$reportId';
+            } else {
+              // UUID 또는 다른 형식 - 세션 ID로 조회
+              endpoint = '/reports/session/$reportId';
+            }
+            
+            final detailResponse = await _apiService.get(endpoint);
             if (detailResponse['success'] == true && detailResponse['data'] != null) {
               results.add(AnalysisResult.fromApiResponse(detailResponse['data']));
             }
           } catch (e) {
-            print('⚠️ 개별 리포트 조회 실패: ${reportData['id'] ?? reportData['sessionId']} - $e');
+            print('⚠️ 개별 리포트 조회 실패: ${reportData['id'] ?? reportData['_id'] ?? reportData['sessionId']} - $e');
             // 개별 실패는 무시하고 계속 진행
           }
         }

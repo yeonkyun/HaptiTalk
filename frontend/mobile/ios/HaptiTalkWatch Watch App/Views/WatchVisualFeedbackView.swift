@@ -69,7 +69,7 @@ struct WatchVisualFeedbackView: View {
                         .padding(.top, 4)
                 }
             }
-            .position(x: screenSize.width / 2, y: screenSize.height * 0.68) // 🔧 위치 조정
+            .position(x: screenSize.width / 2, y: screenSize.height / 2) // 🔧 정중앙으로 수정
             .opacity(1.0) // 확실히 보이도록
         }
         .onAppear {
@@ -79,6 +79,13 @@ struct WatchVisualFeedbackView: View {
         .onDisappear {
             print("🎨 Watch: WatchVisualFeedbackView disappeared")
             resetAnimations()
+        }
+        .onChange(of: appState.currentVisualPattern) { _, newPattern in
+            // 패턴 변경 시 애니메이션 리셋 후 재시작으로 안정성 확보
+            resetAnimations()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                startPatternAnimation()
+            }
         }
     }
     
@@ -336,56 +343,48 @@ struct WatchVisualFeedbackView: View {
     
     // 🎬 패턴별 애니메이션 시작
     private func startPatternAnimation() {
-        let intensity = appState.visualAnimationIntensity
+        let intensity = min(appState.visualAnimationIntensity, 1.0) // 최대값 제한으로 안정성 확보
         
-        switch appState.currentVisualPattern {
-        case "S1": // 빠른 펄스
-            withAnimation {
-                animationPulse = 0.8 + intensity * 0.4
+        // 애니메이션 전에 기존 애니메이션 정리
+        resetAnimations()
+        
+        // 약간의 지연 후 애니메이션 시작으로 충돌 방지
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                switch appState.currentVisualPattern {
+                case "S1": // 빠른 펄스
+                    animationPulse = 0.8 + intensity * 0.2 // 강도 줄임
+                    
+                case "L1": // 점진적 증가
+                    animationScale = intensity * 0.5 // 강도 줄임
+                    
+                case "F1": // 긴 페이드
+                    animationOpacity = intensity
+                    
+                case "R1": // 상승 파동
+                    animationOffset = -10 // 이동량 줄임
+                    animationWave = intensity
+                    
+                case "F2": // 부드러운 펄스
+                    animationPulse = 1.0 + intensity * 0.1 // 강도 줄임
+                    
+                case "S2": // 변화하는 크기
+                    animationScale = intensity * 0.5 // 강도 줄임
+                    
+                case "R2": // 강한 경고
+                    animationPulse = 0.9 + intensity * 0.1 // 강도 줄임
+                    animationScale = 1.0 + intensity * 0.2 // 강도 줄임
+                    animationOpacity = intensity
+                    
+                case "L3": // 물음표 형태
+                    animationPulse = 1.0 + intensity * 0.1 // 강도 줄임
+                    animationScale = intensity * 0.5 // 강도 줄임
+                    animationOpacity = intensity
+                    
+                default:
+                    break
+                }
             }
-            
-        case "L1": // 점진적 증가
-            withAnimation(.easeInOut(duration: 1.0)) {
-                animationScale = intensity
-            }
-            
-        case "F1": // 긴 페이드
-            withAnimation {
-                animationOpacity = intensity
-            }
-            
-        case "R1": // 상승 파동
-            withAnimation {
-                animationOffset = -20
-                animationWave = intensity
-            }
-            
-        case "F2": // 부드러운 펄스
-            withAnimation {
-                animationPulse = 1.0 + intensity * 0.3
-            }
-            
-        case "S2": // 변화하는 크기
-            withAnimation {
-                animationScale = intensity
-            }
-            
-        case "R2": // 강한 경고
-            withAnimation {
-                animationPulse = 0.9 + intensity * 0.2
-                animationScale = 1.0 + intensity * 0.5
-                animationOpacity = intensity
-            }
-            
-        case "L3": // 물음표 형태
-            withAnimation {
-                animationPulse = 1.0 + intensity * 0.2
-                animationScale = intensity
-                animationOpacity = intensity
-            }
-            
-        default:
-            break
         }
     }
     
