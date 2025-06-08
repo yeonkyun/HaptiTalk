@@ -192,11 +192,29 @@ const reportService = {
                 _id: undefined // _id 필드 제거
             };
 
+            // 🔥 specializationInsights 안의 conversation_topics를 최상위로 이동
+            if (transformedReport.specializationInsights?.conversation_topics && !transformedReport.conversation_topics) {
+                transformedReport.conversation_topics = transformedReport.specializationInsights.conversation_topics;
+                logger.info(`🔥 conversation_topics를 specializationInsights에서 최상위로 이동: ${sessionId}`);
+            }
+
+            // 🔥 차트 옵션을 동적으로 활성화 (기존 리포트도 차트 사용 가능하도록)
+            if (!transformedReport.charts || transformedReport.charts.disabled) {
+                transformedReport.charts = {
+                    disabled: false,
+                    emotion_timeline: true,
+                    speaking_patterns: true,
+                    timeline_points: transformedReport.detailedTimeline?.length || 0
+                };
+                logger.info(`🔥 기존 리포트에 차트 옵션 활성화: ${sessionId}`);
+            }
+
             logger.info(`세션 리포트 조회 성공: ${sessionId}`, {
                 userId,
                 reportId: transformedReport.id,
                 sessionType: transformedReport.sessionType,
-                createdAt: transformedReport.createdAt
+                createdAt: transformedReport.createdAt,
+                chartsEnabled: !transformedReport.charts.disabled
             });
 
             return transformedReport;
