@@ -21,8 +21,9 @@ class RealtimeService {
   bool get isConnected => _socket?.connected ?? false;
 
   /// realtime-service에 연결
-  Future<bool> connect(String sessionId, String accessToken) async {
+  Future<bool> connect(String sessionId, String accessToken, {required String sessionType, String? sessionTitle}) async {
     try {
+      _logger.i('realtime-service 연결 시도: $sessionId (타입: $sessionType)');
       _currentSessionId = sessionId;
       
       // Kong WebSocket 라우트에 맞는 Socket.IO 서버 URL
@@ -50,7 +51,7 @@ class RealtimeService {
       _socket!.on('connect', (_) {
         _logger.i('✅ realtime-service WebSocket 연결 성공');
         // 연결 후 세션 입장
-        _joinSession(sessionId);
+        _joinSession(sessionId, sessionType: sessionType, sessionTitle: sessionTitle);
       });
 
       _socket!.on('disconnect', (reason) {
@@ -64,7 +65,7 @@ class RealtimeService {
       // 햅틱 피드백 수신
       _socket!.on('haptic_feedback', (data) {
         _logger.i('📳 햅틱 피드백 수신: $data');
-        if (_onHapticFeedback != null) {
+        if (_onHapticFeedback != null && data != null) {
           _onHapticFeedback!(Map<String, dynamic>.from(data));
         }
       });
@@ -93,10 +94,14 @@ class RealtimeService {
   }
 
   /// 세션 입장
-  void _joinSession(String sessionId) {
+  void _joinSession(String sessionId, {required String sessionType, String? sessionTitle}) {
     if (_socket?.connected == true) {
-      _socket!.emit('join_session', {'sessionId': sessionId});
-      _logger.i('세션 입장 요청: $sessionId');
+      _socket!.emit('join_session', {
+        'sessionId': sessionId,
+        'sessionType': sessionType, // 실제 세션 타입 사용
+        'sessionTitle': sessionTitle ?? '실시간 분석 세션',
+      });
+      _logger.i('세션 입장 요청: $sessionId (타입: $sessionType)');
     }
   }
 
@@ -128,6 +133,7 @@ class RealtimeService {
       }
 
       _logger.d('feedback-service로 STT 결과 전송: ${json.encode(requestData)}');
+      _logger.i('📤 실제 전송할 시나리오: $scenario');
 
       // 🔥 피드백 서비스의 새로운 STT 분석 엔드포인트로 변경
       final response = await http.post(
