@@ -262,7 +262,7 @@ const analyzeSegments = (segments, sessionType, totalDuration) => {
             logger.info(`1-2: analyzeEmotions 완료`);
         } catch (error) {
             logger.error(`analyzeEmotions 실패: ${error.message}`);
-            emotionAnalysis = { averageScores: { positive: 0.5, neutral: 0.5, negative: 0 } };
+            emotionAnalysis = getDefaultEmotionMetrics();
         }
 
         // 3. 타임라인 생성
@@ -314,13 +314,28 @@ const analyzeSegments = (segments, sessionType, totalDuration) => {
             keyInsights = ['분석 데이터를 수집 중입니다.'];
         }
 
+        // 7. 세션별 특화 지표 생성 - STT 데이터 기반
+        let sessionSpecificMetrics;
+        try {
+            logger.info(`1-7: generateSessionSpecificMetrics 시작`);
+            sessionSpecificMetrics = generateSessionSpecificMetrics(sessionType, statistics, emotionAnalysis, segments);
+            logger.info(`1-7: generateSessionSpecificMetrics 완료`);
+        } catch (error) {
+            logger.error(`generateSessionSpecificMetrics 실패: ${error.message}`);
+            sessionSpecificMetrics = {
+                전반적만족도: 0.65,
+                의사소통효과: 0.7,
+                말하기품질: 0.75
+            };
+        }
+
         const result = {
             summary: {
                 duration: estimatedDuration,
                 totalSegments: totalSegments,
                 userSpeakingRatio: statistics.speakingRatio,
                 averageSpeakingSpeed: statistics.averageSpeakingSpeed,
-                emotionScores: emotionAnalysis.averageScores,
+                emotionScores: emotionAnalysis.overall_emotional_tone,
                 keyInsights: keyInsights,
                 wordsCount: statistics.totalWords
             },
@@ -329,11 +344,29 @@ const analyzeSegments = (segments, sessionType, totalDuration) => {
                 interruptions: statistics.interruptions,
                 silence_periods: statistics.silencePeriods,
                 habitual_phrases: statistics.habitualPhrases,
-                speaking_rate_variance: statistics.speakingRateVariance
+                speaking_rate_variance: statistics.speakingRateVariance,
+                // 새로운 STT 기반 통계 추가
+                speaking_consistency: statistics.speakingConsistency,
+                pause_stability: statistics.pauseStability,
+                speech_pattern_score: statistics.speechPatternScore,
+                confidence_score: statistics.confidenceScore
             },
+            // 감정 분석 상세 데이터 추가
+            emotionMetrics: emotionAnalysis,
+            // 세션별 특화 지표 추가
+            sessionSpecificMetrics: sessionSpecificMetrics,
             timeline: timeline,
             suggestions: suggestions,
-            specializedAnalysis: specializedAnalysis
+            specializedAnalysis: {
+                ...specializedAnalysis,
+                // STT 기반 추가 분석
+                speaking_analysis: {
+                    consistency: statistics.speakingConsistency,
+                    confidence: statistics.confidenceScore,
+                    pause_management: statistics.pauseStability,
+                    speech_quality: statistics.speechPatternScore
+                }
+            }
         };
 
         logger.info(`analyzeSegments 완료`);
@@ -346,35 +379,86 @@ const analyzeSegments = (segments, sessionType, totalDuration) => {
 };
 
 /**
- * 기본 통계 계산
+ * 기본 통계 계산 - STT 응답의 상세 데이터 활용
  */
 const calculateBasicStatistics = (segments) => {
-    const validSegments = segments.filter(s => s.analysis && s.transcription);
+    const validSegments = segments.filter(s => s.sttData || (s.analysis && s.transcription));
     
     if (validSegments.length === 0) {
         return getDefaultStatistics();
     }
 
-    const speakingSpeeds = validSegments
-        .map(s => s.analysis.speakingSpeed)
+    // STT 응답에서 speech_metrics 추출
+    const speechMetrics = validSegments
+        .map(s => s.sttData?.speech_metrics)
+        .filter(metrics => metrics);
+
+    // 말하기 속도 관련 계산 (STT의 evaluation_wpm 활용)
+    const speakingSpeeds = speechMetrics
+        .map(m => m.evaluation_wpm)
         .filter(speed => speed && speed > 0);
-
-    const totalWords = validSegments
-        .map(s => s.transcription ? s.transcription.split(' ').length : 0)
-        .reduce((sum, count) => sum + count, 0);
-
+    
     const averageSpeakingSpeed = speakingSpeeds.length > 0 
         ? sanitizeValue(Math.round(speakingSpeeds.reduce((sum, speed) => sum + speed, 0) / speakingSpeeds.length), 120)
-        : 120; // 기본값
+        : 120;
 
+    // 말하기 일관성 (variability_metrics의 cv 활용)
+    const variabilityMetrics = validSegments
+        .map(s => s.sttData?.variability_metrics?.cv)
+        .filter(cv => cv !== undefined && cv !== null);
+    
+    const averageConsistency = variabilityMetrics.length > 0
+        ? sanitizeValue(variabilityMetrics.reduce((sum, cv) => sum + cv, 0) / variabilityMetrics.length, 0.3)
+        : 0.3;
+
+    // 멈춤 패턴 분석 (pause_metrics 활용)
+    const pauseMetrics = speechMetrics
+        .map(m => m.pause_metrics)
+        .filter(p => p);
+    
+    const averagePauseRatio = pauseMetrics.length > 0
+        ? sanitizeValue(pauseMetrics.reduce((sum, p) => sum + (p.pause_ratio || 0), 0) / pauseMetrics.length, 0.1)
+        : 0.1;
+
+    // 말하기 패턴 분석 (speech_pattern 활용)
+    const speechPatterns = speechMetrics
+        .map(m => m.speech_pattern)
+        .filter(pattern => pattern);
+    
+    const normalPatternRatio = speechPatterns.length > 0
+        ? speechPatterns.filter(p => p === 'normal').length / speechPatterns.length
+        : 0.8;
+
+    // 전체 단어 수 계산
+    const totalWords = validSegments
+        .map(s => {
+            if (s.sttData?.words) {
+                return s.sttData.words.length;
+            } else if (s.transcription) {
+                return s.transcription.split(' ').length;
+            }
+            return 0;
+        })
+        .reduce((sum, count) => sum + count, 0);
+
+    // 말하기 비율 계산
     const speakingRatio = validSegments.length > 0 
-        ? sanitizeValue(validSegments.filter(s => s.transcription && s.transcription.trim().length > 0).length / validSegments.length, 0.5)
+        ? sanitizeValue(validSegments.filter(s => {
+            const text = s.sttData?.text || s.transcription || '';
+            return text.trim().length > 0;
+        }).length / validSegments.length, 0.5)
         : 0.5;
 
     return {
         speakingRatio: sanitizeValue(Math.round(speakingRatio * 100) / 100, 0.5),
         averageSpeakingSpeed: averageSpeakingSpeed,
         totalWords: sanitizeValue(totalWords, 0),
+        // 새로운 STT 기반 지표들
+        speakingConsistency: sanitizeValue(Math.max(0, 1 - averageConsistency), 0.7), // cv가 낮을수록 일관성 높음
+        pauseStability: sanitizeValue(Math.max(0, 1 - averagePauseRatio * 5), 0.8), // 적절한 멈춤
+        speechPatternScore: sanitizeValue(normalPatternRatio, 0.8),
+        confidenceScore: calculateConfidenceScore(speechMetrics, validSegments),
+        // 기존 지표들
         questionAnswerRatio: calculateQuestionAnswerRatio(validSegments),
         interruptions: calculateInterruptions(validSegments),
         silencePeriods: calculateSilencePeriods(validSegments),
@@ -384,32 +468,195 @@ const calculateBasicStatistics = (segments) => {
 };
 
 /**
- * 감정 분석
+ * 자신감 점수 계산 - STT의 다양한 지표를 종합
  */
-const analyzeEmotions = (segments) => {
-    const validSegments = segments.filter(s => s.analysis);
-    
-    if (validSegments.length === 0) {
-        return { averageScores: { positive: 0.5, neutral: 0.5, negative: 0 } };
+const calculateConfidenceScore = (speechMetrics, validSegments) => {
+    if (!speechMetrics || speechMetrics.length === 0) {
+        return 0.6; // 기본값
     }
 
-    const likabilityScores = validSegments.map(s => s.analysis.likability || 50);
-    const interestScores = validSegments.map(s => s.analysis.interest || 50);
+    let totalScore = 0;
+    let factorCount = 0;
 
-    const averageLikability = likabilityScores.length > 0 
-        ? sanitizeValue(likabilityScores.reduce((sum, score) => sum + score, 0) / likabilityScores.length, 50)
-        : 50;
-    const averageInterest = interestScores.length > 0 
-        ? sanitizeValue(interestScores.reduce((sum, score) => sum + score, 0) / interestScores.length, 50)
-        : 50;
+    // 1. 말하기 속도 안정성 (evaluation_wpm 기반)
+    const wpmValues = speechMetrics
+        .map(m => m.evaluation_wpm)
+        .filter(wpm => wpm && wpm > 0);
+    
+    if (wpmValues.length > 0) {
+        const avgWpm = wpmValues.reduce((sum, wpm) => sum + wpm, 0) / wpmValues.length;
+        const wpmVariance = wpmValues.reduce((sum, wpm) => sum + Math.pow(wpm - avgWpm, 2), 0) / wpmValues.length;
+        const wpmStability = Math.max(0, 1 - (wpmVariance / (avgWpm * avgWpm))); // 변동계수의 역수
+        totalScore += wpmStability * 0.25;
+        factorCount += 0.25;
+    }
+
+    // 2. 멈춤 패턴 (pause_metrics 기반)
+    const pauseMetrics = speechMetrics
+        .map(m => m.pause_metrics)
+        .filter(p => p);
+    
+    if (pauseMetrics.length > 0) {
+        const avgPauseRatio = pauseMetrics.reduce((sum, p) => sum + (p.pause_ratio || 0), 0) / pauseMetrics.length;
+        // 적절한 멈춤(0.1-0.2)일 때 높은 점수
+        const pauseScore = avgPauseRatio >= 0.1 && avgPauseRatio <= 0.2 ? 1.0 : Math.max(0, 1 - Math.abs(avgPauseRatio - 0.15) * 5);
+        totalScore += pauseScore * 0.2;
+        factorCount += 0.2;
+    }
+
+    // 3. 음성 패턴 정상성 (speech_pattern 기반)
+    const speechPatterns = speechMetrics
+        .map(m => m.speech_pattern)
+        .filter(pattern => pattern);
+    
+    if (speechPatterns.length > 0) {
+        const normalPatternRatio = speechPatterns.filter(p => p === 'normal').length / speechPatterns.length;
+        totalScore += normalPatternRatio * 0.2;
+        factorCount += 0.2;
+    }
+
+    // 4. 발화 연속성 (speed_category 기반)
+    const speedCategories = speechMetrics
+        .map(m => m.speed_category)
+        .filter(cat => cat);
+    
+    if (speedCategories.length > 0) {
+        const normalSpeedRatio = speedCategories.filter(cat => cat === 'normal').length / speedCategories.length;
+        totalScore += normalSpeedRatio * 0.15;
+        factorCount += 0.15;
+    }
+
+    // 5. 전체 발화량 (많을수록 자신감 있음)
+    const totalSpeechSegments = validSegments.filter(s => {
+        const text = s.sttData?.text || s.transcription || '';
+        return text.trim().length > 10; // 의미있는 발화
+    }).length;
+    
+    const speechVolumeScore = Math.min(1.0, totalSpeechSegments / 10); // 10개 이상이면 만점
+    totalScore += speechVolumeScore * 0.2;
+    factorCount += 0.2;
+
+    // 가중평균 계산
+    const confidenceScore = factorCount > 0 ? totalScore / factorCount : 0.6;
+    return sanitizeValue(confidenceScore, 0.6);
+};
+
+/**
+ * 감정 분석 - STT 응답의 emotion_analysis 활용
+ */
+const analyzeEmotions = (segments) => {
+    const validSegments = segments.filter(s => s.sttData || (s.analysis && s.transcription));
+    
+    if (validSegments.length === 0) {
+        return getDefaultEmotionMetrics();
+    }
+
+    // STT 응답에서 emotion_analysis 추출
+    const emotionAnalyses = validSegments
+        .map(s => s.sttData?.emotion_analysis)
+        .filter(ea => ea);
+
+    // 주요 감정들 추출
+    const primaryEmotions = emotionAnalyses
+        .map(ea => ea.primary_emotion)
+        .filter(emotion => emotion);
+
+    // 모든 top_emotions 수집
+    const allEmotions = [];
+    emotionAnalyses.forEach(ea => {
+        if (ea.top_emotions && Array.isArray(ea.top_emotions)) {
+            ea.top_emotions.forEach(emotionObj => {
+                if (emotionObj.emotion && emotionObj.confidence) {
+                    allEmotions.push({
+                        emotion: emotionObj.emotion,
+                        confidence: emotionObj.confidence
+                    });
+                }
+            });
+        }
+    });
+
+    // 감정별 평균 신뢰도 계산
+    const emotionAverages = {};
+    const emotionCounts = {};
+    
+    allEmotions.forEach(({ emotion, confidence }) => {
+        if (!emotionAverages[emotion]) {
+            emotionAverages[emotion] = 0;
+            emotionCounts[emotion] = 0;
+        }
+        emotionAverages[emotion] += confidence;
+        emotionCounts[emotion]++;
+    });
+
+    // 평균 계산
+    Object.keys(emotionAverages).forEach(emotion => {
+        emotionAverages[emotion] = emotionAverages[emotion] / emotionCounts[emotion];
+    });
+
+    // 감정 점수 계산
+    const calculateEmotionScore = (emotionName) => {
+        const score = emotionAverages[emotionName] || 0;
+        return sanitizeValue(score, 0.3);
+    };
+
+    // 감정 안정성 계산 (같은 감정의 일관성)
+    const calculateEmotionalStability = () => {
+        if (primaryEmotions.length <= 1) return 0.8;
+        
+        const emotionFreq = {};
+        primaryEmotions.forEach(emotion => {
+            emotionFreq[emotion] = (emotionFreq[emotion] || 0) + 1;
+        });
+        
+        const maxFreq = Math.max(...Object.values(emotionFreq));
+        const stability = maxFreq / primaryEmotions.length;
+        return sanitizeValue(stability, 0.6);
+    };
+
+    // 긍정적 감정 비율 계산
+    const positiveEmotions = ['happiness', 'joy', 'excitement', 'confidence', 'satisfaction'];
+    const calculatePositiveRatio = () => {
+        if (allEmotions.length === 0) return 0.5;
+        
+        const positiveCount = allEmotions.filter(({ emotion }) => 
+            positiveEmotions.some(pos => emotion.toLowerCase().includes(pos))
+        ).length;
+        
+        return sanitizeValue(positiveCount / allEmotions.length, 0.5);
+    };
+
+    // 감정 변화량 계산
+    const calculateEmotionalVariability = () => {
+        if (primaryEmotions.length <= 1) return 0.2;
+        
+        const uniqueEmotions = new Set(primaryEmotions);
+        const variability = uniqueEmotions.size / primaryEmotions.length;
+        return sanitizeValue(variability, 0.4);
+    };
 
     return {
-        averageScores: {
-            positive: sanitizeValue(Math.round((averageLikability + averageInterest) / 2) / 100, 0.5),
-            neutral: 0.3,
-            negative: sanitizeValue(Math.round((200 - averageLikability - averageInterest) / 2) / 100, 0.2)
-        },
-        trends: calculateEmotionTrends(likabilityScores, interestScores)
+        overall_emotional_tone: sanitizeValue(calculatePositiveRatio(), 0.5),
+        emotional_stability: sanitizeValue(calculateEmotionalStability(), 0.6),
+        emotional_variability: sanitizeValue(calculateEmotionalVariability(), 0.4),
+        
+        // 개별 감정 점수들 (STT 데이터 기반)
+        happiness: calculateEmotionScore('happiness'),
+        sadness: calculateEmotionScore('sadness'),
+        anger: calculateEmotionScore('anger'),
+        fear: calculateEmotionScore('fear'),
+        surprise: calculateEmotionScore('surprise'),
+        disgust: calculateEmotionScore('disgust'),
+        neutral: calculateEmotionScore('neutral'),
+        confidence: calculateEmotionScore('confidence'),
+        excitement: calculateEmotionScore('excitement'),
+        calmness: calculateEmotionScore('calmness'),
+        
+        // 추가 분석 데이터
+        primary_emotions: primaryEmotions,
+        emotion_distribution: emotionAverages,
+        total_segments_analyzed: validSegments.length,
+        emotion_segments: emotionAnalyses.length
     };
 };
 
@@ -435,18 +682,26 @@ const generateTimeline = (segments) => {
 };
 
 /**
- * 기본 통계값 반환
+ * 기본 통계 반환
  */
-const getDefaultStatistics = () => ({
-    speakingRatio: 0.5,
-    averageSpeakingSpeed: 120,
-    totalWords: 0,
-    questionAnswerRatio: 0,
-    interruptions: 0,
-    silencePeriods: [],
-    habitualPhrases: [],
-    speakingRateVariance: 0
-});
+const getDefaultStatistics = () => {
+    return {
+        speakingRatio: 0.5,
+        averageSpeakingSpeed: 120,
+        totalWords: 0,
+        // 새로운 STT 기반 지표들
+        speakingConsistency: 0.7,
+        pauseStability: 0.8,
+        speechPatternScore: 0.8,
+        confidenceScore: 0.6,
+        // 기존 지표들
+        questionAnswerRatio: 0.3,
+        interruptions: 0,
+        silencePeriods: 0,
+        habitualPhrases: [],
+        speakingRateVariance: 0.2
+    };
+};
 
 // 헬퍼 함수들 (간단한 구현)
 const calculateQuestionAnswerRatio = (segments) => {
@@ -566,9 +821,9 @@ const generateKeyInsights = (stats, emotions) => {
     }
     
     // 감정 점수 인사이트
-    if (emotions.averageScores.positive > 0.7) {
+    if (emotions.happiness > 0.7) {
         insights.push('전반적으로 긍정적인 감정으로 대화했습니다.');
-    } else if (emotions.averageScores.positive < 0.3) {
+    } else if (emotions.happiness < 0.3) {
         insights.push('감정 표현을 더 풍부하게 하면 좋겠습니다.');
     }
     
@@ -886,6 +1141,114 @@ const analyzeCoachingEmpathy = (segments) => {
         emotional_support: empathyCount > 1 ? '따뜻함' : '중립적',
         suggestion: '감정적 지지를 더 표현해보세요'
     };
+};
+
+/**
+ * 기본 감정 지표 반환
+ */
+const getDefaultEmotionMetrics = () => {
+    return {
+        overall_emotional_tone: 0.5,
+        emotional_stability: 0.6,
+        emotional_variability: 0.4,
+        
+        // 개별 감정 점수들
+        happiness: 0.3,
+        sadness: 0.2,
+        anger: 0.1,
+        fear: 0.2,
+        surprise: 0.2,
+        disgust: 0.1,
+        neutral: 0.4,
+        confidence: 0.3,
+        excitement: 0.2,
+        calmness: 0.4,
+        
+        // 추가 분석 데이터
+        primary_emotions: [],
+        emotion_distribution: {},
+        total_segments_analyzed: 0,
+        emotion_segments: 0
+    };
+};
+
+/**
+ * 세션별 특화 지표 생성 - STT 데이터 기반
+ */
+const generateSessionSpecificMetrics = (sessionType, statistics, emotionAnalysis, segments) => {
+    const validSegments = segments.filter(s => s.sttData || (s.analysis && s.transcription));
+    
+    switch (sessionType) {
+        case 'presentation':
+            return {
+                발표자신감: sanitizeValue(statistics.confidenceScore, 0.6),
+                설득력: sanitizeValue(
+                    (statistics.speakingConsistency * 0.4 + 
+                     statistics.speechPatternScore * 0.3 + 
+                     emotionAnalysis.confidence * 0.3), 0.65
+                ),
+                명확성: sanitizeValue(
+                    (statistics.pauseStability * 0.5 + 
+                     statistics.speakingConsistency * 0.3 + 
+                     (statistics.averageSpeakingSpeed >= 100 && statistics.averageSpeakingSpeed <= 150 ? 1.0 : 0.7) * 0.2), 0.7
+                )
+            };
+            
+        case 'interview':
+            return {
+                자신감: sanitizeValue(statistics.confidenceScore, 0.6),
+                명확성: sanitizeValue(
+                    (statistics.pauseStability * 0.4 + 
+                     statistics.speechPatternScore * 0.4 + 
+                     (statistics.averageSpeakingSpeed >= 90 && statistics.averageSpeakingSpeed <= 140 ? 1.0 : 0.6) * 0.2), 0.65
+                ),
+                안정감: sanitizeValue(
+                    (emotionAnalysis.emotional_stability * 0.4 + 
+                     statistics.speakingConsistency * 0.3 + 
+                     emotionAnalysis.calmness * 0.3), 0.7
+                )
+            };
+            
+        case 'dating':
+            return {
+                호감도: sanitizeValue(
+                    (emotionAnalysis.happiness * 0.4 + 
+                     emotionAnalysis.overall_emotional_tone * 0.3 + 
+                     statistics.confidenceScore * 0.3), 0.6
+                ),
+                경청지수: sanitizeValue(
+                    (statistics.pauseStability * 0.4 + 
+                     (1 - statistics.speakingRatio) * 0.3 + // 말하기 비율이 낮을수록 경청 잘함
+                     statistics.questionAnswerRatio * 0.3), 0.65
+                ),
+                톤억양: sanitizeValue(
+                    (statistics.speechPatternScore * 0.5 + 
+                     emotionAnalysis.emotional_variability * 0.3 + 
+                     (1 - Math.abs(statistics.averageSpeakingSpeed - 120) / 120) * 0.2), 0.7
+                )
+            };
+            
+        default:
+            // 기본 범용 지표
+            return {
+                전반적만족도: sanitizeValue(
+                    (statistics.confidenceScore * 0.3 + 
+                     emotionAnalysis.overall_emotional_tone * 0.3 + 
+                     statistics.speakingConsistency * 0.2 + 
+                     statistics.speechPatternScore * 0.2), 0.65
+                ),
+                의사소통효과: sanitizeValue(
+                    (statistics.pauseStability * 0.4 + 
+                     statistics.confidenceScore * 0.3 + 
+                     emotionAnalysis.emotional_stability * 0.3), 0.7
+                ),
+                말하기품질: sanitizeValue(
+                    (statistics.speechPatternScore * 0.4 + 
+                     statistics.speakingConsistency * 0.3 + 
+                     statistics.pauseStability * 0.3), 0.75
+                )
+            };
+    }
 };
 
 module.exports = {

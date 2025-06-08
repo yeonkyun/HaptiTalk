@@ -318,23 +318,166 @@ const reportService = {
     },
 
     /**
-     * 내부 헬퍼 메서드: 주요 지표 생성
+     * 핵심 지표 생성
      */
     _generateKeyMetrics(sessionAnalytics) {
+        const statistics = sessionAnalytics.statistics || {};
+        const summary = sessionAnalytics.summary || {};
+        const emotionMetrics = sessionAnalytics.emotionMetrics || {};
+        const sessionSpecificMetrics = sessionAnalytics.sessionSpecificMetrics || {};
+
         return {
-            userSpeakingRatio: sessionAnalytics.summary.userSpeakingRatio,
-            wordsPerMinute: Math.round(sessionAnalytics.summary.wordsCount / (sessionAnalytics.summary.duration / 60)),
-            questionAnswerRatio: sessionAnalytics.statistics?.question_answer_ratio || 0,
-            interruptionCount: sessionAnalytics.statistics?.interruptions || 0,
-            silencePeriods: sessionAnalytics.statistics?.silence_periods?.length || 0
+            // 기본 말하기 지표
+            speaking: {
+                ratio: parseFloat((summary.userSpeakingRatio || 0).toFixed(2)),
+                speed: Math.round(summary.averageSpeakingSpeed || 0),
+                words: summary.wordsCount || 0,
+                // STT 기반 새로운 지표들
+                consistency: parseFloat((statistics.speaking_consistency || 0).toFixed(2)),
+                pauseStability: parseFloat((statistics.pause_stability || 0).toFixed(2)),
+                speechQuality: parseFloat((statistics.speech_pattern_score || 0).toFixed(2)),
+                confidence: parseFloat((statistics.confidence_score || 0).toFixed(2))
+            },
+            
+            // 감정 지표 (STT emotion_analysis 기반)
+            emotion: {
+                overallTone: parseFloat((emotionMetrics.overall_emotional_tone || 0.5).toFixed(2)),
+                stability: parseFloat((emotionMetrics.emotional_stability || 0.6).toFixed(2)),
+                variability: parseFloat((emotionMetrics.emotional_variability || 0.4).toFixed(2)),
+                primaryEmotions: emotionMetrics.primary_emotions || [],
+                happiness: parseFloat((emotionMetrics.happiness || 0.3).toFixed(2)),
+                confidence: parseFloat((emotionMetrics.confidence || 0.3).toFixed(2)),
+                calmness: parseFloat((emotionMetrics.calmness || 0.4).toFixed(2))
+            },
+            
+            // 세션별 특화 지표
+            sessionSpecific: sessionSpecificMetrics,
+            
+            // 전반적 점수 (0-100 스케일로 변환)
+            overallScore: Math.round((
+                (statistics.confidence_score || 0.6) * 30 +
+                (statistics.speaking_consistency || 0.7) * 20 +
+                (statistics.speech_pattern_score || 0.8) * 20 +
+                (emotionMetrics.overall_emotional_tone || 0.5) * 15 +
+                (emotionMetrics.emotional_stability || 0.6) * 15
+            ) * 100),
+            
+            // 기존 분석 데이터
+            communication: {
+                interruptions: statistics.interruptions || 0,
+                questionAnswerRatio: parseFloat((statistics.question_answer_ratio || 0).toFixed(2)),
+                speakingRateVariance: parseFloat((statistics.speaking_rate_variance || 0).toFixed(2))
+            }
         };
     },
 
     /**
-     * 내부 헬퍼 메서드: 감정 분석 생성
+     * 감정 분석 데이터 생성
      */
     _generateEmotionAnalysis(sessionAnalytics) {
-        return sessionAnalytics.summary.emotionScores;
+        const emotionMetrics = sessionAnalytics.emotionMetrics || {};
+        const summary = sessionAnalytics.summary || {};
+
+        return {
+            // STT 기반 전반적 감정 분석
+            overallTone: {
+                score: parseFloat((emotionMetrics.overall_emotional_tone || 0.5).toFixed(2)),
+                label: this._getEmotionLabel(emotionMetrics.overall_emotional_tone || 0.5),
+                description: this._getEmotionDescription(emotionMetrics.overall_emotional_tone || 0.5)
+            },
+            
+            // 감정 안정성
+            stability: {
+                score: parseFloat((emotionMetrics.emotional_stability || 0.6).toFixed(2)),
+                variability: parseFloat((emotionMetrics.emotional_variability || 0.4).toFixed(2)),
+                interpretation: this._getStabilityInterpretation(emotionMetrics.emotional_stability || 0.6)
+            },
+            
+            // 개별 감정 점수들 (STT emotion_analysis에서 추출)
+            emotions: {
+                happiness: parseFloat((emotionMetrics.happiness || 0.3).toFixed(2)),
+                confidence: parseFloat((emotionMetrics.confidence || 0.3).toFixed(2)),
+                calmness: parseFloat((emotionMetrics.calmness || 0.4).toFixed(2)),
+                neutral: parseFloat((emotionMetrics.neutral || 0.4).toFixed(2)),
+                excitement: parseFloat((emotionMetrics.excitement || 0.2).toFixed(2)),
+                sadness: parseFloat((emotionMetrics.sadness || 0.2).toFixed(2)),
+                anger: parseFloat((emotionMetrics.anger || 0.1).toFixed(2)),
+                fear: parseFloat((emotionMetrics.fear || 0.2).toFixed(2))
+            },
+            
+            // 주요 감정 변화
+            primaryEmotions: emotionMetrics.primary_emotions || [],
+            emotionDistribution: emotionMetrics.emotion_distribution || {},
+            
+            // 분석 정보
+            segmentsAnalyzed: emotionMetrics.emotion_segments || 0,
+            totalSegments: emotionMetrics.total_segments_analyzed || 0,
+            
+            // 추천 사항
+            recommendations: this._generateEmotionRecommendations(emotionMetrics)
+        };
+    },
+
+    /**
+     * 감정 점수에 따른 라벨 반환
+     */
+    _getEmotionLabel(score) {
+        if (score >= 0.7) return '매우 긍정적';
+        if (score >= 0.6) return '긍정적';
+        if (score >= 0.4) return '중립적';
+        if (score >= 0.3) return '약간 부정적';
+        return '부정적';
+    },
+
+    /**
+     * 감정 점수에 따른 설명 반환
+     */
+    _getEmotionDescription(score) {
+        if (score >= 0.7) return '대화 중 매우 긍정적이고 밝은 감정을 유지했습니다.';
+        if (score >= 0.6) return '전반적으로 긍정적인 분위기로 대화에 참여했습니다.';
+        if (score >= 0.4) return '안정적이고 중립적인 감정 상태를 보였습니다.';
+        if (score >= 0.3) return '다소 소극적이거나 부정적인 감정이 나타났습니다.';
+        return '감정 표현이 부족하거나 부정적인 상태였습니다.';
+    },
+
+    /**
+     * 감정 안정성 해석
+     */
+    _getStabilityInterpretation(stability) {
+        if (stability >= 0.8) return '매우 안정적인 감정 상태';
+        if (stability >= 0.6) return '안정적인 감정 상태';
+        if (stability >= 0.4) return '보통 수준의 감정 변화';
+        if (stability >= 0.2) return '감정 변화가 다소 불안정';
+        return '감정 변화가 매우 불안정';
+    },
+
+    /**
+     * 감정 기반 추천 사항 생성
+     */
+    _generateEmotionRecommendations(emotionMetrics) {
+        const recommendations = [];
+        
+        if (emotionMetrics.happiness < 0.4) {
+            recommendations.push('더 밝고 긍정적인 표현을 사용해보세요.');
+        }
+        
+        if (emotionMetrics.confidence < 0.4) {
+            recommendations.push('자신감 있는 톤으로 말하는 연습을 해보세요.');
+        }
+        
+        if (emotionMetrics.emotional_stability < 0.5) {
+            recommendations.push('감정의 일관성을 유지하는 것에 집중해보세요.');
+        }
+        
+        if (emotionMetrics.calmness < 0.4) {
+            recommendations.push('좀 더 차분하고 안정된 상태로 대화해보세요.');
+        }
+        
+        if (recommendations.length === 0) {
+            recommendations.push('감정 표현이 적절합니다. 현재 상태를 유지하세요.');
+        }
+        
+        return recommendations;
     },
 
     /**
