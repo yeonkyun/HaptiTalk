@@ -79,6 +79,10 @@ struct WatchVisualFeedbackView: View {
         .onDisappear {
             print("🎨 Watch: WatchVisualFeedbackView disappeared")
             resetAnimations()
+            // 🔥 AppState의 시각적 피드백 상태도 완전히 초기화
+            appState.showVisualFeedback = false
+            appState.currentVisualPattern = ""
+            appState.visualAnimationIntensity = 0.0
         }
         .onChange(of: appState.currentVisualPattern) { _, newPattern in
             // 패턴 변경 시 애니메이션 리셋 후 재시작으로 안정성 확보

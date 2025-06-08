@@ -306,6 +306,21 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
                     self.showHapticNotification(message: feedback)
                 }
             }
+        case "initializeVisualFeedback":
+            // 🔄 시각적 피드백 초기화
+            print("🔄 Watch: 시각적 피드백 초기화 수신")
+            self.showVisualFeedback = false
+            self.currentVisualPattern = ""
+            self.visualAnimationIntensity = 0.0
+            self.visualPatternColor = .blue
+            print("🔄 Watch: 시각적 피드백 상태 초기화 완료")
+        case "clearVisualFeedback":
+            // 🧹 시각적 피드백 클리어
+            print("🧹 Watch: 시각적 피드백 클리어 수신")
+            self.showVisualFeedback = false
+            self.currentVisualPattern = ""
+            self.visualAnimationIntensity = 0.0
+            print("🧹 Watch: 시각적 피드백 클리어 완료")
         default:
             print("Watch: Unhandled action from iPhone: \(action)")
             break
@@ -522,10 +537,25 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
         // 🎨 시각적 피드백 트리거
         triggerVisualFeedback(patternId: patternId, category: category)
         
-        // 5초 후 자동으로 알림 닫기
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+        // 🔥 3초 후 자동으로 알림 닫기 (더 짧게 변경)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            print("🔥 Watch: 3초 후 시각적 피드백 자동 숨김")
             self.showHapticFeedback = false
             self.showVisualFeedback = false
+            self.currentVisualPattern = ""
+            self.visualAnimationIntensity = 0.0
+        }
+        
+        // 🔥 추가 안전장치: 5초 후 강제 초기화
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            if self.showVisualFeedback {
+                print("🚨 Watch: 5초 후 강제 시각적 피드백 초기화")
+                self.showHapticFeedback = false
+                self.showVisualFeedback = false
+                self.currentVisualPattern = ""
+                self.visualAnimationIntensity = 0.0
+                self.hapticFeedbackMessage = ""
+            }
         }
     }
     

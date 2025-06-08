@@ -146,6 +146,38 @@ class AudioService {
     }
   }
 
+  /// STT 웹소켓 연결만 시도 (녹음 시작 전)
+  Future<bool> connectSTTWebSocket({String scenario = 'dating'}) async {
+    if (!_isInitialized) {
+      print('❌ AudioService가 초기화되지 않았습니다');
+      return false;
+    }
+
+    try {
+      if (!_sttService.isConnected) {
+        print('🔌 STT WebSocket 연결 시도... (scenario: $scenario)');
+        await _sttService.connect(scenario: scenario);
+        
+        // 연결 안정화 대기
+        await Future.delayed(Duration(milliseconds: 1500)); 
+        
+        if (_sttService.isConnected) {
+          print('✅ STT WebSocket 연결 성공');
+          return true;
+        } else {
+          print('❌ STT WebSocket 연결 실패');
+          return false;
+        }
+      } else {
+        print('✅ STT WebSocket 이미 연결됨');
+        return true;
+      }
+    } catch (e) {
+      print('❌ STT WebSocket 연결 시도 중 오류: $e');
+      return false;
+    }
+  }
+
   /// 실시간 음성 녹음 시작
   Future<bool> startRealTimeRecording({String scenario = 'dating'}) async {
     if (!_isInitialized) {
