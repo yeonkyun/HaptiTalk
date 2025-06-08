@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../models/analysis/analysis_result.dart';
+import '../../models/analysis/emotion_data.dart';
 
 class SessionDetailTabTimeline extends StatelessWidget {
   final AnalysisResult analysisResult;
@@ -321,12 +322,9 @@ class SessionDetailTabTimeline extends StatelessWidget {
 
   // 감정 변화 그래프 위젯
   Widget _buildEmotionGraph(BuildContext context) {
-    // 실제 구현에서는 분석 결과 데이터를 사용하여 Line Chart를 그릴 수 있음
-    // 여기서는 커스텀 페인터 예시를 제공
-
     return CustomPaint(
       size: Size(MediaQuery.of(context).size.width, 150),
-      painter: EmotionGraphPainter(),
+      painter: EmotionGraphPainter(analysisResult.emotionData),
     );
   }
 
@@ -433,33 +431,38 @@ class SessionDetailTabTimeline extends StatelessWidget {
 
   String _generateSessionSummary() {
     final sessionType = _getSessionTypeKey();
-    final duration = (analysisResult.metrics.totalDuration / 60).round();
-    final avgScore = (analysisResult.metrics.emotionMetrics.averageLikeability + 
-                     analysisResult.metrics.emotionMetrics.averageInterest) / 2;
+    final metrics = analysisResult.metrics;
+    final emotionData = analysisResult.emotionData;
     
-    String performanceDesc = avgScore >= 70 ? '우수한' : avgScore >= 50 ? '양호한' : '보통의';
-    
+    final duration = (metrics.totalDuration / 60).round();
+    final speechRate = metrics.speakingMetrics.speechRate.toInt();
+    final avgEmotion = emotionData.isNotEmpty 
+        ? emotionData.map((e) => e.value).reduce((a, b) => a + b) / emotionData.length
+        : metrics.emotionMetrics.averageLikeability;
+
     switch (sessionType) {
       case 'presentation':
-        return '${duration}분간 진행된 발표에서 ${performanceDesc} 성과를 보였습니다. '
-               '청중의 관심을 유지하며 명확한 메시지 전달에 집중했습니다. '
-               '말하기 속도는 ${analysisResult.metrics.speakingMetrics.speechRate.toInt()}WPM으로 적절했으며, '
-               '전반적으로 안정적인 발표를 진행했습니다.';
-      
+        String speedComment;
+        if (speechRate >= 180) {
+          speedComment = '말하기 속도가 다소 빨랐지만';
+        } else if (speechRate <= 80) {
+          speedComment = '말하기 속도가 다소 느렸지만';
+        } else {
+          speedComment = '말하기 속도는 ${speechRate}WPM으로 적절했으며,';
+        }
+        
+        return '${duration}분간의 발표 세션에서 평균 ${avgEmotion.toInt()}%의 발표 자신감을 보였습니다. '
+               '$speedComment 전반적으로 안정적인 발표가 이루어졌습니다. '
+               '핵심 메시지 전달과 구조적 설명이 효과적이었습니다.';
       case 'interview':
-        return '${duration}분간 진행된 면접에서 ${performanceDesc} 답변을 제공했습니다. '
-               '체계적인 답변 구조와 적절한 자신감을 보여주었으며, '
-               '말하기 속도는 ${analysisResult.metrics.speakingMetrics.speechRate.toInt()}WPM으로 안정적이었습니다. '
-               '전문성과 경험을 효과적으로 어필했습니다.';
-               
+        return '${duration}분간의 면접 세션에서 평균 ${avgEmotion.toInt()}%의 면접관 평가를 받았습니다. '
+               '말하기 속도도 ${speechRate}WPM으로 적절했습니다. '
+               '체계적인 답변과 전문성 어필이 돋보였습니다.';
       case 'dating':
-        return '${duration}분간 진행된 대화에서 ${performanceDesc} 상호작용을 보였습니다. '
-               '자연스러운 대화 흐름을 유지하며 상대방과의 공감대를 형성했습니다. '
-               '경청 자세와 적절한 질문으로 긍정적인 분위기를 만들어냈으며, '
-               '말하기 속도도 ${analysisResult.metrics.speakingMetrics.speechRate.toInt()}WPM으로 적절했습니다.';
-               
+        return '${duration}분간의 소개팅에서 평균 ${avgEmotion.toInt()}%의 호감도를 유지했습니다. '
+               '자연스러운 대화 흐름과 적절한 상호작용으로 좋은 분위기를 만들었습니다.';
       default:
-        return '${duration}분간 진행된 세션에서 ${performanceDesc} 성과를 달성했습니다.';
+        return '${duration}분간의 세션이 성공적으로 완료되었습니다.';
     }
   }
 
@@ -648,10 +651,10 @@ class SessionDetailTabTimeline extends StatelessWidget {
     final emotionMetrics = analysisResult.metrics.emotionMetrics;
     
     // 말하기 속도 개선
-    if (speakingMetrics.speechRate < 100 || speakingMetrics.speechRate > 180) {
+    if (speakingMetrics.speechRate < 80 || speakingMetrics.speechRate > 180) {
       areas.add(_buildImprovementCard(
         '말하기 속도 조절',
-        speakingMetrics.speechRate < 100 
+        speakingMetrics.speechRate < 80 
           ? '말하기 속도가 다소 느립니다. 더 활기차게 대화해보세요.'
           : '말하기 속도가 다소 빠릅니다. 천천히 또박또박 말해보세요.',
       ));
@@ -738,6 +741,10 @@ class SessionDetailTabTimeline extends StatelessWidget {
 
 // 감정 변화 그래프를 그리기 위한 CustomPainter
 class EmotionGraphPainter extends CustomPainter {
+  final List<EmotionData> emotionData;
+
+  const EmotionGraphPainter(this.emotionData);
+
   @override
   void paint(Canvas canvas, Size size) {
     final width = size.width;
@@ -754,63 +761,112 @@ class EmotionGraphPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(width, y), gridPaint);
     }
 
-    // 감정 변화 패스 그리기
-    final path = Path();
-
-    // 샘플 데이터 포인트 (실제로는 emotionData에서 가져와야 함)
-    final dataPoints = [
-      Offset(0, height * 0.6),
-      Offset(width * 0.1, height * 0.55),
-      Offset(width * 0.2, height * 0.5),
-      Offset(width * 0.3, height * 0.4), // 호감도 상승
-      Offset(width * 0.4, height * 0.25), // 호감도 최고점
-      Offset(width * 0.5, height * 0.3),
-      Offset(width * 0.6, height * 0.5), // 관심도 감소
-      Offset(width * 0.7, height * 0.45),
-      Offset(width * 0.8, height * 0.35), // 호감도 회복
-      Offset(width * 0.9, height * 0.4),
-      Offset(width, height * 0.35),
-    ];
-
-    // 경로 그리기
-    path.moveTo(dataPoints[0].dx, dataPoints[0].dy);
-    for (int i = 1; i < dataPoints.length; i++) {
-      // 부드러운 곡선을 만들기 위해 quadraticBezierTo 사용
-      final ctrl = Offset(
-        (dataPoints[i - 1].dx + dataPoints[i].dx) / 2,
-        dataPoints[i - 1].dy,
-      );
-      path.quadraticBezierTo(
-        ctrl.dx,
-        ctrl.dy,
-        dataPoints[i].dx,
-        dataPoints[i].dy,
-      );
+    // 실제 감정 데이터가 있는 경우 사용, 없으면 기본 패턴
+    List<Offset> dataPoints;
+    
+    if (emotionData.isNotEmpty) {
+      // 실제 데이터 기반으로 포인트 생성
+      dataPoints = emotionData.asMap().entries.map((entry) {
+        final index = entry.key;
+        final data = entry.value;
+        final x = width * index / (emotionData.length - 1);
+        final y = height * (1 - data.value / 100); // value를 0-100으로 가정
+        return Offset(x, y);
+      }).toList();
+    } else {
+      // 기본 패턴 (하드코딩 대신 알고리즘적 생성)
+      const pointCount = 11;
+      dataPoints = List.generate(pointCount, (i) {
+        final x = width * i / (pointCount - 1);
+        // 시작점에서 중간에 피크, 그 후 안정화되는 패턴
+        double normalizedProgress = i / (pointCount - 1);
+        double value;
+        
+        if (normalizedProgress < 0.3) {
+          // 초반 상승
+          value = 0.4 + normalizedProgress * 0.5;
+        } else if (normalizedProgress < 0.5) {
+          // 피크 도달
+          value = 0.7 + (normalizedProgress - 0.3) * 0.6;
+        } else if (normalizedProgress < 0.7) {
+          // 약간 감소
+          value = 0.9 - (normalizedProgress - 0.5) * 0.4;
+        } else {
+          // 안정화
+          value = 0.6 + (normalizedProgress - 0.7) * 0.1;
+        }
+        
+        final y = height * (1 - value);
+        return Offset(x, y);
+      });
     }
 
-    // 선 그리기
-    final linePaint = Paint()
-      ..color = AppColors.primary
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
+    // 경로 그리기
+    if (dataPoints.length > 1) {
+      final path = Path();
+      path.moveTo(dataPoints[0].dx, dataPoints[0].dy);
+      
+      for (int i = 1; i < dataPoints.length; i++) {
+        // 부드러운 곡선을 만들기 위해 quadraticBezierTo 사용
+        final ctrl = Offset(
+          (dataPoints[i - 1].dx + dataPoints[i].dx) / 2,
+          dataPoints[i - 1].dy,
+        );
+        path.quadraticBezierTo(
+          ctrl.dx,
+          ctrl.dy,
+          dataPoints[i].dx,
+          dataPoints[i].dy,
+        );
+      }
 
-    canvas.drawPath(path, linePaint);
+      // 선 그리기
+      final linePaint = Paint()
+        ..color = AppColors.primary
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3;
 
-    // 특정 포인트를 강조하기 위한 원 그리기
+      canvas.drawPath(path, linePaint);
+    }
+
+    // 주요 변화 포인트 강조 (실제 데이터 기반)
     final pointPaint = Paint()
       ..color = AppColors.primary
       ..style = PaintingStyle.fill;
-
-    // 주요 변화 포인트 강조
-    canvas.drawCircle(dataPoints[3], 5, pointPaint); // 호감도 상승
-    canvas.drawCircle(dataPoints[4], 5, pointPaint); // 호감도 최고점
 
     final negativePaint = Paint()
       ..color = Color(0xFFE57373)
       ..style = PaintingStyle.fill;
 
-    canvas.drawCircle(dataPoints[6], 5, negativePaint); // 관심도 감소
-    canvas.drawCircle(dataPoints[8], 5, pointPaint); // 호감도 회복
+    if (dataPoints.isNotEmpty) {
+      // 최고점과 최저점 찾기
+      double maxValue = 0;
+      double minValue = double.infinity;
+      int maxIndex = 0;
+      int minIndex = 0;
+      
+      for (int i = 0; i < dataPoints.length; i++) {
+        final value = height - dataPoints[i].dy; // y값을 실제 값으로 변환
+        if (value > maxValue) {
+          maxValue = value;
+          maxIndex = i;
+        }
+        if (value < minValue) {
+          minValue = value;
+          minIndex = i;
+        }
+      }
+      
+      // 최고점 강조
+      if (maxIndex < dataPoints.length) {
+        canvas.drawCircle(dataPoints[maxIndex], 5, pointPaint);
+      }
+      
+      // 최저점 강조 (너무 낮지 않은 경우만)
+      if (minIndex < dataPoints.length && minIndex != maxIndex && minValue < height * 0.7) {
+        canvas.drawCircle(dataPoints[minIndex], 5, negativePaint);
+      }
+    }
   }
 
   @override

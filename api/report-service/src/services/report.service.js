@@ -109,28 +109,91 @@ const reportService = {
     async getReportById(userId, reportId) {
         try {
             const db = await mongodbService.getDb();
-            const report = await db.collection('sessionReports').findOne({
-                _id: new ObjectId(reportId),
-                userId
-            });
+            
+            // 🔧 reportId가 ObjectId 형식인지 확인하고 처리
+            let query;
+            if (ObjectId.isValid(reportId)) {
+                // MongoDB ObjectId 형식인 경우
+                query = {
+                    _id: new ObjectId(reportId),
+                    userId
+                };
+            } else {
+                // UUID 또는 다른 형식인 경우 sessionId로 조회
+                logger.info(`reportId가 ObjectId 형식이 아님, sessionId로 조회: ${reportId}`);
+                query = {
+                    sessionId: reportId,
+                    userId
+                };
+            }
+
+            const report = await db.collection('sessionReports').findOne(query);
 
             if (!report) {
                 logger.warn(`리포트 조회 실패 - 존재하지 않는 리포트: ${reportId}`, {
-                    userId
+                    userId,
+                    queryType: ObjectId.isValid(reportId) ? 'ObjectId' : 'sessionId'
                 });
                 throw new Error('Report not found');
             }
 
+            // 🔧 MongoDB _id를 id로 변환
+            const transformedReport = {
+                ...report,
+                id: report._id.toString(), // _id를 문자열 id로 변환
+                _id: undefined // _id 필드 제거
+            };
+
             logger.info(`리포트 조회 성공: ${reportId}`, {
                 userId,
-                sessionId: report.sessionId,
-                sessionType: report.sessionType,
-                createdAt: report.createdAt
+                sessionId: transformedReport.sessionId,
+                sessionType: transformedReport.sessionType,
+                createdAt: transformedReport.createdAt
             });
 
-            return report;
+            return transformedReport;
         } catch (error) {
             logger.error(`Error retrieving report: ${error.message}`);
+            throw error;
+        }
+    },
+
+    /**
+     * 🔧 세션 ID로 리포트 조회 (새로운 함수)
+     */
+    async getReportBySessionId(userId, sessionId) {
+        try {
+            const db = await mongodbService.getDb();
+            
+            const report = await db.collection('sessionReports').findOne({
+                sessionId,
+                userId
+            });
+
+            if (!report) {
+                logger.warn(`세션 리포트 조회 실패 - 존재하지 않는 세션: ${sessionId}`, {
+                    userId
+                });
+                throw new Error('Session report not found');
+            }
+
+            // 🔧 MongoDB _id를 id로 변환
+            const transformedReport = {
+                ...report,
+                id: report._id.toString(), // _id를 문자열 id로 변환
+                _id: undefined // _id 필드 제거
+            };
+
+            logger.info(`세션 리포트 조회 성공: ${sessionId}`, {
+                userId,
+                reportId: transformedReport.id,
+                sessionType: transformedReport.sessionType,
+                createdAt: transformedReport.createdAt
+            });
+
+            return transformedReport;
+        } catch (error) {
+            logger.error(`Error retrieving session report: ${error.message}`);
             throw error;
         }
     },
@@ -175,9 +238,16 @@ const reportService = {
                 })
                 .toArray();
 
+            // 🔧 MongoDB _id를 id로 변환
+            const transformedReports = reports.map(report => ({
+                ...report,
+                id: report._id.toString(), // _id를 문자열 id로 변환
+                _id: undefined // _id 필드 제거
+            }));
+
             logger.info(`사용자 리포트 목록 조회 성공: ${userId}`, {
                 totalReports: total,
-                returnedReports: reports.length,
+                returnedReports: transformedReports.length,
                 page,
                 limit,
                 filters: {
@@ -187,7 +257,7 @@ const reportService = {
             });
 
             return {
-                reports,
+                reports: transformedReports,
                 pagination: {
                     total,
                     page,
