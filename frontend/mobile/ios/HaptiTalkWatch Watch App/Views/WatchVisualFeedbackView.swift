@@ -69,7 +69,7 @@ struct WatchVisualFeedbackView: View {
                         .padding(.top, 4)
                 }
             }
-            .position(x: screenSize.width / 2, y: screenSize.height / 2) // 🔧 정중앙으로 수정
+            .frame(maxWidth: .infinity, maxHeight: .infinity) // 🔧 정중앙으로 수정
             .opacity(1.0) // 확실히 보이도록
         }
         .onAppear {
@@ -79,6 +79,10 @@ struct WatchVisualFeedbackView: View {
         .onDisappear {
             print("🎨 Watch: WatchVisualFeedbackView disappeared")
             resetAnimations()
+            // 🔥 AppState의 시각적 피드백 상태도 완전히 초기화
+            appState.showVisualFeedback = false
+            appState.currentVisualPattern = ""
+            appState.visualAnimationIntensity = 0.0
         }
         .onChange(of: appState.currentVisualPattern) { _, newPattern in
             // 패턴 변경 시 애니메이션 리셋 후 재시작으로 안정성 확보
@@ -176,7 +180,7 @@ struct WatchVisualFeedbackView: View {
                     height: 60 + CGFloat(index) * 40
                 )
                 .scaleEffect(animationPulse + CGFloat(index) * 0.1)
-                .position(x: centerX, y: centerY)
+                
                 .animation(
                     Animation.easeInOut(duration: 0.12)
                         .repeatForever(autoreverses: true)
@@ -196,7 +200,7 @@ struct WatchVisualFeedbackView: View {
                 height: 80 + animationScale * 120
             )
             .opacity(1.0 - animationScale * 0.3)
-            .position(x: centerX, y: centerY)
+            
     }
     
     // F1: 주제 전환 효과 (긴 페이드) - 화면 가득
@@ -215,7 +219,7 @@ struct WatchVisualFeedbackView: View {
                     )
             }
         }
-        .position(x: centerX, y: centerY)
+        
     }
     
     // R1: 호감도 상승 효과 (상승 파동) - 화면 가득
@@ -235,7 +239,7 @@ struct WatchVisualFeedbackView: View {
                     )
             }
         }
-        .position(x: centerX, y: centerY)
+        
     }
     
     // F2: 침묵 관리 효과 (부드러운 펄스) - 화면 가득
@@ -245,7 +249,7 @@ struct WatchVisualFeedbackView: View {
             .fill(appState.visualPatternColor.opacity(0.4))
             .frame(width: 140, height: 140)
             .scaleEffect(animationPulse)
-            .position(x: centerX, y: centerY)
+            
             .animation(
                 Animation.easeInOut(duration: 1.2).repeatCount(2, autoreverses: true),
                 value: animationPulse
@@ -271,7 +275,7 @@ struct WatchVisualFeedbackView: View {
                     )
             }
         }
-        .position(x: centerX, y: centerY)
+        
     }
     
     // R2: 관심도 하락 효과 (강한 경고) - 화면 가득
@@ -288,7 +292,7 @@ struct WatchVisualFeedbackView: View {
                     )
                     .opacity(0.9 - Double(index) * 0.2)
                     .scaleEffect(animationScale)
-                    .position(x: centerX, y: centerY)
+                    
                     .animation(
                         Animation.easeOut(duration: 0.2)
                             .repeatForever(autoreverses: true)
@@ -302,7 +306,7 @@ struct WatchVisualFeedbackView: View {
                 .font(.system(size: 60, weight: .bold))
                 .foregroundColor(.red)
                 .scaleEffect(animationPulse)
-                .position(x: centerX, y: centerY)
+                
                 .animation(
                     Animation.easeInOut(duration: 0.1)
                         .repeatForever(autoreverses: true),
@@ -338,7 +342,7 @@ struct WatchVisualFeedbackView: View {
                     value: animationScale
                 )
         }
-        .position(x: centerX, y: centerY)
+        
     }
     
     // 🎬 패턴별 애니메이션 시작

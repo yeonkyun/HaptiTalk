@@ -304,4 +304,36 @@ class WatchService {
     _watchMessageController.close();
     _periodicTimer?.cancel();
   }
+
+  // 시각적 피드백 초기화 (세션 시작 시)
+  Future<void> initializeVisualFeedback() async {
+    try {
+      await _checkConnectionStatus();
+
+      final result = await _channel.invokeMethod('initializeVisualFeedback', {
+        'action': 'initializeVisualFeedback',
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+      print('🔄 Watch 시각적 피드백 초기화: $result');
+    } catch (e) {
+      print('❌ Watch 시각적 피드백 초기화 실패: $e');
+      rethrow;
+    }
+  }
+
+  // 시각적 피드백 클리어 (세션 종료 시)
+  Future<void> clearVisualFeedback() async {
+    try {
+      await _checkConnectionStatus();
+
+      final result = await _channel.invokeMethod('clearVisualFeedback', {
+        'action': 'clearVisualFeedback',
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+      print('🧹 Watch 시각적 피드백 클리어: $result');
+    } catch (e) {
+      print('❌ Watch 시각적 피드백 클리어 실패: $e');
+      rethrow;
+    }
+  }
 }

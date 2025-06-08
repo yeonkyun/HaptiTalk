@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'dart:math' as math;
 
 import '../../constants/colors.dart';
 import '../../models/analysis/analysis_result.dart';
@@ -402,7 +403,38 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   }
 
   List<double> _generatePresentationData(AnalysisResult analysis) {
-    // 발표 시나리오: 자신감과 설득력의 평균을 시간대별로 시뮬레이션
+    // 🔥 실제 detailedTimeline 데이터가 있으면 사용
+    if (analysis.emotionData.isNotEmpty) {
+      print('✅ 발표 그래프: 실제 API 데이터 사용 (${analysis.emotionData.length}개 포인트)');
+      
+      // 실제 타임라인 데이터를 5개 구간으로 나누어 평균 계산
+      final dataLength = analysis.emotionData.length;
+      final segmentSize = (dataLength / 5).ceil();
+      
+      List<double> presentationValues = [];
+      
+      for (int i = 0; i < 5; i++) {
+        final startIndex = i * segmentSize;
+        final endIndex = math.min((i + 1) * segmentSize, dataLength);
+        
+        if (startIndex < dataLength) {
+          final segmentData = analysis.emotionData.sublist(startIndex, endIndex);
+          final average = segmentData.map((e) => e.value).reduce((a, b) => a + b) / segmentData.length;
+          presentationValues.add(average);
+          
+          print('🔢 발표 구간${i + 1}: ${segmentData.length}개 포인트, 평균: ${average.toStringAsFixed(1)}%');
+        } else {
+          // 데이터가 없는 구간은 이전 값으로 보간
+          presentationValues.add(presentationValues.isNotEmpty ? presentationValues.last : 70.0);
+        }
+      }
+      
+      print('📊 발표 그래프 최종값: ${presentationValues.map((v) => v.toStringAsFixed(1)).join(', ')}');
+      return presentationValues;
+    }
+    
+    // 🔥 폴백: 시뮬레이션 데이터 (실제 데이터 없을 때만)
+    print('⚠️ 발표 그래프: 시뮬레이션 데이터 사용 (실제 데이터 없음)');
     final confidence = analysis.metrics.emotionMetrics.averageLikeability;
     final persuasion = analysis.metrics.emotionMetrics.averageInterest;
     final average = (confidence + persuasion) / 2;
@@ -418,6 +450,38 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   }
 
   List<double> _generateInterviewData(AnalysisResult analysis) {
+    // 🔥 실제 detailedTimeline 데이터가 있으면 사용
+    if (analysis.emotionData.isNotEmpty) {
+      print('✅ 면접 그래프: 실제 API 데이터 사용 (${analysis.emotionData.length}개 포인트)');
+      
+      // 실제 타임라인 데이터를 5개 구간으로 나누어 평균 계산
+      final dataLength = analysis.emotionData.length;
+      final segmentSize = (dataLength / 5).ceil();
+      
+      List<double> interviewValues = [];
+      
+      for (int i = 0; i < 5; i++) {
+        final startIndex = i * segmentSize;
+        final endIndex = math.min((i + 1) * segmentSize, dataLength);
+        
+        if (startIndex < dataLength) {
+          final segmentData = analysis.emotionData.sublist(startIndex, endIndex);
+          final average = segmentData.map((e) => e.value).reduce((a, b) => a + b) / segmentData.length;
+          interviewValues.add(average);
+          
+          print('🔢 면접 구간${i + 1}: ${segmentData.length}개 포인트, 평균: ${average.toStringAsFixed(1)}%');
+        } else {
+          // 데이터가 없는 구간은 이전 값으로 보간
+          interviewValues.add(interviewValues.isNotEmpty ? interviewValues.last : 65.0);
+        }
+      }
+      
+      print('📊 면접 그래프 최종값: ${interviewValues.map((v) => v.toStringAsFixed(1)).join(', ')}');
+      return interviewValues;
+    }
+    
+    // 🔥 폴백: 시뮬레이션 데이터 (실제 데이터 없을 때만)
+    print('⚠️ 면접 그래프: 시뮬레이션 데이터 사용 (실제 데이터 없음)');
     // 면접 시나리오: 안정감과 명확성 평균
     final stability = analysis.metrics.speakingMetrics.tonality;
     final clarity = analysis.metrics.speakingMetrics.clarity;
@@ -434,6 +498,38 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   }
 
   List<double> _generateEmotionData(AnalysisResult analysis) {
+    // 🔥 실제 detailedTimeline 데이터가 있으면 사용
+    if (analysis.emotionData.isNotEmpty) {
+      print('✅ 감정 그래프: 실제 API 데이터 사용 (${analysis.emotionData.length}개 포인트)');
+      
+      // 실제 타임라인 데이터를 5개 구간으로 나누어 평균 계산
+      final dataLength = analysis.emotionData.length;
+      final segmentSize = (dataLength / 5).ceil();
+      
+      List<double> emotionValues = [];
+      
+      for (int i = 0; i < 5; i++) {
+        final startIndex = i * segmentSize;
+        final endIndex = math.min((i + 1) * segmentSize, dataLength);
+        
+        if (startIndex < dataLength) {
+          final segmentData = analysis.emotionData.sublist(startIndex, endIndex);
+          final average = segmentData.map((e) => e.value).reduce((a, b) => a + b) / segmentData.length;
+          emotionValues.add(average);
+          
+          print('🔢 감정 구간${i + 1}: ${segmentData.length}개 포인트, 평균: ${average.toStringAsFixed(1)}%');
+        } else {
+          // 데이터가 없는 구간은 이전 값으로 보간
+          emotionValues.add(emotionValues.isNotEmpty ? emotionValues.last : 60.0);
+        }
+      }
+      
+      print('📊 감정 그래프 최종값: ${emotionValues.map((v) => v.toStringAsFixed(1)).join(', ')}');
+      return emotionValues;
+    }
+    
+    // 🔥 폴백: 시뮬레이션 데이터 (실제 데이터 없을 때만)
+    print('⚠️ 감정 그래프: 시뮬레이션 데이터 사용 (실제 데이터 없음)');
     // 소개팅 시나리오: 호감도 기반
     final likeability = analysis.metrics.emotionMetrics.averageLikeability;
     

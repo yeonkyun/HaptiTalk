@@ -55,18 +55,15 @@ struct SessionProgressView: View {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
             
-            // 메인 UI와 시각적 피드백을 조건부로 렌더링하여 겹침 방지
+            // 시각적 피드백 오버레이 추가
             if appState.showVisualFeedback {
-                // 시각적 피드백만 표시 (전체화면)
                 WatchVisualFeedbackView()
                     .transition(.opacity)
-                    .animation(.easeInOut(duration: 0.3), value: appState.showVisualFeedback)
-            } else {
-                // 일반 세션 UI 표시
-                mainSessionContent
-                    .transition(.opacity)
-                    .animation(.easeInOut(duration: 0.3), value: appState.showVisualFeedback)
+                    .zIndex(10) // 다른 UI 요소보다 위에 표시
             }
+            
+            // 일반 세션 UI 표시
+            mainSessionContent
         }
         .fullScreenCover(isPresented: $showSessionSummary) {
             SessionSummaryView(
@@ -92,8 +89,15 @@ struct SessionProgressView: View {
             // 시각적 피드백 상태 변화 감지 및 로깅
             if newValue {
                 print("🎨 Watch: 시각적 피드백 시작 - 패턴: \(appState.currentVisualPattern)")
-                // 🔥 중복 타이머 제거: AppState에서 패턴별 정교한 타이머를 이미 설정했으므로
-                // SessionProgressView에서는 별도 타이머 설정하지 않음
+                
+                // 시각적 피드백 자동 종료 타이머 설정 (5초)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                    if appState.showVisualFeedback {
+                        withAnimation {
+                            appState.showVisualFeedback = false
+                        }
+                    }
+                }
             } else {
                 print("🎨 Watch: 시각적 피드백 종료")
             }
@@ -153,12 +157,6 @@ struct SessionProgressView: View {
     
     private func initializeSession() {
         print("🚀 Watch: SessionProgressView 화면 진입, 세션 초기화 시작")
-        
-        // 0. 🔥 시각적 피드백 상태 명시적 초기화
-        appState.showVisualFeedback = false
-        appState.currentVisualPattern = ""
-        appState.visualAnimationIntensity = 0.0
-        print("🎨 Watch: 시각적 피드백 상태 초기화 완료")
         
         // 1. AppState에서 세션 정보 가져오기
         sessionMode = appState.sessionType
