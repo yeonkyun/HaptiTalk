@@ -527,160 +527,137 @@ class SessionDetailTabTimeline extends StatelessWidget {
       return changePoints;
     }
 
-    // 시간대별 변화 포인트 분석 (더 정교한 알고리즘)
+    // 🔧 30초 단위 세그먼트 기반 변화 포인트 분석
     final totalDuration = analysisResult.metrics.totalDuration;
-    final segmentDuration = totalDuration / emotionData.length;
+    const segmentInterval = 30; // 30초 간격
+    final totalSegments = (totalDuration / segmentInterval).ceil();
     
-    // 1. 급격한 상승/하락 구간 찾기 (연속된 3개 포인트 비교)
-    for (int i = 1; i < emotionData.length - 1; i++) {
-      final prev = emotionData[i - 1].value;
-      final current = emotionData[i].value;
-      final next = emotionData[i + 1].value;
+    // 30초마다 감정 변화 포인트 계산
+    for (int segmentIndex = 0; segmentIndex < totalSegments && segmentIndex < emotionData.length; segmentIndex++) {
+      final timeInSeconds = segmentIndex * segmentInterval;
       
-      // 급격한 상승 (15% 이상)
-      if (current - prev > 15 && next - current > 5) {
-        String time = _formatTimeFromDuration((i * segmentDuration).round());
-        changePoints.add(_buildChangePointItem(
-          time,
-          '${_getPrimaryMetricName()} 급상승',
-          _getPositiveChangeDescription(current),
-          true,
-        ));
-        changePoints.add(SizedBox(height: 15));
+      // 현재 세그먼트와 이전 세그먼트 비교 (첫 번째 제외)
+      if (segmentIndex > 0 && segmentIndex < emotionData.length) {
+        final prevValue = emotionData[segmentIndex - 1].value;
+        final currentValue = emotionData[segmentIndex].value;
+        final valueDiff = currentValue - prevValue;
+        
+        // 🔧 의미있는 변화만 표시 (±10% 이상)
+        if (valueDiff.abs() >= 10) {
+          final isPositive = valueDiff > 0;
+          final time = _formatTimeFromDuration(timeInSeconds);
+          
+          if (isPositive) {
+            changePoints.add(_buildChangePointItem(
+              time,
+              '${_getPrimaryMetricName()} 상승',
+              '${currentValue.toInt()}%로 상승했습니다. ${_getSegmentContext(segmentIndex)}',
+              true,
+            ));
+          } else {
+            changePoints.add(_buildChangePointItem(
+              time,
+              '${_getPrimaryMetricName()} 하락',
+              '${currentValue.toInt()}%로 하락했습니다. 집중도를 높여보세요.',
+              false,
+            ));
+          }
+          changePoints.add(SizedBox(height: 15));
+        }
       }
-      
-      // 급격한 하락 (10% 이상)
-      else if (prev - current > 10 && current - next > 5) {
-        String time = _formatTimeFromDuration((i * segmentDuration).round());
-        changePoints.add(_buildChangePointItem(
-          time,
-          '주의 필요 구간',
-          _getNegativeChangeDescription(current),
-          false,
-        ));
-        changePoints.add(SizedBox(height: 15));
-      }
     }
     
-    // 2. 세션 초반/중반/후반 특징 분석
-    final firstThird = emotionData.sublist(0, (emotionData.length / 3).ceil());
-    final middleThird = emotionData.sublist(
-      (emotionData.length / 3).ceil(), 
-      (emotionData.length * 2 / 3).ceil()
-    );
-    final lastThird = emotionData.sublist((emotionData.length * 2 / 3).ceil());
+    // 🔧 특정 세그먼트 구간 분석 (시작, 중간, 끝)
+    _addSegmentBasedInsights(changePoints, emotionData, totalDuration);
     
-    final firstAvg = firstThird.map((e) => e.value).reduce((a, b) => a + b) / firstThird.length;
-    final middleAvg = middleThird.map((e) => e.value).reduce((a, b) => a + b) / middleThird.length;
-    final lastAvg = lastThird.map((e) => e.value).reduce((a, b) => a + b) / lastThird.length;
-    
-    // 초반 vs 중반 비교
-    if (middleAvg - firstAvg > 10) {
-      changePoints.add(_buildChangePointItem(
-        _formatTimeFromDuration((totalDuration / 3).round()),
-        '적응 완료',
-        '세션 중반부터 ${_getPrimaryMetricName()}이 크게 향상되었습니다.',
-        true,
-      ));
-      changePoints.add(SizedBox(height: 15));
-    }
-    
-    // 중반 vs 후반 비교
-    if (lastAvg - middleAvg > 8) {
-      changePoints.add(_buildChangePointItem(
-        _formatTimeFromDuration((totalDuration * 2 / 3).round()),
-        '피니시 강화',
-        '세션 후반부에 ${_getPrimaryMetricName()}이 더욱 향상되어 강력한 마무리를 보였습니다.',
-        true,
-      ));
-      changePoints.add(SizedBox(height: 15));
-    } else if (middleAvg - lastAvg > 8) {
-      changePoints.add(_buildChangePointItem(
-        _formatTimeFromDuration((totalDuration * 2 / 3).round()),
-        '마무리 아쉬움',
-        '세션 후반부에 약간의 피로감이나 집중력 저하가 있었을 수 있습니다.',
-        false,
-      ));
-      changePoints.add(SizedBox(height: 15));
-    }
-    
-    // 3. 최고점과 최저점 (기존 로직 유지하되 더 정교하게)
-    double maxValue = emotionData.map((e) => e.value).reduce((a, b) => a > b ? a : b);
-    double minValue = emotionData.map((e) => e.value).reduce((a, b) => a < b ? a : b);
-    
-    int maxIndex = emotionData.indexWhere((e) => e.value == maxValue);
-    int minIndex = emotionData.indexWhere((e) => e.value == minValue);
-    
-    // 최고점 (75% 이상인 경우만)
-    if (maxIndex >= 0 && maxValue >= 75) {
-      String time = _formatTimeFromDuration((maxIndex * segmentDuration).round());
-      changePoints.add(_buildChangePointItem(
-        time,
-        '${_getPrimaryMetricName()} 최고점',
-        _getPositiveChangeDescription(maxValue),
-        true,
-      ));
-      changePoints.add(SizedBox(height: 15));
-    }
-    
-    // 최저점 (50% 이하이고 최고점과 다른 경우만)
-    if (minIndex >= 0 && minValue <= 50 && minIndex != maxIndex) {
-      String time = _formatTimeFromDuration((minIndex * segmentDuration).round());
-      changePoints.add(_buildChangePointItem(
-        time,
-        '개선 필요 구간',
-        _getNegativeChangeDescription(minValue),
-        false,
-      ));
-      changePoints.add(SizedBox(height: 15));
-    }
-    
-    // 4. 변화 포인트가 없으면 전체적인 패턴 설명
+    // 변화 포인트가 없으면 기본 분석 추가
     if (changePoints.isEmpty) {
-      final overallAvg = emotionData.map((e) => e.value).reduce((a, b) => a + b) / emotionData.length;
       changePoints.add(_buildChangePointItem(
-        '세션 전체',
-        '안정적인 진행',
-        '전체 세션에서 평균 ${overallAvg.toInt()}%의 ${_getPrimaryMetricName()}을 유지하며 안정적으로 진행되었습니다.',
+        '전체 진행',
+        '안정적인 ${_getPrimaryMetricName()}',
+        '30초 단위 분석 결과 일관된 수준을 유지했습니다.',
         true,
       ));
     }
     
     return changePoints;
   }
+  
+  // 🔧 세그먼트 기반 통찰 추가
+  void _addSegmentBasedInsights(List<Widget> changePoints, List<EmotionData> emotionData, double totalDuration) {
+    if (emotionData.length < 3) return;
+    
+    // 첫 번째 30초 (시작)
+    final startValue = emotionData.first.value;
+    if (startValue >= 70) {
+      changePoints.add(_buildChangePointItem(
+        '00:30',
+        '좋은 시작',
+        '초반부터 좋은 ${_getPrimaryMetricName()}을 보여주었습니다.',
+        true,
+      ));
+      changePoints.add(SizedBox(height: 15));
+    }
+    
+    // 중간 지점 분석
+    final midIndex = (emotionData.length / 2).floor();
+    if (midIndex < emotionData.length) {
+      final midValue = emotionData[midIndex].value;
+      final midTime = _formatTimeFromDuration((midIndex * 30));
+      
+      if (midValue > startValue + 15) {
+        changePoints.add(_buildChangePointItem(
+          midTime,
+          '중반 향상',
+          '시작 대비 ${(midValue - startValue).toInt()}% 향상되었습니다.',
+          true,
+        ));
+        changePoints.add(SizedBox(height: 15));
+      }
+    }
+    
+    // 마지막 30초 (마무리)
+    final endValue = emotionData.last.value;
+    final endTime = _formatTimeFromDuration(totalDuration.round());
+    
+    if (endValue >= 60) {
+      changePoints.add(_buildChangePointItem(
+        endTime,
+        '성공적 마무리',
+        '높은 ${_getPrimaryMetricName()}으로 세션을 완료했습니다.',
+        true,
+      ));
+    }
+  }
+  
+  // 🔧 세그먼트 맥락 정보 제공
+  String _getSegmentContext(int segmentIndex) {
+    final sessionType = _getSessionTypeKey();
+    final timePosition = segmentIndex <= 2 ? '초반' : 
+                        segmentIndex <= 6 ? '중반' : '후반';
+    
+    switch (sessionType) {
+      case 'presentation':
+        if (timePosition == '초반') return '발표 도입부에서의 변화입니다.';
+        if (timePosition == '중반') return '핵심 내용 전달 중 변화입니다.';
+        return '발표 마무리 단계에서의 변화입니다.';
+      case 'interview':
+        if (timePosition == '초반') return '면접 시작 단계에서의 변화입니다.';
+        if (timePosition == '중반') return '본격적인 질의응답 중 변화입니다.';
+        return '면접 마무리 단계에서의 변화입니다.';
+      case 'dating':
+        if (timePosition == '초반') return '첫 만남 단계에서의 변화입니다.';
+        if (timePosition == '중반') return '대화가 깊어지는 중 변화입니다.';
+        return '대화 마무리 단계에서의 변화입니다.';
+      default:
+        return '이 구간에서의 변화입니다.';
+    }
+  }
 
   String _formatTimeFromDuration(int seconds) {
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
-  }
-
-  String _getPositiveChangeDescription(double value) {
-    final sessionType = _getSessionTypeKey();
-    switch (sessionType) {
-      case 'presentation':
-        return '발표 자신감이 최고조에 달했습니다. 안정적인 말하기 속도와 확신 있는 톤으로 효과적인 메시지 전달이 이루어졌습니다.';
-      case 'interview':
-        return '면접관의 평가가 가장 높았던 순간입니다. 체계적인 답변과 자신감 있는 태도가 좋은 인상을 남겼습니다.';
-      case 'dating':
-        return '상대방의 호감도가 가장 높았던 순간입니다. 공통 관심사 발견이나 자연스러운 유머가 효과적이었습니다.';
-      default:
-        return '가장 좋은 성과를 보인 구간입니다.';
-    }
-  }
-
-  String _getNegativeChangeDescription(double value) {
-    final sessionType = _getSessionTypeKey();
-    switch (sessionType) {
-      case 'presentation':
-        return '발표 자신감이 다소 떨어진 구간입니다. 말하기 속도가 불안정하거나 망설임이 있었을 가능성이 있습니다.';
-      case 'interview':
-        return '답변에 확신이 부족해 보인 구간입니다. 더 구체적인 경험이나 사례를 제시하면 좋겠습니다.';
-      case 'dating':
-        return '대화 흐름이 다소 어색했던 순간입니다. 상대방의 관심사에 더 집중하거나 주제 전환이 필요했습니다.';
-      default:
-        return '개선이 필요한 구간입니다.';
-    }
   }
 
   List<Widget> _buildKeywordTags() {

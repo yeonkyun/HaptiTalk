@@ -75,19 +75,22 @@ class RealtimeService {
         _joinSession(sessionId, sessionType: sessionType, sessionTitle: sessionTitle);
       });
 
-      _socket!.on('disconnect', (reason) {
-        _logger.w('⚠️ realtime-service WebSocket 연결 해제: $reason');
-        // 🔧 수동 연결 해제가 아니면 자동 재연결 시도
-        if (!_isManualDisconnect && _reconnectAttempts < _maxReconnectAttempts) {
-          _scheduleReconnect();
+      _socket!.on('disconnect', (data) {
+        final reason = data?.toString() ?? 'unknown';
+        _logger.w('⚠️ ⚠️ realtime-service WebSocket 연결 해제: $reason');
+        
+        // 🔧 정상적인 연결 해제가 아닌 경우에만 재연결 시도
+        if (!_isManualDisconnect && 
+            reason != 'io client disconnect' && // 클라이언트에서 정상 종료
+            reason != 'client namespace disconnect') { // 클라이언트 네임스페이스 종료
+          _attemptReconnect();
         }
       });
 
-      _socket!.on('connect_error', (error) {
-        _logger.e('❌ realtime-service WebSocket 연결 오류: $error');
-        // 🔧 연결 오류 시에도 자동 재연결 시도
-        if (!_isManualDisconnect && _reconnectAttempts < _maxReconnectAttempts) {
-          _scheduleReconnect();
+      _socket!.on('connect_error', (data) {
+        _logger.e('❌ realtime-service 연결 오류: $data');
+        if (!_isManualDisconnect) {
+          _attemptReconnect();
         }
       });
 
@@ -307,25 +310,39 @@ class RealtimeService {
     _logger.i('realtime-service 연결 해제');
   }
 
-  /// 자동 재연결 스케줄링
+  /// 자동 재연결 스케줄링 (기존 함수 제거 - _attemptReconnect와 중복)
   void _scheduleReconnect() {
-    _reconnectAttempts++;
-    _logger.i('자동 재연결 시도: $_reconnectAttempts');
-    
-    if (_reconnectTimer == null) {
-      _reconnectTimer = Timer(
-        _reconnectDelay,
-        () {
-          _reconnectTimer = null;
-          connect(_currentSessionId!, _lastAccessToken!, sessionType: _lastSessionType!, sessionTitle: _lastSessionTitle);
-        },
-      );
-    }
+    _attemptReconnect(); // 통합된 함수 호출
   }
 
   /// 자동 재연결 취소
   void _cancelReconnectTimer() {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+  }
+
+  /// 재연결 시도
+  void _attemptReconnect() {
+    if (_reconnectAttempts >= _maxReconnectAttempts) {
+      _logger.w('최대 재연결 시도 횟수 초과: $_maxReconnectAttempts');
+      return;
+    }
+    
+    _reconnectAttempts++;
+    _logger.i('🔄 자동 재연결 시도: $_reconnectAttempts/$_maxReconnectAttempts');
+    
+    if (_reconnectTimer == null) {
+      _reconnectTimer = Timer(
+        _reconnectDelay,
+        () {
+          _reconnectTimer = null;
+          if (_lastAccessToken != null && _currentSessionId != null) {
+            connect(_currentSessionId!, _lastAccessToken!, 
+                   sessionType: _lastSessionType!, 
+                   sessionTitle: _lastSessionTitle);
+          }
+        },
+      );
+    }
   }
 } 

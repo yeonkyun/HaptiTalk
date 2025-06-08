@@ -371,6 +371,7 @@ class AnalysisRepository {
         category: '소개팅',
         emotionData: emotionData.cast<EmotionData>(),
         emotionChangePoints: emotionChangePoints,
+        rawApiData: {}, // 🔥 빈 맵으로 초기화 (데모 데이터용)
         metrics: SessionMetrics(
           totalDuration: 1800, // 30분
           audioRecorded: true,
