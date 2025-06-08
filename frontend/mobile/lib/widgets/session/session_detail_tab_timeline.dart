@@ -527,70 +527,132 @@ class SessionDetailTabTimeline extends StatelessWidget {
       return changePoints;
     }
 
-    // 실제 데이터에서 주요 변화점 찾기
+    // 시간대별 변화 포인트 분석 (더 정교한 알고리즘)
+    final totalDuration = analysisResult.metrics.totalDuration;
+    final segmentDuration = totalDuration / emotionData.length;
+    
+    // 1. 급격한 상승/하락 구간 찾기 (연속된 3개 포인트 비교)
+    for (int i = 1; i < emotionData.length - 1; i++) {
+      final prev = emotionData[i - 1].value;
+      final current = emotionData[i].value;
+      final next = emotionData[i + 1].value;
+      
+      // 급격한 상승 (15% 이상)
+      if (current - prev > 15 && next - current > 5) {
+        String time = _formatTimeFromDuration((i * segmentDuration).round());
+        changePoints.add(_buildChangePointItem(
+          time,
+          '${_getPrimaryMetricName()} 급상승',
+          _getPositiveChangeDescription(current),
+          true,
+        ));
+        changePoints.add(SizedBox(height: 15));
+      }
+      
+      // 급격한 하락 (10% 이상)
+      else if (prev - current > 10 && current - next > 5) {
+        String time = _formatTimeFromDuration((i * segmentDuration).round());
+        changePoints.add(_buildChangePointItem(
+          time,
+          '주의 필요 구간',
+          _getNegativeChangeDescription(current),
+          false,
+        ));
+        changePoints.add(SizedBox(height: 15));
+      }
+    }
+    
+    // 2. 세션 초반/중반/후반 특징 분석
+    final firstThird = emotionData.sublist(0, (emotionData.length / 3).ceil());
+    final middleThird = emotionData.sublist(
+      (emotionData.length / 3).ceil(), 
+      (emotionData.length * 2 / 3).ceil()
+    );
+    final lastThird = emotionData.sublist((emotionData.length * 2 / 3).ceil());
+    
+    final firstAvg = firstThird.map((e) => e.value).reduce((a, b) => a + b) / firstThird.length;
+    final middleAvg = middleThird.map((e) => e.value).reduce((a, b) => a + b) / middleThird.length;
+    final lastAvg = lastThird.map((e) => e.value).reduce((a, b) => a + b) / lastThird.length;
+    
+    // 초반 vs 중반 비교
+    if (middleAvg - firstAvg > 10) {
+      changePoints.add(_buildChangePointItem(
+        _formatTimeFromDuration((totalDuration / 3).round()),
+        '적응 완료',
+        '세션 중반부터 ${_getPrimaryMetricName()}이 크게 향상되었습니다.',
+        true,
+      ));
+      changePoints.add(SizedBox(height: 15));
+    }
+    
+    // 중반 vs 후반 비교
+    if (lastAvg - middleAvg > 8) {
+      changePoints.add(_buildChangePointItem(
+        _formatTimeFromDuration((totalDuration * 2 / 3).round()),
+        '피니시 강화',
+        '세션 후반부에 ${_getPrimaryMetricName()}이 더욱 향상되어 강력한 마무리를 보였습니다.',
+        true,
+      ));
+      changePoints.add(SizedBox(height: 15));
+    } else if (middleAvg - lastAvg > 8) {
+      changePoints.add(_buildChangePointItem(
+        _formatTimeFromDuration((totalDuration * 2 / 3).round()),
+        '마무리 아쉬움',
+        '세션 후반부에 약간의 피로감이나 집중력 저하가 있었을 수 있습니다.',
+        false,
+      ));
+      changePoints.add(SizedBox(height: 15));
+    }
+    
+    // 3. 최고점과 최저점 (기존 로직 유지하되 더 정교하게)
     double maxValue = emotionData.map((e) => e.value).reduce((a, b) => a > b ? a : b);
     double minValue = emotionData.map((e) => e.value).reduce((a, b) => a < b ? a : b);
     
     int maxIndex = emotionData.indexWhere((e) => e.value == maxValue);
     int minIndex = emotionData.indexWhere((e) => e.value == minValue);
     
-    // 최고점
-    if (maxIndex >= 0) {
-      String time = _formatTimeFromIndex(maxIndex, emotionData.length);
+    // 최고점 (75% 이상인 경우만)
+    if (maxIndex >= 0 && maxValue >= 75) {
+      String time = _formatTimeFromDuration((maxIndex * segmentDuration).round());
       changePoints.add(_buildChangePointItem(
         time,
         '${_getPrimaryMetricName()} 최고점',
         _getPositiveChangeDescription(maxValue),
         true,
       ));
-      
-      if (changePoints.length < 3) {
-        changePoints.add(SizedBox(height: 15));
-      }
+      changePoints.add(SizedBox(height: 15));
     }
     
-    // 최저점 (너무 낮지 않은 경우만)
-    if (minIndex >= 0 && minValue < 60 && minIndex != maxIndex) {
-      String time = _formatTimeFromIndex(minIndex, emotionData.length);
+    // 최저점 (50% 이하이고 최고점과 다른 경우만)
+    if (minIndex >= 0 && minValue <= 50 && minIndex != maxIndex) {
+      String time = _formatTimeFromDuration((minIndex * segmentDuration).round());
       changePoints.add(_buildChangePointItem(
         time,
-        '주의 필요 구간',
+        '개선 필요 구간',
         _getNegativeChangeDescription(minValue),
         false,
       ));
-      
-      if (changePoints.length < 5) {
-        changePoints.add(SizedBox(height: 15));
-      }
+      changePoints.add(SizedBox(height: 15));
     }
     
-    // 회복점 (최저점 이후 상승)
-    if (minIndex < emotionData.length - 1) {
-      for (int i = minIndex + 1; i < emotionData.length; i++) {
-        if (emotionData[i].value > minValue + 10) {
-          String time = _formatTimeFromIndex(i, emotionData.length);
-          changePoints.add(_buildChangePointItem(
-            time,
-            '${_getPrimaryMetricName()} 회복',
-            '적절한 조치로 상황이 개선되었습니다.',
-            true,
-          ));
-          break;
-        }
-      }
+    // 4. 변화 포인트가 없으면 전체적인 패턴 설명
+    if (changePoints.isEmpty) {
+      final overallAvg = emotionData.map((e) => e.value).reduce((a, b) => a + b) / emotionData.length;
+      changePoints.add(_buildChangePointItem(
+        '세션 전체',
+        '안정적인 진행',
+        '전체 세션에서 평균 ${overallAvg.toInt()}%의 ${_getPrimaryMetricName()}을 유지하며 안정적으로 진행되었습니다.',
+        true,
+      ));
     }
     
     return changePoints;
   }
 
-  String _formatTimeFromIndex(int index, int totalPoints) {
-    final totalSeconds = analysisResult.metrics.totalDuration;
-    final segmentSeconds = totalSeconds / totalPoints;
-    final currentSeconds = (index * segmentSeconds).round();
-    
-    final minutes = currentSeconds ~/ 60;
-    final seconds = currentSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  String _formatTimeFromDuration(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
   String _getPositiveChangeDescription(double value) {
@@ -761,8 +823,8 @@ class EmotionGraphPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(width, y), gridPaint);
     }
 
-    // 실제 감정 데이터가 있는 경우 사용, 없으면 기본 패턴
-    List<Offset> dataPoints;
+    // 실제 감정 데이터가 있는 경우만 그래프 그리기
+    List<Offset> dataPoints = [];
     
     if (emotionData.isNotEmpty) {
       // 실제 데이터 기반으로 포인트 생성
@@ -774,34 +836,29 @@ class EmotionGraphPainter extends CustomPainter {
         return Offset(x, y);
       }).toList();
     } else {
-      // 기본 패턴 (하드코딩 대신 알고리즘적 생성)
-      const pointCount = 11;
-      dataPoints = List.generate(pointCount, (i) {
-        final x = width * i / (pointCount - 1);
-        // 시작점에서 중간에 피크, 그 후 안정화되는 패턴
-        double normalizedProgress = i / (pointCount - 1);
-        double value;
-        
-        if (normalizedProgress < 0.3) {
-          // 초반 상승
-          value = 0.4 + normalizedProgress * 0.5;
-        } else if (normalizedProgress < 0.5) {
-          // 피크 도달
-          value = 0.7 + (normalizedProgress - 0.3) * 0.6;
-        } else if (normalizedProgress < 0.7) {
-          // 약간 감소
-          value = 0.9 - (normalizedProgress - 0.5) * 0.4;
-        } else {
-          // 안정화
-          value = 0.6 + (normalizedProgress - 0.7) * 0.1;
-        }
-        
-        final y = height * (1 - value);
-        return Offset(x, y);
-      });
+      // 데이터가 없으면 "데이터 없음" 텍스트 표시
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: '분석 데이터를 수집 중입니다...',
+          style: TextStyle(
+            color: Color(0xFF9E9E9E),
+            fontSize: 14,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas, 
+        Offset(
+          (width - textPainter.width) / 2,
+          (height - textPainter.height) / 2,
+        ),
+      );
+      return;
     }
 
-    // 경로 그리기
+    // 경로 그리기 (실제 데이터만)
     if (dataPoints.length > 1) {
       final path = Path();
       path.moveTo(dataPoints[0].dx, dataPoints[0].dy);
@@ -827,18 +884,16 @@ class EmotionGraphPainter extends CustomPainter {
         ..strokeWidth = 3;
 
       canvas.drawPath(path, linePaint);
-    }
 
-    // 주요 변화 포인트 강조 (실제 데이터 기반)
-    final pointPaint = Paint()
-      ..color = AppColors.primary
-      ..style = PaintingStyle.fill;
+      // 주요 변화 포인트 강조 (실제 데이터 기반)
+      final pointPaint = Paint()
+        ..color = AppColors.primary
+        ..style = PaintingStyle.fill;
 
-    final negativePaint = Paint()
-      ..color = Color(0xFFE57373)
-      ..style = PaintingStyle.fill;
+      final negativePaint = Paint()
+        ..color = Color(0xFFE57373)
+        ..style = PaintingStyle.fill;
 
-    if (dataPoints.isNotEmpty) {
       // 최고점과 최저점 찾기
       double maxValue = 0;
       double minValue = double.infinity;
@@ -866,6 +921,12 @@ class EmotionGraphPainter extends CustomPainter {
       if (minIndex < dataPoints.length && minIndex != maxIndex && minValue < height * 0.7) {
         canvas.drawCircle(dataPoints[minIndex], 5, negativePaint);
       }
+    } else if (dataPoints.length == 1) {
+      // 단일 데이터 포인트인 경우
+      final pointPaint = Paint()
+        ..color = AppColors.primary
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(dataPoints[0], 5, pointPaint);
     }
   }
 

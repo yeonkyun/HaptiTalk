@@ -366,14 +366,14 @@ struct WatchVisualFeedbackView: View {
                     animationWave = intensity
                     
                 case "F2": // 부드러운 펄스
-                    animationPulse = 1.0 + intensity * 0.1 // 강도 줄임
+                    animationPulse = 1.0 + intensity * 0.15 // 강도 줄임
                     
                 case "S2": // 변화하는 크기
                     animationScale = intensity * 0.5 // 강도 줄임
                     
                 case "R2": // 강한 경고
                     animationPulse = 0.9 + intensity * 0.1 // 강도 줄임
-                    animationScale = 1.0 + intensity * 0.2 // 강도 줄임
+                    animationScale = 1.0 + intensity * 0.25 // 강도 줄임
                     animationOpacity = intensity
                     
                 case "L3": // 물음표 형태

@@ -406,4 +406,65 @@ class AnalysisRepository {
       throw Exception('데모 분석 결과 생성에 실패했습니다: $e');
     }
   }
+
+  // 분석 결과 삭제
+  Future<void> deleteAnalysisResult(String sessionId) async {
+    try {
+      print('🗑️ 세션 분석 결과 삭제: $sessionId');
+      
+      // 1단계: 먼저 리포트 목록에서 해당 세션의 리포트 ID 찾기
+      try {
+        final reportsResponse = await _apiService.get('/reports');
+        
+        if (reportsResponse['success'] == true && reportsResponse['data'] != null) {
+          final reportsData = reportsResponse['data']['reports'] as List<dynamic>;
+          
+          // 해당 세션 ID의 리포트 찾기
+          final sessionReport = reportsData.firstWhere(
+            (report) => report['sessionId'] == sessionId,
+            orElse: () => null,
+          );
+          
+          if (sessionReport != null) {
+            final reportId = sessionReport['id'] ?? sessionReport['_id'];
+            
+            if (reportId != null && reportId.toString().isNotEmpty) {
+              // 2단계: 리포트 API로 삭제
+              await _apiService.delete('/reports/$reportId');
+              print('✅ 서버에서 리포트 삭제 성공: $reportId');
+            }
+          }
+        }
+      } catch (e) {
+        print('⚠️ 서버 삭제 실패: $e, 로컬에서만 삭제');
+      }
+      
+      // 3단계: 로컬 스토리지에서도 삭제
+      await _deleteLocalAnalysisResult(sessionId);
+      print('✅ 로컬 삭제 완료: $sessionId');
+      
+    } catch (e) {
+      print('❌ 분석 결과 삭제 실패: $e');
+      throw Exception('분석 결과 삭제 실패: $e');
+    }
+  }
+
+  // 로컬 스토리지에서 분석 결과 삭제
+  Future<void> _deleteLocalAnalysisResult(String sessionId) async {
+    try {
+      // 기존 분석 결과 목록 조회
+      List<AnalysisResult> results = await _getLocalAnalysisHistory();
+
+      // 해당 세션 제거
+      results.removeWhere((result) => result.sessionId == sessionId);
+
+      // 업데이트된 결과 목록 저장
+      await _storageService.setItem(
+        'analysis_results',
+        json.encode(results.map((r) => r.toJson()).toList()),
+      );
+    } catch (e) {
+      print('❌ 로컬 분석 결과 삭제 실패: $e');
+    }
+  }
 }
