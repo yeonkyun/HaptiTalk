@@ -664,21 +664,155 @@ const analyzeEmotions = (segments) => {
  * 타임라인 생성
  */
 const generateTimeline = (segments) => {
-    return segments.map((segment, index) => ({
-        timestamp: segment.timestamp,
-        segment: index,
-        duration: 30, // 30초 고정
-        speakingRate: {
-            user: segment.analysis?.speakingSpeed || 120
-        },
-        emotionScores: {
-            positive: (segment.analysis?.likability || 50) / 100,
-            neutral: 0.3,
-            negative: 1 - ((segment.analysis?.likability || 50) / 100) - 0.3
-        },
-        keyEvents: segment.hapticFeedbacks || [],
-        transcription: segment.transcription || ''
-    }));
+    try {
+        logger.info(`🎯 타임라인 생성 시작: ${segments.length}개 세그먼트`);
+        
+        if (!segments || segments.length === 0) {
+            logger.warn('⚠️ 빈 세그먼트로 인한 빈 타임라인 반환');
+            return [];
+        }
+
+        const timeline = segments.map((segment, index) => {
+            // 🔥 실제 타임스탬프 계산 (30초 단위)
+            const timestamp = index * 30;
+            
+            // 🔥 감정 점수 추출 - 실제 데이터 우선, 없으면 기본값
+            let emotionScores = {
+                positive: 0.5,
+                neutral: 0.3,
+                negative: 0.2
+            };
+            
+            // STT 데이터에서 감정 분석 추출
+            if (segment.sttData?.emotion_analysis?.emotions) {
+                const emotions = segment.sttData.emotion_analysis.emotions;
+                const happiness = emotions.happiness || 0;
+                const confidence = emotions.confidence || 0;
+                const calmness = emotions.calmness || 0;
+                const neutral = emotions.neutral || 0;
+                
+                // 긍정적 감정 계산 (행복 + 자신감 + 평온함)
+                const positiveScore = (happiness + confidence + calmness) / 3;
+                emotionScores = {
+                    positive: sanitizeValue(positiveScore, 0.5),
+                    neutral: sanitizeValue(neutral, 0.3),
+                    negative: sanitizeValue(Math.max(0, 1 - positiveScore - neutral), 0.2)
+                };
+            } 
+            // 분석 데이터에서 추출 (기존 방식)
+            else if (segment.analysis) {
+                const likability = segment.analysis.likability || 50;
+                const interest = segment.analysis.interest || 50;
+                const avgEmotion = (likability + interest) / 200; // 0~1 범위로 변환
+                emotionScores = {
+                    positive: sanitizeValue(avgEmotion, 0.5),
+                    neutral: sanitizeValue(0.3, 0.3),
+                    negative: sanitizeValue(Math.max(0, 1 - avgEmotion - 0.3), 0.2)
+                };
+            }
+
+            // 🔥 신뢰도 점수 추출 - STT 데이터 우선
+            let confidenceScore = 0.7; // 기본값
+            if (segment.analysis?.confidence !== undefined) {
+                confidenceScore = segment.analysis.confidence / 100; // 0~1 범위로 변환
+            } else if (segment.sttData?.speech_metrics?.evaluation_wpm) {
+                // 말하기 속도 기반 신뢰도 계산
+                const wpm = segment.sttData.speech_metrics.evaluation_wpm;
+                confidenceScore = sanitizeValue(Math.min(1.0, Math.max(0.3, (wpm - 60) / 120)), 0.7);
+            }
+
+            // 🔥 말하기 속도 추출
+            let speakingRate = 120; // 기본값
+            if (segment.sttData?.speech_metrics?.evaluation_wpm) {
+                speakingRate = segment.sttData.speech_metrics.evaluation_wpm;
+            } else if (segment.analysis?.speakingSpeed) {
+                speakingRate = segment.analysis.speakingSpeed;
+            }
+
+            // 🔥 음성 품질 지표 추출
+            let volumeLevel = 0.5;
+            let pitchLevel = 150;
+            if (segment.analysis?.volume !== undefined) {
+                volumeLevel = segment.analysis.volume;
+            }
+            if (segment.analysis?.pitch !== undefined) {
+                pitchLevel = segment.analysis.pitch;
+            }
+
+            // 🔥 키 이벤트 추출 (햅틱 피드백)
+            const keyEvents = [];
+            if (segment.hapticFeedbacks && Array.isArray(segment.hapticFeedbacks)) {
+                segment.hapticFeedbacks.forEach(feedback => {
+                    keyEvents.push({
+                        type: 'haptic_feedback',
+                        category: feedback.category || 'unknown',
+                        message: feedback.message || '',
+                        pattern: feedback.pattern || 'default',
+                        timestamp: feedback.timestamp || new Date().toISOString()
+                    });
+                });
+            }
+
+            // 🔥 텍스트 품질 분석
+            const transcription = segment.transcription || '';
+            const textQuality = {
+                length: transcription.length,
+                wordCount: transcription.split(' ').filter(word => word.length > 0).length,
+                hasQuestions: transcription.includes('?') || 
+                            /뭐|어떻게|왜|언제|어디|어떤|무엇/.test(transcription),
+                sentiment: transcription.length > 10 ? 'meaningful' : 'minimal'
+            };
+
+            const timelinePoint = {
+                timestamp: timestamp,
+                segment: index,
+                duration: 30,
+                // 🔥 실제 STT 기반 데이터
+                speakingRate: {
+                    user: sanitizeValue(speakingRate, 120)
+                },
+                emotionScores: emotionScores,
+                confidence: sanitizeValue(confidenceScore, 0.7),
+                // 🔥 추가 음성 지표
+                audioMetrics: {
+                    volume: sanitizeValue(volumeLevel, 0.5),
+                    pitch: sanitizeValue(pitchLevel, 150),
+                    quality: segment.sttData?.speech_metrics ? 'high' : 'medium'
+                },
+                // 🔥 텍스트 분석
+                textAnalysis: textQuality,
+                // 🔥 이벤트 및 피드백
+                keyEvents: keyEvents,
+                transcription: transcription,
+                // 🔥 디버깅 정보
+                dataSource: {
+                    hasSttData: !!segment.sttData,
+                    hasAnalysis: !!segment.analysis,
+                    hasTranscription: !!transcription,
+                    hasHapticFeedbacks: keyEvents.length > 0
+                }
+            };
+
+            return timelinePoint;
+        });
+
+        logger.info(`✅ 타임라인 생성 완료: ${timeline.length}개 포인트`);
+        
+        // 🔥 타임라인 품질 검증
+        const validPoints = timeline.filter(point => 
+            point.transcription.length > 0 || 
+            point.keyEvents.length > 0 ||
+            point.dataSource.hasSttData
+        );
+        
+        logger.info(`📊 타임라인 품질: 전체 ${timeline.length}개 중 유효한 포인트 ${validPoints.length}개`);
+        
+        return timeline;
+
+    } catch (error) {
+        logger.error(`❌ 타임라인 생성 실패: ${error.message}`, { error: error.stack });
+        return []; // 에러 시 빈 배열 반환
+    }
 };
 
 /**
@@ -906,6 +1040,228 @@ const generateSuggestions = (segments, sessionType, stats) => {
     }
 };
 
+/**
+ * 🔥 세션 타입별 대화 주제 분석 및 비중 계산
+ */
+const analyzeConversationTopics = (segments, sessionType) => {
+    try {
+        logger.info(`🎯 주제 분석 시작: ${segments.length}개 세그먼트, 세션타입: ${sessionType}`);
+        
+        if (!segments || segments.length === 0) {
+            logger.warn('⚠️ 빈 세그먼트로 인한 기본 주제 반환');
+            return generateDefaultTopics(sessionType);
+        }
+        
+        // 전체 텍스트 결합
+        const fullText = segments.map(s => s.transcription).join(' ').toLowerCase();
+        const totalLength = fullText.length;
+        
+        if (totalLength === 0) {
+            logger.warn('⚠️ 빈 텍스트로 인한 기본 주제 반환');
+            return generateDefaultTopics(sessionType);
+        }
+        
+        // 세션 타입별 주제 키워드 정의
+        const topicKeywords = getTopicKeywordsBySessionType(sessionType);
+        
+        // 주제별 언급 횟수 및 비중 계산
+        const topicScores = {};
+        let totalScore = 0;
+        
+        Object.entries(topicKeywords).forEach(([topicName, keywords]) => {
+            let score = 0;
+            let matchCount = 0;
+            
+            keywords.forEach(keyword => {
+                const regex = new RegExp(keyword, 'gi');
+                const matches = fullText.match(regex);
+                if (matches) {
+                    matchCount += matches.length;
+                    score += matches.length * keyword.length; // 키워드 길이에 따른 가중치
+                }
+            });
+            
+            // 가중치 적용: 매치 수 × 키워드 중요도
+            const weightedScore = score + (matchCount * 10);
+            topicScores[topicName] = weightedScore;
+            totalScore += weightedScore;
+        });
+        
+        // 비중 계산 및 정렬
+        const topics = Object.entries(topicScores)
+            .map(([name, score]) => ({
+                name: name,
+                percentage: totalScore > 0 ? Math.round((score / totalScore) * 100) : 0,
+                mentions: Math.floor(score / 10),
+                importance: score > 20 ? 'high' : score > 10 ? 'medium' : 'low'
+            }))
+            .filter(topic => topic.percentage > 0) // 0% 주제 제외
+            .sort((a, b) => b.percentage - a.percentage); // 내림차순 정렬
+        
+        // 최소 주제 수 보장 (3-6개)
+        if (topics.length < 3) {
+            logger.info('🔧 감지된 주제가 부족하여 기본 주제 보완');
+            const defaultTopics = generateDefaultTopics(sessionType);
+            return defaultTopics;
+        }
+        
+        // 최대 6개 주제로 제한
+        const finalTopics = topics.slice(0, 6);
+        
+        // 비중 정규화 (합계 100%가 되도록)
+        const totalPercentage = finalTopics.reduce((sum, topic) => sum + topic.percentage, 0);
+        if (totalPercentage > 0) {
+            finalTopics.forEach(topic => {
+                topic.percentage = Math.round((topic.percentage / totalPercentage) * 100);
+            });
+        }
+        
+        // 결과 구조 생성
+        const result = {
+            topics: finalTopics,
+            totalTopics: finalTopics.length,
+            diversity: calculateTopicDiversity(finalTopics),
+            dominantTopic: finalTopics[0]?.name || '기타',
+            analysis: {
+                textLength: totalLength,
+                segmentsAnalyzed: segments.length,
+                keywordMatches: Object.values(topicScores).reduce((sum, score) => sum + Math.floor(score / 10), 0)
+            }
+        };
+        
+        logger.info(`✅ 주제 분석 완료: ${finalTopics.length}개 주제, 주요 주제: ${result.dominantTopic}`);
+        
+        return result;
+        
+    } catch (error) {
+        logger.error(`❌ 주제 분석 실패: ${error.message}`, { error: error.stack });
+        return generateDefaultTopics(sessionType);
+    }
+};
+
+/**
+ * 🔥 세션 타입별 주제 키워드 반환
+ */
+const getTopicKeywordsBySessionType = (sessionType) => {
+    switch (sessionType) {
+        case 'dating':
+            return {
+                '자기소개': ['이름', '나이', '직업', '사는곳', '고향', '학교', '전공', '회사'],
+                '취미활동': ['취미', '좋아하', '즐기', '관심', '운동', '독서', '영화', '음악', '게임'],
+                '여행경험': ['여행', '가본', '다녀온', '놀러', '휴가', '바다', '산', '해외', '국내'],
+                '음식취향': ['맛있', '음식', '먹', '요리', '레스토랑', '카페', '커피', '술', '맥주'],
+                '미래계획': ['꿈', '목표', '계획', '하고싶', '되고싶', '미래', '장래', '결혼', '가정'],
+                '일상이야기': ['일상', '평소', '주말', '하루', '시간', '바쁘', '여유', '스트레스']
+            };
+            
+        case 'interview':
+            return {
+                '자기소개': ['소개', '이름', '경력', '경험', '전공', '학교', '대학', '졸업'],
+                '기술경험': ['프로젝트', '개발', '시스템', '기술', '언어', '프로그래밍', '데이터베이스', 'API'],
+                '성장경험': ['배운', '성장', '발전', '향상', '개선', '극복', '도전', '노력'],
+                '팀워크': ['팀', '협업', '소통', '리더십', '역할', '책임', '동료', '함께'],
+                '문제해결': ['문제', '해결', '분석', '원인', '방법', '접근', '결과', '성과'],
+                '미래비전': ['목표', '계획', '비전', '성장', '발전', '기여', '역할', '포부']
+            };
+            
+        case 'presentation':
+            return {
+                '핵심내용': ['중요', '핵심', '주요', '포인트', '요점', '기본', '원칙'],
+                '데이터분석': ['데이터', '분석', '결과', '통계', '수치', '비율', '증가', '감소'],
+                '문제정의': ['문제', '이슈', '과제', '도전', '어려움', '한계', '현황'],
+                '해결방안': ['해결', '방안', '전략', '계획', '방법', '접근', '개선', '혁신'],
+                '기대효과': ['효과', '결과', '성과', '이익', '장점', '가치', '기여', '변화'],
+                '실행계획': ['실행', '진행', '추진', '단계', '일정', '스케줄', '과정', '절차']
+            };
+            
+        case 'coaching':
+            return {
+                '목표설정': ['목표', '계획', '바라', '원하', '되고싶', '이루고싶', '성취'],
+                '현재상황': ['현재', '지금', '상황', '상태', '문제', '어려움', '고민'],
+                '감정표현': ['느낌', '마음', '기분', '감정', '힘들', '기쁘', '슬프', '화나'],
+                '관계문제': ['관계', '사람', '친구', '가족', '동료', '상사', '소통', '갈등'],
+                '성장욕구': ['성장', '발전', '배우', '향상', '개선', '변화', '도전', '노력'],
+                '행동계획': ['해보', '시도', '실천', '행동', '바꾸', '노력', '시작', '진행']
+            };
+            
+        default:
+            return {
+                '일상대화': ['안녕', '오늘', '어제', '내일', '시간', '일상', '생활'],
+                '감정표현': ['좋아', '싫어', '기뻐', '슬퍼', '화나', '놀라', '감정'],
+                '의견교환': ['생각', '의견', '어떻게', '왜', '그래서', '그런데', '하지만'],
+                '정보공유': ['알아', '모르', '들었', '봤어', '알려줘', '설명', '이야기'],
+                '미래계획': ['계획', '예정', '하려고', '할까', '어떨까', '미래', '나중'],
+                '기타': ['그냥', '음', '어', '네', '아니', '맞아', '좋아', '괜찮']
+            };
+    }
+};
+
+/**
+ * 🔥 주제 다양성 계산
+ */
+const calculateTopicDiversity = (topics) => {
+    if (topics.length <= 1) return 'low';
+    if (topics.length <= 3) return 'medium';
+    
+    // 상위 주제가 전체의 50% 이상을 차지하면 다양성이 낮음
+    const topTopicPercentage = topics[0]?.percentage || 0;
+    if (topTopicPercentage > 50) return 'medium';
+    
+    return 'high';
+};
+
+/**
+ * 🔥 기본 주제 생성 (실제 분석이 불가능한 경우)
+ */
+const generateDefaultTopics = (sessionType) => {
+    const defaultTopicsByType = {
+        dating: [
+            { name: '자기소개', percentage: 25, mentions: 3, importance: 'high' },
+            { name: '관심사 공유', percentage: 20, mentions: 2, importance: 'medium' },
+            { name: '경험 이야기', percentage: 18, mentions: 2, importance: 'medium' },
+            { name: '일상 대화', percentage: 15, mentions: 1, importance: 'low' },
+            { name: '미래 계획', percentage: 12, mentions: 1, importance: 'low' },
+            { name: '기타', percentage: 10, mentions: 1, importance: 'low' }
+        ],
+        interview: [
+            { name: '자기소개', percentage: 30, mentions: 4, importance: 'high' },
+            { name: '경력 소개', percentage: 25, mentions: 3, importance: 'high' },
+            { name: '기술 경험', percentage: 20, mentions: 2, importance: 'medium' },
+            { name: '성장 과정', percentage: 15, mentions: 2, importance: 'medium' },
+            { name: '미래 계획', percentage: 10, mentions: 1, importance: 'low' }
+        ],
+        presentation: [
+            { name: '핵심 내용', percentage: 35, mentions: 5, importance: 'high' },
+            { name: '데이터 분석', percentage: 25, mentions: 3, importance: 'high' },
+            { name: '해결 방안', percentage: 20, mentions: 2, importance: 'medium' },
+            { name: '기대 효과', percentage: 12, mentions: 1, importance: 'medium' },
+            { name: '실행 계획', percentage: 8, mentions: 1, importance: 'low' }
+        ],
+        coaching: [
+            { name: '현재 상황', percentage: 28, mentions: 4, importance: 'high' },
+            { name: '목표 설정', percentage: 22, mentions: 3, importance: 'high' },
+            { name: '감정 표현', percentage: 20, mentions: 2, importance: 'medium' },
+            { name: '행동 계획', percentage: 18, mentions: 2, importance: 'medium' },
+            { name: '관계 문제', percentage: 12, mentions: 1, importance: 'low' }
+        ]
+    };
+
+    const defaultTopics = defaultTopicsByType[sessionType] || defaultTopicsByType.dating;
+    
+    return {
+        topics: defaultTopics,
+        totalTopics: defaultTopics.length,
+        diversity: 'medium',
+        dominantTopic: defaultTopics[0].name,
+        analysis: {
+            textLength: 0,
+            segmentsAnalyzed: 0,
+            keywordMatches: 0,
+            usingDefaults: true
+        }
+    };
+};
+
 const generateSpecializedAnalysis = (segments, sessionType) => {
     try {
         // 📊 안전성 검사
@@ -916,12 +1272,15 @@ const generateSpecializedAnalysis = (segments, sessionType) => {
         
         const validSegments = segments.filter(s => s && s.transcription && s.transcription.trim().length > 0);
         
+        // 🔥 모든 세션 타입에 대해 주제 분석 수행
+        const topicAnalysis = analyzeConversationTopics(validSegments, sessionType);
+        
         switch (sessionType) {
             case 'dating':
                 return {
                     type: '소개팅 분석',
                     rapport_building: analyzeDatingRapport(validSegments),
-                    conversation_topics: analyzeDatingTopics(validSegments),
+                    conversation_topics: topicAnalysis, // 🔥 주제 분석 추가
                     emotional_connection: analyzeDatingEmotion(validSegments)
                 };
                 
@@ -930,7 +1289,8 @@ const generateSpecializedAnalysis = (segments, sessionType) => {
                     type: '면접 분석',
                     answer_structure: analyzeInterviewStructure(validSegments),
                     confidence_level: analyzeInterviewConfidence(validSegments),
-                    technical_communication: analyzeInterviewTechnical(validSegments)
+                    technical_communication: analyzeInterviewTechnical(validSegments),
+                    conversation_topics: topicAnalysis // 🔥 주제 분석 추가
                 };
                 
             case 'presentation':
@@ -938,7 +1298,8 @@ const generateSpecializedAnalysis = (segments, sessionType) => {
                     type: '발표 분석',
                     presentation_clarity: analyzePresentationClarity(validSegments),
                     persuasion_techniques: analyzePresentationPersuasion(validSegments),
-                    audience_engagement: analyzePresentationEngagement(validSegments)
+                    audience_engagement: analyzePresentationEngagement(validSegments),
+                    conversation_topics: topicAnalysis // 🔥 주제 분석 추가
                 };
                 
             case 'coaching':
@@ -946,7 +1307,8 @@ const generateSpecializedAnalysis = (segments, sessionType) => {
                     type: '코칭 분석',
                     listening_skills: analyzeCoachingListening(validSegments),
                     questioning_techniques: analyzeCoachingQuestions(validSegments),
-                    empathy_building: analyzeCoachingEmpathy(validSegments)
+                    empathy_building: analyzeCoachingEmpathy(validSegments),
+                    conversation_topics: topicAnalysis // 🔥 주제 분석 추가
                 };
                 
             default:
@@ -954,7 +1316,8 @@ const generateSpecializedAnalysis = (segments, sessionType) => {
                     type: '일반 대화 분석',
                     communication_effectiveness: '보통',
                     key_strengths: ['적극적 참여'],
-                    improvement_areas: ['다양한 표현 사용']
+                    improvement_areas: ['다양한 표현 사용'],
+                    conversation_topics: topicAnalysis // 🔥 주제 분석 추가
                 };
         }
         
@@ -964,7 +1327,8 @@ const generateSpecializedAnalysis = (segments, sessionType) => {
             type: '기본 분석',
             communication_effectiveness: '데이터 부족',
             key_strengths: [],
-            improvement_areas: ['더 긴 세션 진행']
+            improvement_areas: ['더 긴 세션 진행'],
+            conversation_topics: { topics: [] } // 🔥 에러 시에도 빈 주제 구조 포함
         };
     }
 };

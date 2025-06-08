@@ -57,7 +57,7 @@ const reportService = {
                 communicationPatterns: this._generateCommunicationPatterns(sessionAnalytics),
                 feedbackSummary: this._generateFeedbackSummary(feedbackHistory),
                 improvementAreas: this._generateImprovementAreas(sessionAnalytics),
-                detailedTimeline: options.detailLevel === 'comprehensive' ? sessionAnalytics.timeline : null,
+                detailedTimeline: sessionAnalytics.timeline || [],
                 specializationInsights: this._generateSpecializationInsights(sessionAnalytics)
             };
 
@@ -81,7 +81,8 @@ const reportService = {
 
             // 필요 없는 필드 제거 (디테일 레벨에 따라)
             if (options.detailLevel === 'basic') {
-                delete reportData.detailedTimeline;
+                // 🔥 detailedTimeline은 기본적으로 포함하도록 변경
+                // delete reportData.detailedTimeline;
                 reportData.communicationPatterns = reportData.communicationPatterns.slice(0, 3);
                 reportData.improvementAreas = reportData.improvementAreas.slice(0, 3);
             }
