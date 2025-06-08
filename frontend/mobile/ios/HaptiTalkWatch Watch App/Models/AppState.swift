@@ -442,7 +442,7 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
         triggerHapticFeedback(for: message)
         
         // 5초 후 자동으로 알림 닫기 (필요시)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
             self.showHapticFeedback = false
         }
     }
@@ -537,9 +537,9 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
         // 🎨 시각적 피드백 트리거
         triggerVisualFeedback(patternId: patternId, category: category)
         
-        // 🔥 3초 후 자동으로 알림 닫기 (더 짧게 변경)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            print("🔥 Watch: 3초 후 시각적 피드백 자동 숨김")
+        // 🔥 3초 후 자동으로 알림 닫기 (더 빠르게 변경)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            print("🔥 Watch: 2초 후 시각적 피드백 자동 숨김")
             self.showHapticFeedback = false
             self.showVisualFeedback = false
             self.currentVisualPattern = ""
@@ -547,9 +547,9 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
         }
         
         // 🔥 추가 안전장치: 5초 후 강제 초기화
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
             if self.showVisualFeedback {
-                print("🚨 Watch: 5초 후 강제 시각적 피드백 초기화")
+                print("🚨 Watch: 3초 후 강제 시각적 피드백 초기화")
                 self.showHapticFeedback = false
                 self.showVisualFeedback = false
                 self.currentVisualPattern = ""
