@@ -611,27 +611,30 @@ const reportService = {
         // 말하기 속도 패턴 분석 및 추가
         const speakingRates = sessionAnalytics.timeline?.map(t => t.speakingRate?.user).filter(Boolean) || [];
         
-        logger.info(`🔍 말하기 속도 데이터: ${speakingRates.length}개 포인트`);
+        // 🔥 keyMetrics.speaking.speed와 동일한 값 사용
+        const keyMetricsSpeed = sessionAnalytics.statistics?.averageSpeakingSpeed || 120;
+        
+        logger.info(`🔍 말하기 속도 데이터: ${speakingRates.length}개 포인트, keyMetrics 속도: ${keyMetricsSpeed}WPM`);
         
         if (speakingRates.length > 0) {
             const avgRate = speakingRates.reduce((a, b) => a + b, 0) / speakingRates.length;
             const variability = Math.sqrt(speakingRates.map(r => Math.pow(r - avgRate, 2)).reduce((a, b) => a + b, 0) / speakingRates.length);
 
-            logger.info(`📊 말하기 속도 분석: 평균=${avgRate.toFixed(1)}, 변동성=${variability.toFixed(1)}`);
+            logger.info(`📊 타임라인 기반 말하기 속도: 평균=${avgRate.toFixed(1)}, 변동성=${variability.toFixed(1)}`);
 
             patterns.push({
                 type: 'speaking_rate',
-                average: avgRate,
+                average: keyMetricsSpeed, // 🔥 keyMetrics와 동일한 값 사용
                 variability: variability,
                 assessment: variability > 20 ? '말하기 속도 변화가 큽니다' : '말하기 속도가 일정합니다'
             });
         } else {
-            logger.warn('⚠️ 말하기 속도 데이터 없음 - 기본 패턴 추가');
+            logger.warn('⚠️ 말하기 속도 데이터 없음 - keyMetrics 기본값 사용');
             
-            // 기본 말하기 속도 패턴 추가
+            // 🔥 keyMetrics와 동일한 값 사용
             patterns.push({
                 type: 'speaking_rate',
-                average: 120,
+                average: keyMetricsSpeed, // 🔥 keyMetrics와 동일한 값 사용
                 variability: 5,
                 assessment: '말하기 속도가 일정합니다'
             });
