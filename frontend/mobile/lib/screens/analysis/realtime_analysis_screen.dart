@@ -446,6 +446,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
           pattern: mappedPattern['pattern']!,
           category: mappedPattern['category']!,
           patternId: mappedPattern['patternId']!,
+          sessionType: widget.sessionType, // 🔥 세션 타입 전달
         );
         print('📱 Apple Watch MVP 패턴 햅틱 전송: ${mappedPattern['patternId']} - $message');
       } else {
@@ -470,12 +471,12 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     const patternMapping = {
       // 자신감 관련 (발표/면접) - 개선 메시지들
       'confidence_low': {
-        'patternId': 'F1', // 주제 전환 패턴 (관심도 하락 패턴 활용)
-        'pattern': 'topic_change',
-        'category': 'flow',
+        'patternId': 'R2', // 강한 경고 패턴 (자신감 하락 → 강한 피드백 필요)
+        'pattern': 'interest_down',
+        'category': 'reaction',
       },
       'confidence_down': {
-        'patternId': 'R2', // 관심도 하락 패턴 (강한 경고)
+        'patternId': 'R2', // 강한 경고 패턴 (자신감 급하락 → 강한 경고)
         'pattern': 'interest_down',
         'category': 'reaction',
       },
@@ -517,7 +518,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       
       // 호감도 관련 (소개팅) - 개선 메시지
       'likeability_low': {
-        'patternId': 'F1', // 주제 전환 패턴 (관심도 하락 패턴 활용)
+        'patternId': 'F1', // 주제 전환 패턴 (호감도 낮을 때 주제 전환 제안)
         'pattern': 'topic_change',
         'category': 'flow',
       },
@@ -531,12 +532,12 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       
       // 관심도 관련 (소개팅) - 개선 메시지들
       'interest_down': {
-        'patternId': 'F1', // 주제 전환 패턴
+        'patternId': 'F1', // 주제 전환 패턴 (관심도 하락 → 주제 전환 제안)
         'pattern': 'topic_change',
         'category': 'flow',
       },
       'interest_low': {
-        'patternId': 'F1', // 주제 전환 패턴 (관심도 하락 패턴 활용)
+        'patternId': 'F1', // 주제 전환 패턴 (관심도 낮을 때 주제 전환 제안)
         'pattern': 'topic_change',
         'category': 'flow',
       },
@@ -1006,7 +1007,8 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
         message: message,
         pattern: pattern,
         category: category,
-        patternId: patternId
+        patternId: patternId,
+        sessionType: widget.sessionType, // 🔥 세션 타입 전달
       );
     } catch (e) {
       print('❌ 패턴 햅틱 전송 실패: $e');

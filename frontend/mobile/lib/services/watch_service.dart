@@ -207,7 +207,8 @@ class WatchService {
     required String message,
     required String pattern,
     required String category,
-    required String patternId
+    required String patternId,
+    String? sessionType,
   }) async {
     try {
       await _checkConnectionStatus();
@@ -218,9 +219,10 @@ class WatchService {
         'pattern': pattern,
         'category': category,
         'patternId': patternId,
+        'sessionType': sessionType,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       });
-      print('🎯 Watch 패턴 햅틱 전송 [$patternId/$category]: $message - 결과: $result');
+      print('🎯 Watch 패턴 햅틱 전송 [$patternId/$category${sessionType != null ? "/$sessionType" : ""}]: $message - 결과: $result');
     } catch (e) {
       print('❌ Watch 패턴 햅틱 실패: $e, 기본 햅틱으로 폴백');
       // 패턴 전송 실패 시 기본 햅틱으로 폴백
