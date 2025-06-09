@@ -840,16 +840,19 @@ const reportService = {
         for (let i = 1; i <= segmentCount; i++) {
             const progress = (i - 1) / Math.max(1, segmentCount - 1); // 0 ~ 1
             
-            // 🔥 말하기 자신감 기반의 자연스러운 변동 추가
-            const emotionVariation = (Math.random() - 0.5) * 0.1; // ±5% 변동
-            const rateVariation = (Math.random() - 0.5) * 15; // ±7.5 WPM 변동
-            const confidenceVariation = (Math.random() - 0.5) * 0.1; // ±5% 변동
+            // 🔥 말하기 자신감 기반의 자연스러운 변동 추가 (변동폭 증가)
+            const emotionVariation = (Math.random() - 0.5) * 0.2; // ±10% 변동 (기존 ±5%)
+            const rateVariation = (Math.random() - 0.5) * 30; // ±15 WPM 변동 (기존 ±7.5)
+            const confidenceVariation = (Math.random() - 0.5) * 0.2; // ±10% 변동 (기존 ±5%)
+            
+            // 🔥 시간이 지나면서 약간씩 변화하는 경향 추가
+            const timeBasedChange = Math.sin(progress * Math.PI) * 0.1; // 중간에 피크
 
             detailedTimeline.push({
                 timestamp: i * 30, // 30초 단위
-                emotion_score: Math.max(0, Math.min(1, baseEmotionScore + emotionVariation)), // 말하기 자신감 기반
+                emotion_score: Math.max(0, Math.min(1, baseEmotionScore + emotionVariation + timeBasedChange)), // 말하기 자신감 기반
                 speaking_rate: Math.max(80, Math.min(160, baseSpeakingRate + rateVariation)),
-                confidence: Math.max(0, Math.min(1, baseConfidence + confidenceVariation)), // 동일한 말하기 자신감
+                confidence: Math.max(0, Math.min(1, baseConfidence + confidenceVariation + timeBasedChange)), // 동일한 말하기 자신감
                 segment_duration: 30
             });
         }
