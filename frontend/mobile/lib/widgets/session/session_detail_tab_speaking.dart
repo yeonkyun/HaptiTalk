@@ -29,8 +29,6 @@ class SessionDetailTabSpeaking extends StatelessWidget {
                       title: '말하기 속도',
                       value: '${analysisResult.metrics.speakingMetrics.speechRate.toStringAsFixed(0)}WPM',
                       subtitle: '적절한 속도 (80-120WPM)',
-                      backgroundColor: Color(0xFFE8F5E8),
-                      progressColor: Color(0xFF4CAF50),
                       progress: (analysisResult.metrics.speakingMetrics.speechRate / 150).clamp(0.0, 1.0),
                     ),
                   ),
@@ -41,8 +39,6 @@ class SessionDetailTabSpeaking extends StatelessWidget {
                       title: '설득력',
                       value: '${_getPersuasionLevel()}%',
                       subtitle: '청중 설득 효과성',
-                      backgroundColor: Color(0xFFFFEBEE),
-                      progressColor: Color(0xFFE57373),
                       progress: _getPersuasionLevel() / 100,
                     ),
                   ),
@@ -57,8 +53,6 @@ class SessionDetailTabSpeaking extends StatelessWidget {
                       title: '명확성',
                       value: '${_getClarityLevel()}%',
                       subtitle: '메시지 전달 명확성',
-                      backgroundColor: Color(0xFFE8F5E8),
-                      progressColor: Color(0xFF4CAF50),
                       progress: _getClarityLevel() / 100,
                     ),
                   ),
@@ -69,8 +63,6 @@ class SessionDetailTabSpeaking extends StatelessWidget {
                       title: '발표 주도도',
                       value: '${_getEngagementLevel()}%',
                       subtitle: '더 주도적인 발표 필요',
-                      backgroundColor: Color(0xFFE3F2FD),
-                      progressColor: Color(0xFF2196F3),
                       progress: _getEngagementLevel() / 100,
                     ),
                   ),
@@ -181,20 +173,18 @@ class SessionDetailTabSpeaking extends StatelessWidget {
     );
   }
 
-  // 🔥 지표 카드 위젯
+  // 🔥 지표 카드 위젯 (요청하신 디자인으로 변경)
   Widget _buildMetricCard({
     required String title,
     required String value,
     required String subtitle,
-    required Color backgroundColor,
-    required Color progressColor,
     required double progress,
   }) {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(16),
+        color: Color(0xFFF5F5F5), // 회색 배경
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,8 +193,8 @@ class SessionDetailTabSpeaking extends StatelessWidget {
             title,
             style: TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w500,
               color: Color(0xFF666666),
+              fontWeight: FontWeight.w500,
             ),
           ),
           SizedBox(height: 8),
@@ -212,35 +202,35 @@ class SessionDetailTabSpeaking extends StatelessWidget {
             value,
             style: TextStyle(
               fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: progressColor,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF212121),
             ),
           ),
-          SizedBox(height: 8),
-          // 진행률 바
+          SizedBox(height: 12),
+          // 파란색 진행률 바
           Container(
-            height: 6,
+            height: 4,
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(3),
+              color: Color(0xFFE0E0E0),
+              borderRadius: BorderRadius.circular(2),
             ),
             child: FractionallySizedBox(
+              widthFactor: progress.clamp(0.0, 1.0),
               alignment: Alignment.centerLeft,
-              widthFactor: progress,
               child: Container(
                 decoration: BoxDecoration(
-                  color: progressColor,
-                  borderRadius: BorderRadius.circular(3),
+                  color: Color(0xFF2196F3), // 파란색
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
           ),
-          SizedBox(height: 6),
+          SizedBox(height: 8),
           Text(
             subtitle,
             style: TextStyle(
-              fontSize: 11,
-              color: Color(0xFF666666),
+              fontSize: 12,
+              color: Color(0xFF888888),
             ),
           ),
         ],
@@ -382,17 +372,22 @@ class SessionDetailTabSpeaking extends StatelessWidget {
 
   // 🔥 실제 API 데이터 기반 분석 메서드들
   int _getPersuasionLevel() {
+    // 🔥 분석결과 탭과 동일한 데이터 소스 사용
+    final persuasionFromMetrics = analysisResult.metrics.emotionMetrics.averageInterest.toInt();
+    
+    // 실제 API 데이터가 있으면 우선 사용, 아니면 metrics 데이터 사용
     final specializationInsights = analysisResult.rawApiData['specializationInsights'] as Map<String, dynamic>? ?? {};
     final persuasionTechniques = specializationInsights['persuasion_techniques'] as Map<String, dynamic>? ?? {};
-    final persuasionLevel = (persuasionTechniques['persuasion_level'] ?? 60).toInt();
+    final apiPersuasionLevel = (persuasionTechniques['persuasion_level'] ?? 0).toInt();
     
-    if (persuasionTechniques.isNotEmpty && persuasionTechniques['persuasion_level'] != null) {
-      print('📊 설득력: 실제 API 데이터 사용 ($persuasionLevel%)');
+    // 🔥 API 값이 0이거나 없으면 metrics 데이터 사용
+    if (persuasionTechniques.isNotEmpty && apiPersuasionLevel > 0) {
+      print('📊 설득력: 실제 API 데이터 사용 ($apiPersuasionLevel%)');
+      return apiPersuasionLevel;
     } else {
-      print('📊 설득력: 기본값 사용 ($persuasionLevel%)');
+      print('📊 설득력: metrics 데이터 사용 ($persuasionFromMetrics%) - API값이 0이거나 없음');
+      return persuasionFromMetrics;
     }
-    
-    return persuasionLevel;
   }
 
   int _getClarityLevel() {
@@ -400,9 +395,9 @@ class SessionDetailTabSpeaking extends StatelessWidget {
     final presentationClarity = specializationInsights['presentation_clarity'] as Map<String, dynamic>? ?? {};
     final clarityScore = (presentationClarity['clarity_score'] ?? 0).toDouble();
     
-    // clarity_score가 0이면 기본값 80% 사용
+    // 🔥 clarity_score는 이미 퍼센트 값이므로 100을 곱하지 않음
     if (clarityScore > 0) {
-      final result = (clarityScore * 100).toInt();
+      final result = clarityScore.toInt();
       print('📊 명확성: 실제 API 데이터 사용 ($result%)');
       return result;
     } else {
@@ -414,15 +409,16 @@ class SessionDetailTabSpeaking extends StatelessWidget {
   int _getEngagementLevel() {
     final specializationInsights = analysisResult.rawApiData['specializationInsights'] as Map<String, dynamic>? ?? {};
     final audienceEngagement = specializationInsights['audience_engagement'] as Map<String, dynamic>? ?? {};
-    final engagementScore = (audienceEngagement['engagement_score'] ?? 30).toInt();
+    final apiEngagementScore = (audienceEngagement['engagement_score'] ?? 0).toInt();
     
-    if (audienceEngagement.isNotEmpty && audienceEngagement['engagement_score'] != null) {
-      print('📊 발표 주도도: 실제 API 데이터 사용 ($engagementScore%)');
+    // 🔥 API 값이 0이거나 없으면 기본값 30% 사용
+    if (audienceEngagement.isNotEmpty && apiEngagementScore > 0) {
+      print('📊 발표 주도도: 실제 API 데이터 사용 ($apiEngagementScore%)');
+      return apiEngagementScore;
     } else {
-      print('📊 발표 주도도: 기본값 사용 ($engagementScore%)');
+      print('📊 발표 주도도: 기본값 사용 (30%) - API값이 0이거나 없음');
+      return 30;
     }
-    
-    return engagementScore;
   }
 
   String _getHabitualPatternsAnalysis() {
@@ -473,12 +469,13 @@ class SessionDetailTabSpeaking extends StatelessWidget {
     }
   }
 
-  // 말하기 속도 차트 생성 (실제 데이터 기반)
+  // 말하기 속도 차트 생성 (요청하신 파란색 디자인으로 변경)
   Widget _buildSpeechRateChart() {
     final emotionData = analysisResult.emotionData;
+    // 🔥 분석결과 탭과 동일한 데이터 소스 사용
     final baseRate = analysisResult.metrics.speakingMetrics.speechRate;
     
-    print('📊 말하기 속도 차트 생성 시작: baseRate=$baseRate WPM');
+    print('📊 말하기 속도 차트 생성 시작: baseRate=$baseRate WPM (분석결과 탭과 동일한 소스)');
     
     List<double> speechRates;
     
@@ -503,52 +500,96 @@ class SessionDetailTabSpeaking extends StatelessWidget {
 
     print('📊 말하기 속도 차트 데이터: [${speechRates.take(3).map((r) => r.toStringAsFixed(1)).join(', ')}... (총 ${speechRates.length}개)]');
 
-    final maxHeight = 60.0;
-    final minRate = 60.0;
-    final maxRate = 140.0;
-
-    // 🔧 오버플로우 방지를 위한 안전한 레이아웃
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final availableWidth = constraints.maxWidth;
-        final barCount = speechRates.length;
-        final spacing = 4.0;
-        final totalSpacing = spacing * (barCount - 1);
-        final barWidth = (availableWidth - totalSpacing) / barCount;
-        final safeBarWidth = barWidth.clamp(8.0, 20.0); // 최소 8, 최대 20
-
-        return Wrap(
-          spacing: spacing,
-          alignment: WrapAlignment.spaceEvenly,
-          children: speechRates.map((rate) {
-            // 🔧 높이 계산 개선: 최소 높이 보장하고 더 선형적으로 표현
-            final normalizedHeight = ((rate - minRate) / (maxRate - minRate)) * maxHeight;
-            final height = normalizedHeight.clamp(15.0, maxHeight); // 🔧 최소 높이를 10 → 15로 증가
-            
-            return Container(
-              width: safeBarWidth,
-              height: height,
-              decoration: BoxDecoration(
-                color: _getSpeechRateColor(rate),
-                borderRadius: BorderRadius.circular(3), // 🔧 모서리를 더 둥글게
-                boxShadow: [ // 🔧 그림자 추가로 시각적 깊이감
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 2,
-                    offset: Offset(0, 1),
+    return Padding(
+      padding: EdgeInsets.all(20),
+      child: Container(
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.speed,
+                  size: 20,
+                  color: Color(0xFF2196F3),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  '말하기 속도 변화',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF212121),
                   ),
-                ],
-              ),
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
+                ),
+              ],
+            ),
+            SizedBox(height: 20),
+            
+            // 파란색 막대 그래프
+            Container(
+              height: 120,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: speechRates.asMap().entries.map((entry) {
+                  final rate = entry.value;
+                  final index = entry.key;
+                  final minRate = 60.0;
+                  final maxRate = 140.0;
+                  final normalizedHeight = ((rate - minRate) / (maxRate - minRate)).clamp(0.0, 1.0);
+                  final height = (normalizedHeight * 80 + 20).clamp(20.0, 100.0); // 최소 20, 최대 100
 
-  Color _getSpeechRateColor(double rate) {
-    if (rate >= 80 && rate <= 120) return AppColors.primary;
-    if (rate >= 60 && rate <= 140) return Colors.orange;
-    return Colors.red;
+                  return Expanded(
+                    child: Container(
+                      margin: EdgeInsets.symmetric(horizontal: 1),
+                      height: height,
+                      decoration: BoxDecoration(
+                        color: Color(0xFF2196F3), // 파란색
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            
+            SizedBox(height: 12),
+            
+            // 시작과 종료 라벨
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '시작',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF888888),
+                  ),
+                ),
+                Text(
+                  '종료',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF888888),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

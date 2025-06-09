@@ -551,40 +551,103 @@ class SessionDetailTabTopics extends StatelessWidget {
     final duration = analysisResult.metrics.totalDuration;
     final sessionType = _getSessionTypeKey();
     
-    // 시간대별 주제 변화 시뮬레이션
+    // 🔥 실제 API conversation_topics 데이터 사용
+    final conversationTopics = analysisResult.rawApiData['conversation_topics'] as List<dynamic>? ?? [];
     final timelineItems = <Widget>[];
     
+    if (conversationTopics.isNotEmpty) {
+      print('✅ 실제 주제 타임라인 데이터 사용: ${conversationTopics.length}개 주제');
+      
+      // 실제 주제 데이터를 시간순으로 정렬 (duration 기준)
+      final sortedTopics = List<Map<String, dynamic>>.from(conversationTopics);
+      sortedTopics.sort((a, b) {
+        final durationA = (a['duration'] ?? 0) as num;
+        final durationB = (b['duration'] ?? 0) as num;
+        return durationB.compareTo(durationA); // 긴 시간부터
+      });
+      
+      double cumulativeTime = 0;
+      for (int i = 0; i < sortedTopics.length; i++) {
+        final topic = sortedTopics[i];
+        final topicName = topic['topic'] ?? '알 수 없는 주제';
+        final topicDuration = (topic['duration'] ?? 30).toDouble();
+        final topicPercentage = (topic['percentage'] ?? 0).toDouble();
+        final keywords = List<String>.from(topic['keywords'] ?? []);
+        
+        final startMinute = (cumulativeTime / 60).round();
+        final endMinute = ((cumulativeTime + topicDuration) / 60).round();
+        
+        String timeLabel;
+        if (i == 0) {
+          timeLabel = '시작 (${startMinute}분)';
+        } else if (i == sortedTopics.length - 1) {
+          timeLabel = '마무리 (${endMinute}분)';
+        } else {
+          timeLabel = '${startMinute}-${endMinute}분';
+        }
+        
+        String description = '';
+        if (keywords.isNotEmpty) {
+          description = '${keywords.take(3).join(', ')} 등에 대해 이야기했습니다. (${topicPercentage.toInt()}% 비중)';
+        } else {
+          description = '${topicName}에 대한 대화가 이루어졌습니다. (${topicPercentage.toInt()}% 비중)';
+        }
+        
+        timelineItems.add(_buildTimelineItem(
+          timeLabel,
+          topicName,
+          description,
+          true, // 실제 데이터는 모두 긍정적으로 표시
+        ));
+        
+        if (i < sortedTopics.length - 1) {
+          timelineItems.add(SizedBox(height: 12));
+        }
+        
+        cumulativeTime += topicDuration;
+      }
+      
+      print('📊 실제 주제 타임라인 생성 완료: ${timelineItems.length ~/ 2}개 항목');
+      return timelineItems;
+    }
+    
+    // 🔥 실제 데이터가 없을 때만 폴백 (기존 로직 유지하되 더 동적으로)
+    print('⚠️ 실제 주제 데이터 없음 - 시뮬레이션 타임라인 생성');
+    
     if (duration >= 120) { // 2분 이상
+      final midTime = (duration/2/60).round();
+      final endTime = (duration/60).round();
+      
       timelineItems.add(_buildTimelineItem(
         '시작 (0분)',
-        '인사 및 분위기 조성',
-        '${_getSessionTypeName()} 시작과 함께 자연스러운 대화가 시작되었습니다.',
+        '${_getSessionTypeName()} 도입',
+        '${_getSessionTypeName()} 시작과 함께 주요 안건이 소개되었습니다.',
         true,
       ));
       timelineItems.add(SizedBox(height: 12));
       
       if (duration >= 300) { // 5분 이상
         timelineItems.add(_buildTimelineItem(
-          '중반 (${(duration/2/60).round()}분)',
-          '핵심 주제 전개',
-          '주요 관심사와 핵심 내용에 대한 심도 있는 대화가 이루어졌습니다.',
+          '중반 (${midTime}분)',
+          '핵심 내용 전개',
+          '주요 내용과 핵심 메시지에 대한 집중적인 논의가 이루어졌습니다.',
           true,
         ));
         timelineItems.add(SizedBox(height: 12));
       }
       
       timelineItems.add(_buildTimelineItem(
-        '마무리 (${(duration/60).round()}분)',
-        '정리 및 마무리',
-        '대화 내용을 정리하며 자연스럽게 마무리되었습니다.',
+        '마무리 (${endTime}분)',
+        '정리 및 결론',
+        '핵심 내용을 정리하며 ${_getSessionTypeName()}이 마무리되었습니다.',
         true,
       ));
     } else {
       // 짧은 세션
       timelineItems.add(_buildTimelineItem(
         '전체 진행',
-        '간단한 대화',
-        '짧은 시간 동안 핵심적인 대화가 이루어졌습니다.',
+        '간결한 ${_getSessionTypeName()}',
+        '짧은 시간 동안 핵심적인 내용이 효과적으로 전달되었습니다.',
         true,
       ));
     }

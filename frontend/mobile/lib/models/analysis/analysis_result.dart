@@ -232,8 +232,8 @@ class AnalysisResult {
       print('🔍 감정 지표: averageInterest=$averageInterest, contributionRatio=$contributionRatio, listeningScore=$listeningScore');
       print('🔍 전문 분석: rapportScore=${rapportBuilding['score']}, topicDiversity=${conversationTopics['diversity']}');
       
-      // 주제 분석 데이터 추출 및 변환
-      final apiTopics = _extractTopicsFromApi(sessionInfo, analysis);
+      // 주제 분석 데이터 추출 및 변환 (🔥 rawApiData에서 직접 추출로 수정)
+      final apiTopics = _extractTopicsFromApi(safeApiData, conversationTopics);
       final baseTopics = _convertTopics(apiTopics);
       
       // 🔥 communicationPatterns에서 실제 주제 및 습관적 표현 추출
@@ -483,33 +483,33 @@ class AnalysisResult {
   }
 
   // 🔥 API 응답에서 topics 데이터 추출
-  static List<dynamic> _extractTopicsFromApi(Map<String, dynamic> conversationTopics, Map<String, dynamic> analysis) {
+  static List<dynamic> _extractTopicsFromApi(Map<String, dynamic> rawApiData, Map<String, dynamic> conversationTopics) {
     print('🔍 === API 주제 데이터 추출 시작 ===');
+    print('🔍 rawApiData 키들: ${rawApiData.keys.toList()}');
     print('🔍 conversationTopics 키들: ${conversationTopics.keys.toList()}');
-    print('🔍 analysis 키들: ${analysis.keys.toList()}');
     
-    // 1. specializationInsights.conversation_topics.topics 확인
+    // 🔥 1. 최상위 conversation_topics 확인 (가장 우선순위)
+    if (rawApiData['conversation_topics'] != null && rawApiData['conversation_topics'] is List) {
+      print('✅ rawApiData[\'conversation_topics\']에서 발견: ${(rawApiData['conversation_topics'] as List).length}개');
+      return rawApiData['conversation_topics'] as List<dynamic>;
+    }
+    
+    // 2. specializationInsights.conversation_topics.topics 확인
     if (conversationTopics['topics'] != null && conversationTopics['topics'] is List) {
       print('✅ conversationTopics[\'topics\']에서 발견: ${(conversationTopics['topics'] as List).length}개');
       return conversationTopics['topics'] as List<dynamic>;
     }
     
-    // 2. analysis.topics 확인
-    if (analysis['topics'] != null && analysis['topics'] is List) {
-      print('✅ analysis[\'topics\']에서 발견: ${(analysis['topics'] as List).length}개');
-      return analysis['topics'] as List<dynamic>;
-    }
-    
-    // 3. 다른 가능한 필드들 확인
-    final possibleFields = ['mentionedTopics', 'discussed_topics', 'topic_analysis', 'topic_distribution'];
+    // 3. rawApiData의 다른 가능한 필드들 확인
+    final possibleFields = ['topics', 'mentionedTopics', 'discussed_topics', 'topic_analysis', 'topic_distribution'];
     for (final field in possibleFields) {
+      if (rawApiData[field] != null && rawApiData[field] is List) {
+        print('✅ rawApiData[\'$field\']에서 발견: ${(rawApiData[field] as List).length}개');
+        return rawApiData[field] as List<dynamic>;
+      }
       if (conversationTopics[field] != null && conversationTopics[field] is List) {
         print('✅ conversationTopics[\'$field\']에서 발견: ${(conversationTopics[field] as List).length}개');
         return conversationTopics[field] as List<dynamic>;
-      }
-      if (analysis[field] != null && analysis[field] is List) {
-        print('✅ analysis[\'$field\']에서 발견: ${(analysis[field] as List).length}개');
-        return analysis[field] as List<dynamic>;
       }
     }
     

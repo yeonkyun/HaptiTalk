@@ -517,7 +517,11 @@ class SessionDetailTabTimeline extends StatelessWidget {
     final emotionData = analysisResult.emotionData;
     final changePoints = <Widget>[];
     
+    print('🎯 === 변화포인트 생성 시작 ===');
+    print('🔍 emotionData 길이: ${emotionData.length}');
+    
     if (emotionData.isEmpty) {
+      print('⚠️ emotionData 없음 - 기본 변화포인트 생성');
       changePoints.add(_buildChangePointItem(
         '세션 전체',
         '안정적인 진행',
@@ -532,21 +536,34 @@ class SessionDetailTabTimeline extends StatelessWidget {
     const segmentInterval = 30; // 30초 간격
     final totalSegments = (totalDuration / segmentInterval).ceil();
     
-    // 30초마다 감정 변화 포인트 계산
+    print('🔍 변화포인트 분석: totalDuration=${totalDuration}s, totalSegments=${totalSegments}');
+    
+    // 🔥 30초마다 모든 포인트 표시 (변화가 없어도)
     for (int segmentIndex = 0; segmentIndex < totalSegments && segmentIndex < emotionData.length; segmentIndex++) {
       final timeInSeconds = segmentIndex * segmentInterval;
+      final time = _formatTimeFromDuration(timeInSeconds);
+      final currentValue = emotionData[segmentIndex].value;
       
-      // 현재 세그먼트와 이전 세그먼트 비교 (첫 번째 제외)
-      if (segmentIndex > 0 && segmentIndex < emotionData.length) {
+      // 이전 값과 비교 (첫 번째는 시작점으로 처리)
+      if (segmentIndex == 0) {
+        // 첫 번째 포인트: 시작점
+        changePoints.add(_buildChangePointItem(
+          time,
+          '세션 시작',
+          '${currentValue.toInt()}%로 ${_getPrimaryMetricName()}을 시작했습니다.',
+          true,
+        ));
+        print('🔢 세그먼트 ${segmentIndex}: 시작점 ${currentValue}%');
+      } else {
         final prevValue = emotionData[segmentIndex - 1].value;
-        final currentValue = emotionData[segmentIndex].value;
         final valueDiff = currentValue - prevValue;
         
-        // 🔧 의미있는 변화만 표시 (±10% 이상)
+        print('🔢 세그먼트 ${segmentIndex}: ${prevValue} → ${currentValue} (변화: ${valueDiff})');
+        
+        // 변화 유형 결정
         if (valueDiff.abs() >= 10) {
+          // 큰 변화가 있는 경우
           final isPositive = valueDiff > 0;
-          final time = _formatTimeFromDuration(timeInSeconds);
-          
           if (isPositive) {
             changePoints.add(_buildChangePointItem(
               time,
@@ -562,72 +579,34 @@ class SessionDetailTabTimeline extends StatelessWidget {
               false,
             ));
           }
-          changePoints.add(SizedBox(height: 15));
+        } else if (valueDiff.abs() >= 5) {
+          // 소폭 변화가 있는 경우
+          final isPositive = valueDiff > 0;
+          changePoints.add(_buildChangePointItem(
+            time,
+            isPositive ? '소폭 상승' : '소폭 하락',
+            '${currentValue.toInt()}%로 ${isPositive ? '소폭 개선' : '소폭 하락'}했습니다.',
+            isPositive,
+          ));
+        } else {
+          // 변화가 거의 없는 경우
+          changePoints.add(_buildChangePointItem(
+            time,
+            '안정적 유지',
+            '${currentValue.toInt()}%로 안정적인 ${_getPrimaryMetricName()}을 유지했습니다.',
+            true,
+          ));
         }
       }
-    }
-    
-    // 🔧 특정 세그먼트 구간 분석 (시작, 중간, 끝)
-    _addSegmentBasedInsights(changePoints, emotionData, totalDuration);
-    
-    // 변화 포인트가 없으면 기본 분석 추가
-    if (changePoints.isEmpty) {
-      changePoints.add(_buildChangePointItem(
-        '전체 진행',
-        '안정적인 ${_getPrimaryMetricName()}',
-        '30초 단위 분석 결과 일관된 수준을 유지했습니다.',
-        true,
-      ));
-    }
-    
-    return changePoints;
-  }
-  
-  // 🔧 세그먼트 기반 통찰 추가
-  void _addSegmentBasedInsights(List<Widget> changePoints, List<EmotionData> emotionData, double totalDuration) {
-    if (emotionData.length < 3) return;
-    
-    // 첫 번째 30초 (시작)
-    final startValue = emotionData.first.value;
-    if (startValue >= 70) {
-      changePoints.add(_buildChangePointItem(
-        '00:30',
-        '좋은 시작',
-        '초반부터 좋은 ${_getPrimaryMetricName()}을 보여주었습니다.',
-        true,
-      ));
-      changePoints.add(SizedBox(height: 15));
-    }
-    
-    // 중간 지점 분석
-    final midIndex = (emotionData.length / 2).floor();
-    if (midIndex < emotionData.length) {
-      final midValue = emotionData[midIndex].value;
-      final midTime = _formatTimeFromDuration((midIndex * 30));
       
-      if (midValue > startValue + 15) {
-        changePoints.add(_buildChangePointItem(
-          midTime,
-          '중반 향상',
-          '시작 대비 ${(midValue - startValue).toInt()}% 향상되었습니다.',
-          true,
-        ));
+      // 마지막이 아니면 간격 추가
+      if (segmentIndex < totalSegments - 1 && segmentIndex < emotionData.length - 1) {
         changePoints.add(SizedBox(height: 15));
       }
     }
     
-    // 마지막 30초 (마무리)
-    final endValue = emotionData.last.value;
-    final endTime = _formatTimeFromDuration(totalDuration.round());
-    
-    if (endValue >= 60) {
-      changePoints.add(_buildChangePointItem(
-        endTime,
-        '성공적 마무리',
-        '높은 ${_getPrimaryMetricName()}으로 세션을 완료했습니다.',
-        true,
-      ));
-    }
+    print('✅ 변화포인트 생성 완료: ${changePoints.length}개 (30초마다 모든 포인트 표시)');
+    return changePoints;
   }
   
   // 🔧 세그먼트 맥락 정보 제공
@@ -789,12 +768,16 @@ class EmotionGraphPainter extends CustomPainter {
     final width = size.width;
     final height = size.height;
 
+    print('🎨 === 감정 그래프 그리기 시작 ===');
+    print('🎨 Canvas 크기: ${width}x${height}');
+    print('🎨 감정 데이터 길이: ${emotionData.length}');
+
     // 배경 그리드 그리기
     final gridPaint = Paint()
       ..color = Color(0xFFE0E0E0)
       ..strokeWidth = 1;
 
-    // 수평선
+    // 수평선 (25%, 50%, 75% 위치)
     for (int i = 1; i < 4; i++) {
       final y = height * i / 4;
       canvas.drawLine(Offset(0, y), Offset(width, y), gridPaint);
@@ -804,15 +787,24 @@ class EmotionGraphPainter extends CustomPainter {
     List<Offset> dataPoints = [];
     
     if (emotionData.isNotEmpty) {
-      // 실제 데이터 기반으로 포인트 생성
+      print('🎨 실제 감정 데이터로 그래프 그리기');
+      
+      // 🔥 30초마다 포인트 생성 (모든 데이터)
       dataPoints = emotionData.asMap().entries.map((entry) {
         final index = entry.key;
         final data = entry.value;
-        final x = width * index / (emotionData.length - 1);
+        final x = emotionData.length == 1 ? width / 2 : width * index / (emotionData.length - 1);
         final y = height * (1 - data.value / 100); // value를 0-100으로 가정
         return Offset(x, y);
       }).toList();
+      
+      print('🎨 생성된 포인트: ${dataPoints.length}개');
+      for (int i = 0; i < dataPoints.length && i < 5; i++) {
+        print('🎨 포인트 $i: (${dataPoints[i].dx.toStringAsFixed(1)}, ${dataPoints[i].dy.toStringAsFixed(1)}) <- 값: ${emotionData[i].value}%');
+      }
     } else {
+      print('🎨 데이터 없음 - 안내 텍스트 표시');
+      
       // 데이터가 없으면 "데이터 없음" 텍스트 표시
       final textPainter = TextPainter(
         text: TextSpan(
@@ -835,8 +827,10 @@ class EmotionGraphPainter extends CustomPainter {
       return;
     }
 
-    // 경로 그리기 (실제 데이터만)
+    // 🔥 곡선 경로 그리기 (2개 이상일 때)
     if (dataPoints.length > 1) {
+      print('🎨 곡선 경로 그리기 시작');
+      
       final path = Path();
       path.moveTo(dataPoints[0].dx, dataPoints[0].dy);
       
@@ -861,50 +855,51 @@ class EmotionGraphPainter extends CustomPainter {
         ..strokeWidth = 3;
 
       canvas.drawPath(path, linePaint);
-
-      // 주요 변화 포인트 강조 (실제 데이터 기반)
-      final pointPaint = Paint()
-        ..color = AppColors.primary
-        ..style = PaintingStyle.fill;
-
-      final negativePaint = Paint()
-        ..color = Color(0xFFE57373)
-        ..style = PaintingStyle.fill;
-
-      // 최고점과 최저점 찾기
-      double maxValue = 0;
-      double minValue = double.infinity;
-      int maxIndex = 0;
-      int minIndex = 0;
-      
-      for (int i = 0; i < dataPoints.length; i++) {
-        final value = height - dataPoints[i].dy; // y값을 실제 값으로 변환
-        if (value > maxValue) {
-          maxValue = value;
-          maxIndex = i;
-        }
-        if (value < minValue) {
-          minValue = value;
-          minIndex = i;
-        }
-      }
-      
-      // 최고점 강조
-      if (maxIndex < dataPoints.length) {
-        canvas.drawCircle(dataPoints[maxIndex], 5, pointPaint);
-      }
-      
-      // 최저점 강조 (너무 낮지 않은 경우만)
-      if (minIndex < dataPoints.length && minIndex != maxIndex && minValue < height * 0.7) {
-        canvas.drawCircle(dataPoints[minIndex], 5, negativePaint);
-      }
-    } else if (dataPoints.length == 1) {
-      // 단일 데이터 포인트인 경우
-      final pointPaint = Paint()
-        ..color = AppColors.primary
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(dataPoints[0], 5, pointPaint);
+      print('🎨 곡선 경로 그리기 완료');
     }
+
+    // 🔥 모든 30초 포인트에 작은 점 표시
+    final pointPaint = Paint()
+      ..color = AppColors.primary
+      ..style = PaintingStyle.fill;
+
+    final pointBorderPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    for (int i = 0; i < dataPoints.length; i++) {
+      // 흰색 테두리 (더 큰 원)
+      canvas.drawCircle(dataPoints[i], 4, pointBorderPaint);
+      // 파란색 중심 (작은 원)
+      canvas.drawCircle(dataPoints[i], 3, pointPaint);
+    }
+    
+    print('🎨 모든 30초 포인트 표시 완료: ${dataPoints.length}개');
+
+    // 🔥 첫 번째와 마지막 포인트 강조 (약간 더 크게)
+    if (dataPoints.isNotEmpty) {
+      final emphasizePaint = Paint()
+        ..color = AppColors.primary
+        ..style = PaintingStyle.fill;
+      
+      final emphasizeBorderPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill;
+
+      // 시작점 강조
+      canvas.drawCircle(dataPoints[0], 6, emphasizeBorderPaint);
+      canvas.drawCircle(dataPoints[0], 5, emphasizePaint);
+      
+      // 끝점 강조 (시작점과 다를 때만)
+      if (dataPoints.length > 1) {
+        canvas.drawCircle(dataPoints.last, 6, emphasizeBorderPaint);
+        canvas.drawCircle(dataPoints.last, 5, emphasizePaint);
+      }
+      
+      print('🎨 시작/끝점 강조 완료');
+    }
+    
+    print('🎨 === 감정 그래프 그리기 완료 ===');
   }
 
   @override
