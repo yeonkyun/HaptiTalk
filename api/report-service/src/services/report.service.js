@@ -785,11 +785,13 @@ const reportService = {
             
             // 🔥 keyMetrics와 동일한 기준값 사용
             const keyMetrics = this._generateKeyMetrics(sessionAnalytics);
-            const baseEmotionScore = keyMetrics.emotion.confidence; // 실제 자신감 값 사용
-            const baseSpeakingRate = keyMetrics.speaking.speed; // 실제 말하기 속도 사용
-            const baseConfidence = keyMetrics.speaking.confidence; // 실제 자신감 사용
             
-            logger.info(`🔧 keyMetrics 기준값: emotion=${baseEmotionScore}, speaking=${baseSpeakingRate}, confidence=${baseConfidence}`);
+            // 🔥 발표 시나리오에서는 말하기 자신감 사용
+            const baseEmotionScore = keyMetrics.speaking.confidence; // 발표에서는 말하기 자신감이 핵심
+            const baseSpeakingRate = keyMetrics.speaking.speed; // 실제 말하기 속도
+            const baseConfidence = keyMetrics.speaking.confidence; // 동일한 말하기 자신감
+            
+            logger.info(`🔧 keyMetrics 기준값: speaking_confidence=${baseEmotionScore}, speaking_rate=${baseSpeakingRate}`);
             
             // 🔥 timeline 데이터를 detailedTimeline 형식으로 변환하되 keyMetrics와 일치시킴
             const detailedTimeline = sessionAnalytics.timeline.map((timePoint, index) => {
@@ -823,29 +825,31 @@ const reportService = {
         
         // 🔥 keyMetrics와 완전히 동일한 값 사용
         const keyMetrics = this._generateKeyMetrics(sessionAnalytics);
-        const baseEmotionScore = keyMetrics.emotion.confidence; // 실제 자신감 값
-        const baseSpeakingRate = keyMetrics.speaking.speed; // 실제 말하기 속도
-        const baseConfidence = keyMetrics.speaking.confidence; // 실제 자신감
         
-        logger.info(`📊 keyMetrics 기반 timeline 생성: duration=${duration}s, segments=${segmentCount}`);
-        logger.info(`📊 keyMetrics 기준값: emotion=${baseEmotionScore}, speaking=${baseSpeakingRate}, confidence=${baseConfidence}`);
+        // 🔥 발표 시나리오에서는 말하기 자신감 사용
+        const baseEmotionScore = keyMetrics.speaking.confidence; // 발표에서는 말하기 자신감이 핵심
+        const baseSpeakingRate = keyMetrics.speaking.speed; // 실제 말하기 속도
+        const baseConfidence = keyMetrics.speaking.confidence; // 동일한 말하기 자신감
+        
+        logger.info(`📊 keyMetrics 기반 timeline 생성 (발표용): duration=${duration}s, segments=${segmentCount}`);
+        logger.info(`📊 keyMetrics 기준값: speaking_confidence=${baseEmotionScore}, speaking_rate=${baseSpeakingRate}`);
 
         const detailedTimeline = [];
         
-        // 🔥 30초부터 시작 (index 1부터), keyMetrics와 일치하는 값들 사용
+        // 🔥 30초부터 시작 (index 1부터), 발표용 말하기 자신감 기반
         for (let i = 1; i <= segmentCount; i++) {
             const progress = (i - 1) / Math.max(1, segmentCount - 1); // 0 ~ 1
             
-            // 🔥 아주 작은 자연스러운 변동만 추가 (keyMetrics 값 기준)
-            const emotionVariation = (Math.random() - 0.5) * 0.05; // ±2.5% 변동
-            const rateVariation = (Math.random() - 0.5) * 10; // ±5 WPM 변동
-            const confidenceVariation = (Math.random() - 0.5) * 0.05; // ±2.5% 변동
+            // 🔥 말하기 자신감 기반의 자연스러운 변동 추가
+            const emotionVariation = (Math.random() - 0.5) * 0.1; // ±5% 변동
+            const rateVariation = (Math.random() - 0.5) * 15; // ±7.5 WPM 변동
+            const confidenceVariation = (Math.random() - 0.5) * 0.1; // ±5% 변동
 
             detailedTimeline.push({
-                timestamp: i * 30, // 30초부터 시작
-                emotion_score: Math.max(0, Math.min(1, baseEmotionScore + emotionVariation)),
-                speaking_rate: Math.max(60, Math.min(180, baseSpeakingRate + rateVariation)),
-                confidence: Math.max(0, Math.min(1, baseConfidence + confidenceVariation)),
+                timestamp: i * 30, // 30초 단위
+                emotion_score: Math.max(0, Math.min(1, baseEmotionScore + emotionVariation)), // 말하기 자신감 기반
+                speaking_rate: Math.max(80, Math.min(160, baseSpeakingRate + rateVariation)),
+                confidence: Math.max(0, Math.min(1, baseConfidence + confidenceVariation)), // 동일한 말하기 자신감
                 segment_duration: 30
             });
         }

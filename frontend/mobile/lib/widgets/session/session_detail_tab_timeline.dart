@@ -538,65 +538,52 @@ class SessionDetailTabTimeline extends StatelessWidget {
     
     print('🔍 변화포인트 분석: totalDuration=${totalDuration}s, totalSegments=${totalSegments}');
     
-    // 🔥 30초마다 모든 포인트 표시 (변화가 없어도)
-    for (int segmentIndex = 0; segmentIndex < totalSegments && segmentIndex < emotionData.length; segmentIndex++) {
+    // 🔥 30초부터 시작 (0초는 세션 준비 시간이므로 제외)
+    for (int segmentIndex = 1; segmentIndex < totalSegments && segmentIndex < emotionData.length; segmentIndex++) {
       final timeInSeconds = segmentIndex * segmentInterval;
       final time = _formatTimeFromDuration(timeInSeconds);
       final currentValue = emotionData[segmentIndex].value;
+      final prevValue = emotionData[segmentIndex - 1].value;
+      final valueDiff = currentValue - prevValue;
       
-      // 이전 값과 비교 (첫 번째는 시작점으로 처리)
-      if (segmentIndex == 0) {
-        // 첫 번째 포인트: 시작점
-        changePoints.add(_buildChangePointItem(
-          time,
-          '세션 시작',
-          '${currentValue.toInt()}%로 ${_getPrimaryMetricName()}을 시작했습니다.',
-          true,
-        ));
-        print('🔢 세그먼트 ${segmentIndex}: 시작점 ${currentValue}%');
-      } else {
-        final prevValue = emotionData[segmentIndex - 1].value;
-        final valueDiff = currentValue - prevValue;
-        
-        print('🔢 세그먼트 ${segmentIndex}: ${prevValue} → ${currentValue} (변화: ${valueDiff})');
-        
-        // 변화 유형 결정
-        if (valueDiff.abs() >= 10) {
-          // 큰 변화가 있는 경우
-          final isPositive = valueDiff > 0;
-          if (isPositive) {
-            changePoints.add(_buildChangePointItem(
-              time,
-              '${_getPrimaryMetricName()} 상승',
-              '${currentValue.toInt()}%로 상승했습니다. ${_getSegmentContext(segmentIndex)}',
-              true,
-            ));
-          } else {
-            changePoints.add(_buildChangePointItem(
-              time,
-              '${_getPrimaryMetricName()} 하락',
-              '${currentValue.toInt()}%로 하락했습니다. 집중도를 높여보세요.',
-              false,
-            ));
-          }
-        } else if (valueDiff.abs() >= 5) {
-          // 소폭 변화가 있는 경우
-          final isPositive = valueDiff > 0;
+      print('🔢 세그먼트 ${segmentIndex}: ${prevValue} → ${currentValue} (변화: ${valueDiff})');
+      
+      // 변화 유형 결정
+      if (valueDiff.abs() >= 10) {
+        // 큰 변화가 있는 경우
+        final isPositive = valueDiff > 0;
+        if (isPositive) {
           changePoints.add(_buildChangePointItem(
             time,
-            isPositive ? '소폭 상승' : '소폭 하락',
-            '${currentValue.toInt()}%로 ${isPositive ? '소폭 개선' : '소폭 하락'}했습니다.',
-            isPositive,
-          ));
-        } else {
-          // 변화가 거의 없는 경우
-          changePoints.add(_buildChangePointItem(
-            time,
-            '안정적 유지',
-            '${currentValue.toInt()}%로 안정적인 ${_getPrimaryMetricName()}을 유지했습니다.',
+            '${_getPrimaryMetricName()} 상승',
+            '${currentValue.toInt()}%로 상승했습니다. ${_getSegmentContext(segmentIndex)}',
             true,
           ));
+        } else {
+          changePoints.add(_buildChangePointItem(
+            time,
+            '${_getPrimaryMetricName()} 하락',
+            '${currentValue.toInt()}%로 하락했습니다. 집중도를 높여보세요.',
+            false,
+          ));
         }
+      } else if (valueDiff.abs() >= 5) {
+        // 소폭 변화가 있는 경우
+        final isPositive = valueDiff > 0;
+        changePoints.add(_buildChangePointItem(
+          time,
+          isPositive ? '소폭 상승' : '소폭 하락',
+          '${currentValue.toInt()}%로 ${isPositive ? '소폭 개선' : '소폭 하락'}했습니다.',
+          isPositive,
+        ));
+      } else {
+        // 변화가 거의 없는 경우
+        changePoints.add(_buildChangePointItem(
+          time,
+          '안정적 유지',
+          '${currentValue.toInt()}%로 안정적인 ${_getPrimaryMetricName()}을 유지했습니다.',
+          true,
+        ));
       }
       
       // 마지막이 아니면 간격 추가
@@ -605,7 +592,28 @@ class SessionDetailTabTimeline extends StatelessWidget {
       }
     }
     
-    print('✅ 변화포인트 생성 완료: ${changePoints.length}개 (30초마다 모든 포인트 표시)');
+    // 🔥 변화 포인트가 없으면 (데이터가 2개 미만인 경우) 기본 분석 추가
+    if (changePoints.isEmpty) {
+      print('⚠️ 변화포인트 없음 - 기본 분석 추가');
+      if (emotionData.length >= 1) {
+        final finalValue = emotionData.last.value;
+        changePoints.add(_buildChangePointItem(
+          '전체 진행',
+          '${_getPrimaryMetricName()} 유지',
+          '${finalValue.toInt()}% 수준으로 세션을 완료했습니다.',
+          true,
+        ));
+      } else {
+        changePoints.add(_buildChangePointItem(
+          '전체 진행',
+          '안정적인 ${_getPrimaryMetricName()}',
+          '30초 단위 분석 결과 일관된 수준을 유지했습니다.',
+          true,
+        ));
+      }
+    }
+    
+    print('✅ 변화포인트 생성 완료: ${changePoints.length}개 (30초부터 시작)');
     return changePoints;
   }
   
@@ -772,15 +780,47 @@ class EmotionGraphPainter extends CustomPainter {
     print('🎨 Canvas 크기: ${width}x${height}');
     print('🎨 감정 데이터 길이: ${emotionData.length}');
 
+    // 🔥 축 라벨을 위한 여백 설정
+    final leftMargin = 40.0; // y축 라벨 여백
+    final bottomMargin = 30.0; // x축 라벨 여백
+    final rightMargin = 10.0;
+    final topMargin = 10.0;
+    
+    final graphWidth = width - leftMargin - rightMargin;
+    final graphHeight = height - topMargin - bottomMargin;
+
     // 배경 그리드 그리기
     final gridPaint = Paint()
       ..color = Color(0xFFE0E0E0)
       ..strokeWidth = 1;
 
-    // 수평선 (25%, 50%, 75% 위치)
-    for (int i = 1; i < 4; i++) {
-      final y = height * i / 4;
-      canvas.drawLine(Offset(0, y), Offset(width, y), gridPaint);
+    // 🔥 y축 라벨과 수평선 (0%, 25%, 50%, 75%, 100%)
+    final textStyle = TextStyle(
+      color: Color(0xFF888888),
+      fontSize: 12,
+    );
+    
+    for (int i = 0; i <= 4; i++) {
+      final y = topMargin + (graphHeight * i / 4);
+      final percentage = 100 - (i * 25); // 100%, 75%, 50%, 25%, 0%
+      
+      // 수평선
+      canvas.drawLine(
+        Offset(leftMargin, y), 
+        Offset(leftMargin + graphWidth, y), 
+        gridPaint
+      );
+      
+      // y축 라벨 (%)
+      final textPainter = TextPainter(
+        text: TextSpan(text: '${percentage}%', style: textStyle),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas, 
+        Offset(leftMargin - textPainter.width - 5, y - textPainter.height / 2)
+      );
     }
 
     // 실제 감정 데이터가 있는 경우만 그래프 그리기
@@ -789,12 +829,12 @@ class EmotionGraphPainter extends CustomPainter {
     if (emotionData.isNotEmpty) {
       print('🎨 실제 감정 데이터로 그래프 그리기');
       
-      // 🔥 30초마다 포인트 생성 (모든 데이터)
+      // 🔥 30초마다 포인트 생성 (모든 데이터, 그래프 영역 내에서)
       dataPoints = emotionData.asMap().entries.map((entry) {
         final index = entry.key;
         final data = entry.value;
-        final x = emotionData.length == 1 ? width / 2 : width * index / (emotionData.length - 1);
-        final y = height * (1 - data.value / 100); // value를 0-100으로 가정
+        final x = leftMargin + (emotionData.length == 1 ? graphWidth / 2 : graphWidth * index / (emotionData.length - 1));
+        final y = topMargin + graphHeight * (1 - data.value / 100); // value를 0-100으로 가정
         return Offset(x, y);
       }).toList();
       
@@ -820,8 +860,8 @@ class EmotionGraphPainter extends CustomPainter {
       textPainter.paint(
         canvas, 
         Offset(
-          (width - textPainter.width) / 2,
-          (height - textPainter.height) / 2,
+          leftMargin + (graphWidth - textPainter.width) / 2,
+          topMargin + (graphHeight - textPainter.height) / 2,
         ),
       );
       return;
@@ -898,8 +938,38 @@ class EmotionGraphPainter extends CustomPainter {
       
       print('🎨 시작/끝점 강조 완료');
     }
+
+    // 🔥 x축 시간 라벨 추가
+    if (emotionData.isNotEmpty) {
+      for (int i = 0; i < emotionData.length; i++) {
+        final x = leftMargin + (emotionData.length == 1 ? graphWidth / 2 : graphWidth * i / (emotionData.length - 1));
+        final timeInSeconds = i * 30; // 30초 간격
+        final timeLabel = _formatTimeFromSeconds(timeInSeconds);
+        
+        final textPainter = TextPainter(
+          text: TextSpan(text: timeLabel, style: textStyle),
+          textDirection: TextDirection.ltr,
+        );
+        textPainter.layout();
+        textPainter.paint(
+          canvas, 
+          Offset(x - textPainter.width / 2, topMargin + graphHeight + 5)
+        );
+      }
+    }
     
     print('🎨 === 감정 그래프 그리기 완료 ===');
+  }
+
+  // 🔥 시간 포맷팅 헬퍼 메서드 추가
+  String _formatTimeFromSeconds(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    if (minutes == 0) {
+      return '${remainingSeconds}s';
+    } else {
+      return '${minutes}:${remainingSeconds.toString().padLeft(2, '0')}';
+    }
   }
 
   @override

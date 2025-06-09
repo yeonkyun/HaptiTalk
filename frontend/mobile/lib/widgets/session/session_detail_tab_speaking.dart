@@ -28,7 +28,7 @@ class SessionDetailTabSpeaking extends StatelessWidget {
                     child: _buildMetricCard(
                       title: '말하기 속도',
                       value: '${analysisResult.metrics.speakingMetrics.speechRate.toStringAsFixed(0)}WPM',
-                      subtitle: '적절한 속도 (80-120WPM)',
+                      subtitle: _getSpeechRateAssessment(analysisResult.metrics.speakingMetrics.speechRate),
                       progress: (analysisResult.metrics.speakingMetrics.speechRate / 150).clamp(0.0, 1.0),
                     ),
                   ),
@@ -38,7 +38,7 @@ class SessionDetailTabSpeaking extends StatelessWidget {
                     child: _buildMetricCard(
                       title: '설득력',
                       value: '${_getPersuasionLevel()}%',
-                      subtitle: '청중 설득 효과성',
+                      subtitle: _getPersuasionAssessment(_getPersuasionLevel()),
                       progress: _getPersuasionLevel() / 100,
                     ),
                   ),
@@ -52,7 +52,7 @@ class SessionDetailTabSpeaking extends StatelessWidget {
                     child: _buildMetricCard(
                       title: '명확성',
                       value: '${_getClarityLevel()}%',
-                      subtitle: '메시지 전달 명확성',
+                      subtitle: _getClarityAssessment(_getClarityLevel()),
                       progress: _getClarityLevel() / 100,
                     ),
                   ),
@@ -62,7 +62,7 @@ class SessionDetailTabSpeaking extends StatelessWidget {
                     child: _buildMetricCard(
                       title: '발표 주도도',
                       value: '${_getEngagementLevel()}%',
-                      subtitle: '더 주도적인 발표 필요',
+                      subtitle: _getEngagementAssessment(_getEngagementLevel()),
                       progress: _getEngagementLevel() / 100,
                     ),
                   ),
@@ -372,53 +372,29 @@ class SessionDetailTabSpeaking extends StatelessWidget {
 
   // 🔥 실제 API 데이터 기반 분석 메서드들
   int _getPersuasionLevel() {
-    // 🔥 분석결과 탭과 동일한 데이터 소스 사용
-    final persuasionFromMetrics = analysisResult.metrics.emotionMetrics.averageInterest.toInt();
+    // 🔥 SpeakingMetrics의 실제 필드들을 사용하여 설득력 계산
+    final tonality = analysisResult.metrics.speakingMetrics.tonality;
+    final clarity = analysisResult.metrics.speakingMetrics.clarity;
     
-    // 실제 API 데이터가 있으면 우선 사용, 아니면 metrics 데이터 사용
-    final specializationInsights = analysisResult.rawApiData['specializationInsights'] as Map<String, dynamic>? ?? {};
-    final persuasionTechniques = specializationInsights['persuasion_techniques'] as Map<String, dynamic>? ?? {};
-    final apiPersuasionLevel = (persuasionTechniques['persuasion_level'] ?? 0).toInt();
-    
-    // 🔥 API 값이 0이거나 없으면 metrics 데이터 사용
-    if (persuasionTechniques.isNotEmpty && apiPersuasionLevel > 0) {
-      print('📊 설득력: 실제 API 데이터 사용 ($apiPersuasionLevel%)');
-      return apiPersuasionLevel;
-    } else {
-      print('📊 설득력: metrics 데이터 사용 ($persuasionFromMetrics%) - API값이 0이거나 없음');
-      return persuasionFromMetrics;
-    }
+    // 음성 톤과 명확성을 기반으로 설득력 계산 (분석결과 탭과 동일한 로직)
+    final persuasionScore = (tonality * 0.5 + clarity * 0.5);
+    final result = (persuasionScore * 100).round();
+    print('📊 설득력: metrics 기반 계산 ($result%) - tonality=$tonality, clarity=$clarity');
+    return result;
   }
 
   int _getClarityLevel() {
-    final specializationInsights = analysisResult.rawApiData['specializationInsights'] as Map<String, dynamic>? ?? {};
-    final presentationClarity = specializationInsights['presentation_clarity'] as Map<String, dynamic>? ?? {};
-    final clarityScore = (presentationClarity['clarity_score'] ?? 0).toDouble();
-    
-    // 🔥 clarity_score는 이미 퍼센트 값이므로 100을 곱하지 않음
-    if (clarityScore > 0) {
-      final result = clarityScore.toInt();
-      print('📊 명확성: 실제 API 데이터 사용 ($result%)');
-      return result;
-    } else {
-      print('📊 명확성: 기본값 사용 (80%)');
-      return 80;
-    }
+    // 🔥 specializationInsights 대신 metrics 사용 (분석결과 탭과 동일)
+    final clarity = analysisResult.metrics.speakingMetrics.clarity;
+    return (clarity * 100).round(); // 0.8 -> 80
   }
 
   int _getEngagementLevel() {
-    final specializationInsights = analysisResult.rawApiData['specializationInsights'] as Map<String, dynamic>? ?? {};
-    final audienceEngagement = specializationInsights['audience_engagement'] as Map<String, dynamic>? ?? {};
-    final apiEngagementScore = (audienceEngagement['engagement_score'] ?? 0).toInt();
-    
-    // 🔥 API 값이 0이거나 없으면 기본값 30% 사용
-    if (audienceEngagement.isNotEmpty && apiEngagementScore > 0) {
-      print('📊 발표 주도도: 실제 API 데이터 사용 ($apiEngagementScore%)');
-      return apiEngagementScore;
-    } else {
-      print('📊 발표 주도도: 기본값 사용 (30%) - API값이 0이거나 없음');
-      return 30;
-    }
+    // 🔥 specializationInsights 대신 metrics 사용 (분석결과 탭과 동일)
+    final contributionRatio = analysisResult.metrics.conversationMetrics.contributionRatio;
+    final result = contributionRatio.round();
+    print('📊 발표 주도도: metrics 기반 계산 ($result%) - contributionRatio=$contributionRatio');
+    return result;
   }
 
   String _getHabitualPatternsAnalysis() {
@@ -591,5 +567,45 @@ class SessionDetailTabSpeaking extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _getSpeechRateAssessment(double speechRate) {
+    if (speechRate < 80) {
+      return '말하기 속도가 너무 느립니다. 더 빠르게 말하는 연습을 해보세요.';
+    } else if (speechRate > 120) {
+      return '말하기 속도가 너무 빠릅니다. 더 느리게 말하는 연습을 해보세요.';
+    } else {
+      return '말하기 속도가 적절합니다.';
+    }
+  }
+
+  String _getPersuasionAssessment(int persuasionLevel) {
+    if (persuasionLevel < 50) {
+      return '설득력이 낮습니다. 더 많은 연습을 통해 설득력을 높이세요.';
+    } else if (persuasionLevel > 80) {
+      return '설득력이 높습니다. 현재 설득력 수준을 유지하세요.';
+    } else {
+      return '설득력이 적절합니다. 현재 설득력 수준을 유지하세요.';
+    }
+  }
+
+  String _getClarityAssessment(int clarityLevel) {
+    if (clarityLevel < 50) {
+      return '명확성이 낮습니다. 더 많은 연습을 통해 명확성을 높이세요.';
+    } else if (clarityLevel > 80) {
+      return '명확성이 높습니다. 현재 명확성 수준을 유지하세요.';
+    } else {
+      return '명확성이 적절합니다. 현재 명확성 수준을 유지하세요.';
+    }
+  }
+
+  String _getEngagementAssessment(int engagementLevel) {
+    if (engagementLevel < 30) {
+      return '발표 주도도가 낮습니다. 더 많은 연습을 통해 발표 주도도를 높이세요.';
+    } else if (engagementLevel > 50) {
+      return '발표 주도도가 높습니다. 현재 발표 주도도 수준을 유지하세요.';
+    } else {
+      return '발표 주도도가 적절합니다. 현재 발표 주도도 수준을 유지하세요.';
+    }
   }
 }
