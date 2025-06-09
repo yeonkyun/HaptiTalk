@@ -41,10 +41,14 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('분석 결과'),
+        title: const Text(
+          '분석 결과',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: FutureBuilder<AnalysisResult?>(
         future: _analysisFuture,
@@ -331,29 +335,54 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       values = _generateEmotionData(analysis);
     }
 
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: 100,
-        minY: 0,
-        barTouchData: BarTouchData(enabled: false),
+    // LineChart 데이터 포인트 생성
+    final spots = values.asMap().entries.map((entry) {
+      return FlSpot(entry.key.toDouble(), entry.value);
+    }).toList();
+
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(
+          show: true,
+          horizontalInterval: 25,
+          verticalInterval: 1,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: Colors.grey.withOpacity(0.1),
+              strokeWidth: 1,
+            );
+          },
+          getDrawingVerticalLine: (value) {
+            return FlLine(
+              color: Colors.grey.withOpacity(0.1),
+              strokeWidth: 1,
+            );
+          },
+        ),
         titlesData: FlTitlesData(
           show: true,
+          rightTitles: AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
+              reservedSize: 30,
+              interval: 1,
               getTitlesWidget: (value, meta) {
                 final totalMinutes = (analysis.metrics.totalDuration / 60).ceil();
-                final interval = (totalMinutes / 6).ceil();
-                const labels = ['시작', '25%', '50%', '75%', '완료'];
+                final timeLabels = _generateTimeLabels(totalMinutes, values.length);
                 
-                if (value.toInt() < 0 || value.toInt() >= labels.length) {
+                if (value.toInt() < 0 || value.toInt() >= timeLabels.length) {
                   return const SizedBox.shrink();
                 }
                 return Padding(
                   padding: const EdgeInsets.only(top: 8.0),
                   child: Text(
-                    labels[value.toInt()],
+                    timeLabels[value.toInt()],
                     style: TextStyle(
                       color: Colors.grey[600],
                       fontSize: 11,
@@ -366,40 +395,53 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
           leftTitles: AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
-          topTitles: AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          rightTitles: AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
         ),
-        gridData: FlGridData(
-          show: true,
-          horizontalInterval: 25,
-          getDrawingHorizontalLine: (value) {
-            return FlLine(
-              color: Colors.grey.withOpacity(0.1),
-              strokeWidth: 1,
-            );
-          },
-          drawVerticalLine: false,
+        borderData: FlBorderData(
+          show: false,
         ),
-        borderData: FlBorderData(show: false),
-        barGroups: values.asMap().entries.map((entry) {
-          return BarChartGroupData(
-            x: entry.key,
-            barRods: [
-              BarChartRodData(
-                toY: entry.value,
-                color: AppColors.primary,
-                width: 8,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ],
-          );
-        }).toList(),
+        minX: 0,
+        maxX: (values.length - 1).toDouble(),
+        minY: 0,
+        maxY: 100,
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: AppColors.primary,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) {
+                return FlDotCirclePainter(
+                  radius: 4,
+                  color: AppColors.primary,
+                  strokeWidth: 2,
+                  strokeColor: Colors.white,
+                );
+              },
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              color: AppColors.primary.withOpacity(0.1),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  List<String> _generateTimeLabels(int totalMinutes, int dataPoints) {
+    List<String> labels = [];
+    
+    for (int i = 0; i < dataPoints; i++) {
+      final timePoint = (totalMinutes * i / (dataPoints - 1)).round();
+      final minutes = timePoint ~/ 60;
+      final seconds = timePoint % 60;
+      labels.add('${minutes}:${seconds.toString().padLeft(2, '0')}');
+    }
+    
+    return labels;
   }
 
   List<double> _generatePresentationData(AnalysisResult analysis) {
@@ -1140,7 +1182,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: const [
                     Text(
-                      '전체 보고서',
+                      '상세 분석',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -1165,7 +1207,13 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         Expanded(
           child: ElevatedButton(
             onPressed: () {
-              // 내보내기 기능 구현
+              // 홈으로 이동
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/main',
+                (route) => false,
+                arguments: {'initialTabIndex': 0},
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.grey[100],
@@ -1183,13 +1231,13 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  Icons.share,
+                  Icons.home,
                   size: 20,
                   color: Colors.grey[800],
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '내보내기',
+                  '홈으로',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,

@@ -93,13 +93,17 @@ class _DetailedReportScreenState extends State<DetailedReportScreen> with Single
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('상세 분석 리포트'),
+        title: const Text(
+          '상세 분석 리포트',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadAnalysisData,
           ),
         ],

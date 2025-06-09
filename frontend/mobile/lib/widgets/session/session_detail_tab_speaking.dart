@@ -183,7 +183,7 @@ class SessionDetailTabSpeaking extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Color(0xFFF5F5F5), // 회색 배경
+        color: Colors.grey[100], // 일관된 회색 배경
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -193,7 +193,7 @@ class SessionDetailTabSpeaking extends StatelessWidget {
             title,
             style: TextStyle(
               fontSize: 14,
-              color: Color(0xFF666666),
+              color: Colors.grey[700],
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -203,11 +203,11 @@ class SessionDetailTabSpeaking extends StatelessWidget {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF212121),
+              color: AppColors.primary, // 통일된 primary 색상
             ),
           ),
           SizedBox(height: 12),
-          // 파란색 진행률 바
+          // 통일된 primary 색상의 진행률 바
           Container(
             height: 4,
             decoration: BoxDecoration(
@@ -219,7 +219,7 @@ class SessionDetailTabSpeaking extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Color(0xFF2196F3), // 파란색
+                  color: AppColors.primary, // 통일된 primary 색상
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -230,7 +230,7 @@ class SessionDetailTabSpeaking extends StatelessWidget {
             subtitle,
             style: TextStyle(
               fontSize: 12,
-              color: Color(0xFF888888),
+              color: Colors.grey[600],
             ),
           ),
         ],
