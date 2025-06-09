@@ -198,24 +198,26 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     }
   }
 
-  /// Realtime Service 연결
+  /// Realtime Service에 연결
   Future<void> _connectToRealtimeService() async {
     try {
-      // AuthService에서 실제 액세스 토큰 가져오기
-      final authService = AuthService();
-      final accessToken = await authService.getAccessToken();
-      
+      final accessToken = await AuthService().getAccessToken();
       if (accessToken == null) {
-        print('❌ realtime-service 연결 실패: 액세스 토큰 없음');
-        _showErrorSnackBar('인증 토큰이 없습니다. 다시 로그인해주세요.');
-        return;
+        throw Exception('액세스 토큰을 가져올 수 없습니다');
       }
       
+      final sessionProvider = Provider.of<SessionProvider>(context, listen: false);
+      final sessionTitle = sessionProvider.currentSession?.name ?? '실시간 분석';
+      
+      print('📡 realtime-service 연결 시도: ${widget.sessionId}');
+      print('🎯 세션 타입: ${widget.sessionType}');
+      print('📋 세션 제목: $sessionTitle');
+      
       final connected = await _realtimeService.connect(
-        widget.sessionId, 
+        widget.sessionId,
         accessToken,
-        sessionType: widget.sessionType ?? '발표',
-        sessionTitle: '실시간 ${widget.sessionType ?? '발표'} 연습',
+        sessionType: widget.sessionType ?? '소개팅',
+        sessionTitle: sessionTitle,
       );
       
       setState(() {
@@ -225,15 +227,85 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       if (connected) {
         print('✅ realtime-service 연결 성공');
         
+        // 🚀 실시간 지표 콜백 설정
+        _realtimeService.setRealtimeMetricsCallback(_handleRealtimeMetrics);
+        
         // 햅틱 피드백 콜백 설정
         _realtimeService.setHapticFeedbackCallback(_handleHapticFeedback);
       } else {
         print('❌ realtime-service 연결 실패');
-        _showErrorSnackBar('실시간 서비스 연결에 실패했습니다');
+        _showErrorSnackBar('실시간 서비스 연결에 실패했습니다.');
       }
     } catch (e) {
       print('❌ realtime-service 연결 오류: $e');
       _showErrorSnackBar('실시간 서비스 연결 오류: $e');
+    }
+  }
+
+  /// 🚀 백엔드에서 계산된 실시간 지표 처리
+  void _handleRealtimeMetrics(Map<String, dynamic> data) {
+    print('📊 실시간 지표 수신: $data');
+    
+    try {
+      final metrics = data['metrics'] as Map<String, dynamic>?;
+      if (metrics == null) {
+        print('⚠️ 지표 데이터가 없습니다');
+        return;
+      }
+      
+      print('🔍 시나리오별 지표 처리: $_currentScenario');
+      
+      setState(() {
+        // 말하기 속도는 모든 시나리오 공통
+        if (metrics['speakingSpeed'] != null) {
+          _speakingSpeed = (metrics['speakingSpeed'] as num).round();
+          print('📊 말하기 속도 업데이트: $_speakingSpeed WPM');
+        }
+        
+        // 시나리오별 지표 처리
+        if (_currentScenario == 'presentation') {
+          // 발표 시나리오: confidence, persuasion, clarity
+          if (metrics['confidence'] != null) {
+            _likability = (metrics['confidence'] as num).round(); // confidence를 likability 위치에
+            print('📊 발표 자신감 업데이트: $_likability');
+          }
+          if (metrics['persuasion'] != null) {
+            _interest = (metrics['persuasion'] as num).round(); // persuasion을 interest 위치에
+            print('📊 발표 설득력 업데이트: $_interest');
+          }
+          
+        } else if (_currentScenario == 'interview') {
+          // 면접 시나리오: confidence, stability, clarity
+          if (metrics['confidence'] != null) {
+            _likability = (metrics['confidence'] as num).round();
+            print('📊 면접 자신감 업데이트: $_likability');
+          }
+          if (metrics['stability'] != null) {
+            _interest = (metrics['stability'] as num).round();
+            print('📊 면접 안정감 업데이트: $_interest');
+          }
+          
+        } else {
+          // 소개팅 시나리오: likeability, interest, emotion
+          if (metrics['likeability'] != null) {
+            _likability = (metrics['likeability'] as num).round();
+            print('📊 호감도 업데이트: $_likability');
+          }
+          if (metrics['interest'] != null) {
+            _interest = (metrics['interest'] as num).round();
+            print('📊 관심도 업데이트: $_interest');
+          }
+        }
+        
+        // 감정 상태 (모든 시나리오 공통)
+        if (metrics['emotion'] != null) {
+          _emotionState = metrics['emotion'].toString();
+          print('📊 감정 상태 업데이트: $_emotionState');
+        }
+      });
+      
+    } catch (e) {
+      print('❌ 실시간 지표 처리 오류: $e');
     }
   }
 

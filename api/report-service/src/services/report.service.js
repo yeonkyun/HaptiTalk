@@ -5,6 +5,7 @@ const PDFDocument = require('pdfkit');
 const mongodbService = require('./mongodb.service');
 const logger = require('../utils/logger');
 const chartsUtils = require('../utils/charts');
+const AnalyticsCore = require('../../../shared/analytics-core');
 
 const reportService = {
     /**
@@ -421,50 +422,140 @@ const reportService = {
         const summary = sessionAnalytics.summary || {};
         const emotionMetrics = sessionAnalytics.emotionMetrics || {};
         const sessionSpecificMetrics = sessionAnalytics.sessionSpecificMetrics || {};
+        const sessionType = sessionAnalytics.sessionType || 'dating';
 
-        return {
-            // 기본 말하기 지표
-            speaking: {
-                ratio: parseFloat((summary.userSpeakingRatio || 0).toFixed(2)),
-                speed: Math.round(summary.averageSpeakingSpeed || 0),
-                words: summary.wordsCount || 0,
-                // STT 기반 새로운 지표들
-                consistency: parseFloat((statistics.speaking_consistency || 0).toFixed(2)),
-                pauseStability: parseFloat((statistics.pause_stability || 0).toFixed(2)),
-                speechQuality: parseFloat((statistics.speech_pattern_score || 0).toFixed(2)),
-                confidence: parseFloat((statistics.confidence_score || 0).toFixed(2))
-            },
-            
-            // 감정 지표 (STT emotion_analysis 기반)
-            emotion: {
-                overallTone: parseFloat((emotionMetrics.overall_emotional_tone || 0.5).toFixed(2)),
-                stability: parseFloat((emotionMetrics.emotional_stability || 0.6).toFixed(2)),
-                variability: parseFloat((emotionMetrics.emotional_variability || 0.4).toFixed(2)),
-                primaryEmotions: emotionMetrics.primary_emotions || [],
-                happiness: parseFloat((emotionMetrics.happiness || 0.3).toFixed(2)),
-                confidence: parseFloat((emotionMetrics.confidence || 0.3).toFixed(2)),
-                calmness: parseFloat((emotionMetrics.calmness || 0.4).toFixed(2))
-            },
-            
-            // 세션별 특화 지표
-            sessionSpecific: sessionSpecificMetrics,
-            
-            // 전반적 점수 (0-100 스케일로 변환)
-            overallScore: Math.round((
-                (statistics.confidence_score || 0.6) * 30 +
-                (statistics.speaking_consistency || 0.7) * 20 +
-                (statistics.speech_pattern_score || 0.8) * 20 +
-                (emotionMetrics.overall_emotional_tone || 0.5) * 15 +
-                (emotionMetrics.emotional_stability || 0.6) * 15
-            ) * 100),
-            
-            // 기존 분석 데이터
-            communication: {
-                interruptions: statistics.interruptions || 0,
-                questionAnswerRatio: parseFloat((statistics.question_answer_ratio || 0).toFixed(2)),
-                speakingRateVariance: parseFloat((statistics.speaking_rate_variance || 0).toFixed(2))
-            }
+        // 공통 모듈을 사용하여 실제 분석 로직과 동일한 계산 수행
+        const speechData = {
+            speech_density: statistics.speech_density || 0.5,
+            evaluation_wpm: summary.averageSpeakingSpeed || 120,
+            tonality: statistics.tonality || 0.7,
+            clarity: statistics.clarity || 0.7,
+            speech_pattern: statistics.speech_pattern || 'normal',
+            emotion_score: emotionMetrics.overall_emotional_tone || 0.6,
+            speed_category: statistics.speed_category || 'normal'
         };
+
+        // 공통 분석 모듈로 실제 지표 계산
+        const calculatedMetrics = AnalyticsCore.calculateRealtimeMetrics(speechData, sessionType);
+
+        // 시나리오별로 적절한 지표 반환
+        if (sessionType === 'presentation') {
+            return {
+                speaking: {
+                    ratio: parseFloat((summary.userSpeakingRatio || 0).toFixed(2)),
+                    speed: calculatedMetrics.speakingSpeed,
+                    words: summary.wordsCount || 0,
+                    consistency: parseFloat((statistics.speaking_consistency || 0).toFixed(2)),
+                    pauseStability: parseFloat((statistics.pause_stability || 0).toFixed(2)),
+                    speechQuality: parseFloat((statistics.speech_pattern_score || 0).toFixed(2)),
+                    // 공통 모듈에서 계산된 실제 자신감 사용
+                    confidence: calculatedMetrics.confidence
+                },
+                
+                // 발표 전용 지표
+                presentation: {
+                    confidence: calculatedMetrics.confidence,
+                    persuasion: calculatedMetrics.persuasion,
+                    clarity: calculatedMetrics.clarity
+                },
+                
+                emotion: {
+                    overallTone: parseFloat((emotionMetrics.overall_emotional_tone || 0.5).toFixed(2)),
+                    stability: parseFloat((emotionMetrics.emotional_stability || 0.6).toFixed(2)),
+                    variability: parseFloat((emotionMetrics.emotional_variability || 0.4).toFixed(2)),
+                    primaryEmotions: emotionMetrics.primary_emotions || [],
+                    happiness: parseFloat((emotionMetrics.happiness || 0.3).toFixed(2)),
+                    confidence: calculatedMetrics.confidence, // 실제 계산값 사용
+                    calmness: parseFloat((emotionMetrics.calmness || 0.4).toFixed(2))
+                },
+                
+                sessionSpecific: sessionSpecificMetrics,
+                overallScore: Math.round((calculatedMetrics.confidence + calculatedMetrics.persuasion + calculatedMetrics.clarity) / 3),
+                
+                communication: {
+                    interruptions: statistics.interruptions || 0,
+                    questionAnswerRatio: parseFloat((statistics.question_answer_ratio || 0).toFixed(2)),
+                    speakingRateVariance: parseFloat((statistics.speaking_rate_variance || 0).toFixed(2))
+                }
+            };
+        } else if (sessionType === 'interview') {
+            return {
+                speaking: {
+                    ratio: parseFloat((summary.userSpeakingRatio || 0).toFixed(2)),
+                    speed: calculatedMetrics.speakingSpeed,
+                    words: summary.wordsCount || 0,
+                    consistency: parseFloat((statistics.speaking_consistency || 0).toFixed(2)),
+                    pauseStability: parseFloat((statistics.pause_stability || 0).toFixed(2)),
+                    speechQuality: parseFloat((statistics.speech_pattern_score || 0).toFixed(2)),
+                    confidence: calculatedMetrics.confidence
+                },
+                
+                // 면접 전용 지표
+                interview: {
+                    confidence: calculatedMetrics.confidence,
+                    stability: calculatedMetrics.stability,
+                    clarity: calculatedMetrics.clarity
+                },
+                
+                emotion: {
+                    overallTone: parseFloat((emotionMetrics.overall_emotional_tone || 0.5).toFixed(2)),
+                    stability: parseFloat((emotionMetrics.emotional_stability || 0.6).toFixed(2)),
+                    variability: parseFloat((emotionMetrics.emotional_variability || 0.4).toFixed(2)),
+                    primaryEmotions: emotionMetrics.primary_emotions || [],
+                    happiness: parseFloat((emotionMetrics.happiness || 0.3).toFixed(2)),
+                    confidence: calculatedMetrics.confidence,
+                    calmness: parseFloat((emotionMetrics.calmness || 0.4).toFixed(2))
+                },
+                
+                sessionSpecific: sessionSpecificMetrics,
+                overallScore: Math.round((calculatedMetrics.confidence + calculatedMetrics.stability + calculatedMetrics.clarity) / 3),
+                
+                communication: {
+                    interruptions: statistics.interruptions || 0,
+                    questionAnswerRatio: parseFloat((statistics.question_answer_ratio || 0).toFixed(2)),
+                    speakingRateVariance: parseFloat((statistics.speaking_rate_variance || 0).toFixed(2))
+                }
+            };
+        } else {
+            // 소개팅 (기본값)
+            return {
+                speaking: {
+                    ratio: parseFloat((summary.userSpeakingRatio || 0).toFixed(2)),
+                    speed: calculatedMetrics.speakingSpeed,
+                    words: summary.wordsCount || 0,
+                    consistency: parseFloat((statistics.speaking_consistency || 0).toFixed(2)),
+                    pauseStability: parseFloat((statistics.pause_stability || 0).toFixed(2)),
+                    speechQuality: parseFloat((statistics.speech_pattern_score || 0).toFixed(2)),
+                    confidence: parseFloat((statistics.confidence_score || 0).toFixed(2)) // 소개팅은 기존 로직 유지
+                },
+                
+                // 소개팅 전용 지표
+                dating: {
+                    likeability: calculatedMetrics.likeability,
+                    interest: calculatedMetrics.interest,
+                    emotion: calculatedMetrics.emotion
+                },
+                
+                emotion: {
+                    overallTone: parseFloat((emotionMetrics.overall_emotional_tone || 0.5).toFixed(2)),
+                    stability: parseFloat((emotionMetrics.emotional_stability || 0.6).toFixed(2)),
+                    variability: parseFloat((emotionMetrics.emotional_variability || 0.4).toFixed(2)),
+                    primaryEmotions: emotionMetrics.primary_emotions || [],
+                    happiness: parseFloat((emotionMetrics.happiness || 0.3).toFixed(2)),
+                    confidence: parseFloat((emotionMetrics.confidence || 0.3).toFixed(2)),
+                    calmness: parseFloat((emotionMetrics.calmness || 0.4).toFixed(2))
+                },
+                
+                sessionSpecific: sessionSpecificMetrics,
+                overallScore: Math.round((calculatedMetrics.likeability + calculatedMetrics.interest) / 2),
+                
+                communication: {
+                    interruptions: statistics.interruptions || 0,
+                    questionAnswerRatio: parseFloat((statistics.question_answer_ratio || 0).toFixed(2)),
+                    speakingRateVariance: parseFloat((statistics.speaking_rate_variance || 0).toFixed(2))
+                }
+            };
+        }
     },
 
     /**

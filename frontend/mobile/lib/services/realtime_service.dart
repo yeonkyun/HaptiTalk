@@ -28,6 +28,9 @@ class RealtimeService {
 
   // 햅틱 피드백 수신 콜백
   Function(Map<String, dynamic>)? _onHapticFeedback;
+  
+  // 실시간 지표 수신 콜백 추가
+  Function(Map<String, dynamic>)? _onRealtimeMetrics;
 
   bool get isConnected => _socket?.connected ?? false;
 
@@ -99,6 +102,14 @@ class RealtimeService {
         _logger.i('📳 햅틱 피드백 수신: $data');
         if (_onHapticFeedback != null && data != null) {
           _onHapticFeedback!(Map<String, dynamic>.from(data));
+        }
+      });
+
+      // 🚀 실시간 지표 수신 추가
+      _socket!.on('realtime_metrics', (data) {
+        _logger.i('📊 실시간 지표 수신: $data');
+        if (_onRealtimeMetrics != null && data != null) {
+          _onRealtimeMetrics!(Map<String, dynamic>.from(data));
         }
       });
 
@@ -202,6 +213,11 @@ class RealtimeService {
   /// 햅틱 피드백 수신 콜백 설정
   void setHapticFeedbackCallback(Function(Map<String, dynamic>) callback) {
     _onHapticFeedback = callback;
+  }
+
+  /// 실시간 지표 수신 콜백 설정
+  void setRealtimeMetricsCallback(Function(Map<String, dynamic>) callback) {
+    _onRealtimeMetrics = callback;
   }
 
   /// 세그먼트 데이터를 report-service/analytics에 저장 (30초마다 호출)
