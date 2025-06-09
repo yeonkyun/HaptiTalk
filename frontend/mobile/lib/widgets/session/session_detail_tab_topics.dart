@@ -54,12 +54,12 @@ class SessionDetailTabTopics extends StatelessWidget {
                       ),
                     ] else ...[
                       // 기본 주제들 (시뮬레이션)
-                      Wrap(
+              Wrap(
                         spacing: 10,
                         runSpacing: 10,
                         children: _buildDefaultTopicTags(),
                       ),
-                    ],
+                ],
                   ],
                 ),
               ),
@@ -125,18 +125,18 @@ class SessionDetailTabTopics extends StatelessWidget {
                               size: Size(150, 150),
                               painter: TopicPieChartPainter(_getTopicDistribution()),
                             ),
-                          ),
-                        ),
-                        SizedBox(width: 20),
+                      ),
+                    ),
+                    SizedBox(width: 20),
                         // 범례 영역
-                        Expanded(
+                    Expanded(
                           flex: 2,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                             children: _buildTopicLegends(),
                           ),
                         ),
-                      ],
+                        ],
                     ),
                   ],
                 ),
@@ -205,7 +205,7 @@ class SessionDetailTabTopics extends StatelessWidget {
           padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+                            children: [
               Text(
                 '핵심 대화 포인트',
                 style: TextStyle(
@@ -213,8 +213,8 @@ class SessionDetailTabTopics extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF212121),
                 ),
-              ),
-              SizedBox(height: 15),
+                              ),
+                              SizedBox(height: 15),
 
               // 핵심 포인트 카드들 (실제 데이터 기반)
               ..._buildKeyPointCards(),
@@ -235,8 +235,8 @@ class SessionDetailTabTopics extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF212121),
                 ),
-              ),
-              SizedBox(height: 15),
+                              ),
+                              SizedBox(height: 15),
 
               // 대화 흐름 분석 카드
               Container(
@@ -254,7 +254,7 @@ class SessionDetailTabTopics extends StatelessWidget {
                           Icons.timeline,
                           size: 20,
                           color: Color(0xFF212121),
-                        ),
+                              ),
                         SizedBox(width: 8),
                         Text(
                           '${_getSessionTypeName()} 흐름 분석',
@@ -286,31 +286,31 @@ class SessionDetailTabTopics extends StatelessWidget {
 
         // 주제별 인사이트 섹션
         if (topicMetrics.insights.isNotEmpty)
-          Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '주제별 인사이트',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF212121),
-                  ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '주제별 인사이트',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF212121),
                 ),
-                SizedBox(height: 15),
+              ),
+              SizedBox(height: 15),
 
                 // 인사이트 카드들 (실제 데이터 기반)
                 ...topicMetrics.insights.take(3).map((insight) => Column(
                   children: [
                     _buildInsightCard(insight),
-                    SizedBox(height: 15),
+              SizedBox(height: 15),
                   ],
                 )).toList(),
-              ],
-            ),
+            ],
           ),
+        ),
 
         // 추천 주제 섹션
         Padding(
@@ -356,13 +356,13 @@ class SessionDetailTabTopics extends StatelessWidget {
                           ),
                         ),
                       ],
-                    ),
-                    SizedBox(height: 15),
+              ),
+              SizedBox(height: 15),
 
                     // 추천 주제 목록 (세션별 맞춤)
                     ..._buildRecommendedTopics(),
                   ],
-                ),
+              ),
               ),
             ],
           ),
@@ -398,19 +398,19 @@ class SessionDetailTabTopics extends StatelessWidget {
   List<Widget> _buildTopicTags() {
     final topics = analysisResult.metrics.topicMetrics.topics;
     return topics.take(10).map((topic) {
-      return Container(
+    return Container(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
+      decoration: BoxDecoration(
           color: topic.isPrimary ? AppColors.primary.withOpacity(0.2) : Colors.grey[200],
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: topic.isPrimary ? AppColors.primary : Colors.grey[400]!,
             width: 1,
           ),
-        ),
-        child: Text(
+      ),
+      child: Text(
           topic.name,
-          style: TextStyle(
+        style: TextStyle(
             fontSize: 14,
             fontWeight: topic.isPrimary ? FontWeight.w600 : FontWeight.w500,
             color: topic.isPrimary ? AppColors.primary : Colors.grey[700],
@@ -457,9 +457,9 @@ class SessionDetailTabTopics extends StatelessWidget {
             fontSize: 14,
             fontWeight: isPrimary ? FontWeight.w600 : FontWeight.w500,
             color: isPrimary ? AppColors.primary : Colors.grey[700],
-          ),
         ),
-      );
+      ),
+    );
     }).toList();
   }
 
@@ -521,28 +521,28 @@ class SessionDetailTabTopics extends StatelessWidget {
       return Padding(
         padding: EdgeInsets.only(bottom: 8),
         child: Row(
-          children: [
-            Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
                 color: dist.color,
                 shape: BoxShape.circle,
-              ),
-            ),
-            SizedBox(width: 8),
+          ),
+        ),
+        SizedBox(width: 8),
             Expanded(
               child: Text(
                 '${dist.name} (${dist.percentage.toInt()}%)',
-                style: TextStyle(
+          style: TextStyle(
                   fontSize: 13,
                   color: Color(0xFF616161),
                 ),
-              ),
-            ),
-          ],
+          ),
         ),
-      );
+      ],
+        ),
+    );
     }).toList();
   }
 
@@ -664,11 +664,11 @@ class SessionDetailTabTopics extends StatelessWidget {
           width: 8,
           height: 8,
           margin: EdgeInsets.only(top: 6),
-          decoration: BoxDecoration(
+                decoration: BoxDecoration(
             color: isPositive ? AppColors.primary : Colors.orange,
             shape: BoxShape.circle,
-          ),
-        ),
+                ),
+              ),
         SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -698,8 +698,8 @@ class SessionDetailTabTopics extends StatelessWidget {
                   fontSize: 13,
                   color: Color(0xFF616161),
                   height: 1.3,
-                ),
-              ),
+                              ),
+                            ),
             ],
           ),
         ),
@@ -992,13 +992,13 @@ class SessionDetailTabTopics extends StatelessWidget {
             children: [
               Icon(icon, size: 20, color: color),
               SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF212121),
-                ),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF212121),
+            ),
               ),
             ],
           ),
@@ -1038,10 +1038,10 @@ class SessionDetailTabTopics extends StatelessWidget {
               Expanded(
                 child: Text(
                   insight.topic,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF212121),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF212121),
                   ),
                 ),
               ),

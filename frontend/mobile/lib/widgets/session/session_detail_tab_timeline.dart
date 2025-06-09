@@ -237,63 +237,63 @@ class SessionDetailTabTimeline extends StatelessWidget {
 
         // 대화 키워드 섹션
         if (analysisResult.metrics.topicMetrics.topics.isNotEmpty)
-          Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+        Padding(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
                   '${_getSessionTypeName()} 키워드',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF212121),
-                  ),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF212121),
                 ),
-                SizedBox(height: 15),
+              ),
+              SizedBox(height: 15),
 
-                // 키워드 컨테이너
-                Container(
-                  padding: EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Color(0xFFF5F5F5),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.tag,
-                            size: 20,
+              // 키워드 컨테이너
+              Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Color(0xFFF5F5F5),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.tag,
+                          size: 20,
+                          color: Color(0xFF212121),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          '자주 언급된 단어',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                             color: Color(0xFF212121),
                           ),
-                          SizedBox(width: 8),
-                          Text(
-                            '자주 언급된 단어',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF212121),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 15),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 15),
 
                       // 키워드 태그 클라우드 (실제 데이터 기반)
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
                         children: _buildKeywordTags(),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+        ),
 
         // 개선 포인트 섹션
         Padding(
@@ -803,8 +803,8 @@ class EmotionGraphPainter extends CustomPainter {
     for (int i = 0; i <= 4; i++) {
       final y = topMargin + (graphHeight * i / 4);
       final percentage = 100 - (i * 25); // 100%, 75%, 50%, 25%, 0%
-      
-      // 수평선
+
+    // 수평선
       canvas.drawLine(
         Offset(leftMargin, y), 
         Offset(leftMargin + graphWidth, y), 
@@ -828,7 +828,7 @@ class EmotionGraphPainter extends CustomPainter {
     
     if (emotionData.isNotEmpty) {
       print('🎨 실제 감정 데이터로 그래프 그리기');
-      
+
       // 🔥 30초마다 포인트 생성 (모든 데이터, 그래프 영역 내에서)
       dataPoints = emotionData.asMap().entries.map((entry) {
         final index = entry.key;
@@ -872,29 +872,29 @@ class EmotionGraphPainter extends CustomPainter {
       print('🎨 곡선 경로 그리기 시작');
       
       final path = Path();
-      path.moveTo(dataPoints[0].dx, dataPoints[0].dy);
+    path.moveTo(dataPoints[0].dx, dataPoints[0].dy);
       
-      for (int i = 1; i < dataPoints.length; i++) {
-        // 부드러운 곡선을 만들기 위해 quadraticBezierTo 사용
-        final ctrl = Offset(
-          (dataPoints[i - 1].dx + dataPoints[i].dx) / 2,
-          dataPoints[i - 1].dy,
-        );
-        path.quadraticBezierTo(
-          ctrl.dx,
-          ctrl.dy,
-          dataPoints[i].dx,
-          dataPoints[i].dy,
-        );
-      }
+    for (int i = 1; i < dataPoints.length; i++) {
+      // 부드러운 곡선을 만들기 위해 quadraticBezierTo 사용
+      final ctrl = Offset(
+        (dataPoints[i - 1].dx + dataPoints[i].dx) / 2,
+        dataPoints[i - 1].dy,
+      );
+      path.quadraticBezierTo(
+        ctrl.dx,
+        ctrl.dy,
+        dataPoints[i].dx,
+        dataPoints[i].dy,
+      );
+    }
 
-      // 선 그리기
-      final linePaint = Paint()
-        ..color = AppColors.primary
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3;
+    // 선 그리기
+    final linePaint = Paint()
+      ..color = AppColors.primary
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
 
-      canvas.drawPath(path, linePaint);
+    canvas.drawPath(path, linePaint);
       print('🎨 곡선 경로 그리기 완료');
     }
 

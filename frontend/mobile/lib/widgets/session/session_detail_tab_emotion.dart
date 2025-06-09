@@ -233,7 +233,7 @@ class SessionDetailTabEmotion extends StatelessWidget {
                           Icons.star,
                           size: 20,
                           color: Colors.green[600],
-                        ),
+              ),
                         SizedBox(width: 8),
                         Text(
                           '주요 성취',
@@ -244,7 +244,7 @@ class SessionDetailTabEmotion extends StatelessWidget {
                           ),
                         ),
                       ],
-                    ),
+              ),
                     SizedBox(height: 10),
                     Text(
                       _generateHighlightText(),
@@ -598,8 +598,8 @@ class SessionDetailTabEmotion extends StatelessWidget {
   // 감정 게이지 위젯
   Widget _buildEmotionGauge(BuildContext context, EmotionMetrics emotionMetrics) {
     return Stack(
-      alignment: Alignment.center,
-      children: [
+        alignment: Alignment.center,
+        children: [
         // 배경 원
         SizedBox(
           width: 140,
@@ -626,30 +626,30 @@ class SessionDetailTabEmotion extends StatelessWidget {
                   ? AppColors.primary 
                   : Colors.orange
             ),
+            ),
           ),
-        ),
         // 중앙 텍스트
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
               '${emotionMetrics.averageLikeability.toInt()}%',
-              style: TextStyle(
+                style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF212121),
+                ),
               ),
-            ),
-            Text(
+              Text(
               _getPrimaryMetricName(),
-              style: TextStyle(
+                style: TextStyle(
                 fontSize: 12,
                 color: Color(0xFF616161),
+                ),
               ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
     );
   }
 

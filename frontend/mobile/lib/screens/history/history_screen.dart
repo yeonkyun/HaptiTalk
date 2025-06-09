@@ -20,11 +20,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String _selectedSort = '최신순';
   final List<String> _categories = [
     '전체',
+    '발표',
     '소개팅',
     '면접',
-    '발표',
-    '비즈니스',
-    '코칭',
     '최근 일주일',
     '최근 한달'
   ];

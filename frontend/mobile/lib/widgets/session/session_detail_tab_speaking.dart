@@ -22,31 +22,31 @@ class SessionDetailTabSpeaking extends StatelessWidget {
           child: Column(
             children: [
               Row(
-                children: [
-                  // 말하기 속도 카드
+                  children: [
+                    // 말하기 속도 카드
                   Expanded(
                     child: _buildMetricCard(
                       title: '말하기 속도',
                       value: '${analysisResult.metrics.speakingMetrics.speechRate.toStringAsFixed(0)}WPM',
                       subtitle: _getSpeechRateAssessment(analysisResult.metrics.speakingMetrics.speechRate),
                       progress: (analysisResult.metrics.speakingMetrics.speechRate / 150).clamp(0.0, 1.0),
-                    ),
-                  ),
+                ),
+              ),
                   SizedBox(width: 12),
                   // 설득력 카드 (실제 API 데이터 사용)
-                  Expanded(
+              Expanded(
                     child: _buildMetricCard(
                       title: '설득력',
                       value: '${_getPersuasionLevel()}%',
                       subtitle: _getPersuasionAssessment(_getPersuasionLevel()),
                       progress: _getPersuasionLevel() / 100,
-                    ),
-                  ),
-                ],
+                ),
               ),
+            ],
+          ),
               SizedBox(height: 12),
-              Row(
-                children: [
+                Row(
+                  children: [
                   // 명확성 카드
                   Expanded(
                     child: _buildMetricCard(
@@ -64,13 +64,13 @@ class SessionDetailTabSpeaking extends StatelessWidget {
                       value: '${_getEngagementLevel()}%',
                       subtitle: _getEngagementAssessment(_getEngagementLevel()),
                       progress: _getEngagementLevel() / 100,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
 
         // 🔥 말하기 속도 변화 차트
         _buildSpeechRateChart(),
@@ -90,7 +90,7 @@ class SessionDetailTabSpeaking extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 15),
-              
+
               // 습관적 패턴 섹션
               Container(
                 padding: EdgeInsets.all(20),
@@ -108,32 +108,32 @@ class SessionDetailTabSpeaking extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Icon(
+                        Row(
+                          children: [
+                            Icon(
                           Icons.loop,
-                          size: 20,
+                              size: 20,
                           color: AppColors.primary,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
+                            ),
+                            SizedBox(width: 8),
+                            Text(
                           '습관적 패턴',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF212121),
-                          ),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF212121),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
                     SizedBox(height: 15),
-                    
+
                     // 🔥 실제 API 데이터에서 습관적 표현 태그 생성
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: _buildHabitualExpressionTags(),
-                    ),
+                      ),
                     
                     SizedBox(height: 15),
                     Container(
@@ -143,13 +143,13 @@ class SessionDetailTabSpeaking extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
-                        children: [
-                          Icon(
+                          children: [
+                            Icon(
                             Icons.lightbulb_outline,
                             size: 16,
                             color: Color(0xFF666666),
-                          ),
-                          SizedBox(width: 8),
+                            ),
+                            SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               _getHabitualPatternsAnalysis(),
@@ -158,9 +158,9 @@ class SessionDetailTabSpeaking extends StatelessWidget {
                                 color: Color(0xFF666666),
                                 height: 1.4,
                               ),
-                            ),
-                          ),
-                        ],
+                      ),
+                    ),
+                  ],
                       ),
                     ),
                   ],
@@ -287,11 +287,11 @@ class SessionDetailTabSpeaking extends StatelessWidget {
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
+      children: [
+        Text(
                 content,
-                style: TextStyle(
-                  fontSize: 14,
+          style: TextStyle(
+            fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: AppColors.primary,
                 ),
@@ -300,9 +300,9 @@ class SessionDetailTabSpeaking extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+            color: AppColors.primary,
                   borderRadius: BorderRadius.circular(10),
-                ),
+        ),
                 child: Text(
                   count.toString(),
                   style: TextStyle(
@@ -340,10 +340,10 @@ class SessionDetailTabSpeaking extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
+        Text(
               content,
-              style: TextStyle(
-                fontSize: 14,
+          style: TextStyle(
+            fontSize: 14,
                 fontWeight: FontWeight.w500,
                 color: AppColors.primary,
               ),
@@ -362,11 +362,11 @@ class SessionDetailTabSpeaking extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
-              ),
-            ),
-          ],
+          ),
         ),
-      );
+      ],
+        ),
+    );
     }).toList();
   }
 
