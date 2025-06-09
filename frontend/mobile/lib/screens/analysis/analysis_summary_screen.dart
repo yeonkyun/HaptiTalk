@@ -436,7 +436,8 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     // 🔥 폴백: 시뮬레이션 데이터 (실제 데이터 없을 때만)
     print('⚠️ 발표 그래프: 시뮬레이션 데이터 사용 (실제 데이터 없음)');
     final confidence = analysis.metrics.emotionMetrics.averageLikeability;
-    final persuasion = analysis.metrics.emotionMetrics.averageInterest;
+    final persuasion = _calculatePersuasionLevel(analysis);
+    final speed = analysis.metrics.speakingMetrics.speechRate;
     final average = (confidence + persuasion) / 2;
     
     // 발표는 보통 시작할 때 낮고 중간에 높아지는 패턴
@@ -574,9 +575,9 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       return [
         _buildMetricCard(
           '자신감',
-          '${analysis.metrics.emotionMetrics.averageLikeability.toInt()}%',
+          '${_calculateSpeakingConfidence(analysis).round()}%',
           Icons.psychology,
-          _getConfidenceDescription(analysis.metrics.emotionMetrics.averageLikeability),
+          _getConfidenceDescription(_calculateSpeakingConfidence(analysis)),
         ),
         _buildMetricCard(
           '말하기 속도',
@@ -586,9 +587,9 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         ),
         _buildMetricCard(
           '설득력',
-          '${analysis.metrics.emotionMetrics.averageInterest.toInt()}%',
+          '${_calculatePersuasionLevel(analysis).round()}%',
           Icons.trending_up,
-          _getPersuasionDescription(analysis.metrics.emotionMetrics.averageInterest),
+          _getPersuasionDescription(_calculatePersuasionLevel(analysis)),
         ),
         _buildMetricCard(
           '명확성',
@@ -601,9 +602,9 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       return [
         _buildMetricCard(
           '자신감',
-          '${analysis.metrics.emotionMetrics.averageLikeability.toInt()}%',
+          '${_calculateSpeakingConfidence(analysis).round()}%',
           Icons.psychology,
-          _getConfidenceDescription(analysis.metrics.emotionMetrics.averageLikeability),
+          _getConfidenceDescription(_calculateSpeakingConfidence(analysis)),
         ),
         _buildMetricCard(
           '말하기 속도',
@@ -625,8 +626,14 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         ),
       ];
     } else {
-      // 소개팅 모드 (기본)
+      // 소개팅 시나리오는 감정적 호감도 사용 (적절함)
       return [
+        _buildMetricCard(
+          '호감도',
+          '${analysis.metrics.emotionMetrics.averageLikeability.toInt()}%',
+          Icons.psychology,
+          _getConfidenceDescription(analysis.metrics.emotionMetrics.averageLikeability),
+        ),
         _buildMetricCard(
           '말하기 속도',
           '${analysis.metrics.speakingMetrics.speechRate.toInt()}WPM',
@@ -634,22 +641,16 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
           _getSpeedDescription(analysis.metrics.speakingMetrics.speechRate),
         ),
         _buildMetricCard(
-          '톤 & 억양',
+          '명확성',
+          '${analysis.metrics.speakingMetrics.clarity.toInt()}%',
+          Icons.radio_button_checked,
+          _getClarityDescription(analysis.metrics.speakingMetrics.clarity),
+        ),
+        _buildMetricCard(
+          '안정감',
           '${analysis.metrics.speakingMetrics.tonality.toInt()}%',
-          Icons.graphic_eq,
-          _getTonalityDescription(analysis.metrics.speakingMetrics.tonality),
-        ),
-        _buildMetricCard(
-          '호감도',
-          '${analysis.metrics.emotionMetrics.averageLikeability.toInt()}%',
-          Icons.favorite,
-          _getLikeabilityDescription(analysis.metrics.emotionMetrics.averageLikeability),
-        ),
-        _buildMetricCard(
-          '경청 지수',
-          '${analysis.metrics.conversationMetrics.listeningScore.toInt()}%',
-          Icons.headset,
-          _getListeningDescription(analysis.metrics.conversationMetrics.listeningScore),
+          Icons.sentiment_satisfied_alt,
+          _getStabilityDescription(analysis.metrics.speakingMetrics.tonality),
         ),
       ];
     }
@@ -839,9 +840,9 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     List<String> insights = [];
     
     if (analysis.category == '발표') {
-      // 발표 시나리오 인사이트
-      final confidence = analysis.metrics.emotionMetrics.averageLikeability;
-      final persuasion = analysis.metrics.emotionMetrics.averageInterest;
+      // 발표 시나리오 인사이트 - 말하기 자신감 사용
+      final confidence = _calculateSpeakingConfidence(analysis);
+      final persuasion = _calculatePersuasionLevel(analysis);
       final speed = analysis.metrics.speakingMetrics.speechRate;
       
       if (confidence >= 70) {
@@ -865,8 +866,8 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       }
       
     } else if (analysis.category == '면접') {
-      // 면접 시나리오 인사이트
-      final confidence = analysis.metrics.emotionMetrics.averageLikeability;
+      // 면접 시나리오 인사이트 - 말하기 자신감 사용
+      final confidence = _calculateSpeakingConfidence(analysis);
       final clarity = analysis.metrics.speakingMetrics.clarity;
       final stability = analysis.metrics.speakingMetrics.tonality;
       
@@ -889,7 +890,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       }
       
     } else {
-      // 소개팅 시나리오 인사이트 (기본)
+      // 소개팅 시나리오 인사이트 - 감정적 호감도 사용 (적절함)
       final likeability = analysis.metrics.emotionMetrics.averageLikeability;
       final interest = analysis.metrics.emotionMetrics.averageInterest;
       final listening = analysis.metrics.conversationMetrics.listeningScore;
@@ -992,35 +993,27 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     List<Map<String, String>> suggestions = [];
     
     if (analysis.category == '발표') {
-      // 발표 시나리오 제안
-      final confidence = analysis.metrics.emotionMetrics.averageLikeability;
-      final speed = analysis.metrics.speakingMetrics.speechRate;
-      final clarity = analysis.metrics.speakingMetrics.clarity;
+      // 발표 시나리오 제안 - 말하기 자신감 사용
+      final confidence = _calculateSpeakingConfidence(analysis);
+      final persuasion = _calculatePersuasionLevel(analysis);
       
       if (confidence < 60) {
         suggestions.add({
-          'title': '자신감 향상',
-          'content': '발표 전 충분한 연습과 준비를 통해 자신감을 높이세요. 어깨를 펴고 시선을 청중에게 향하는 것도 도움이 됩니다.'
+          'title': '자신감 있는 발표',
+          'content': '더 확신 있는 어조로 말하고, 중요한 포인트에서는 목소리 톤을 강조해보세요. 충분한 준비와 연습이 자신감의 기초입니다.'
         });
       }
       
-      if (speed > 150) {
+      if (persuasion < 60) {
         suggestions.add({
-          'title': '말하기 속도 조절',
-          'content': '중요한 포인트에서는 잠시 멈춤을 활용하고, 전체적으로 조금 더 천천히 말해보세요.'
-        });
-      }
-      
-      if (clarity < 60) {
-        suggestions.add({
-          'title': '발음 명확성',
-          'content': '핵심 단어는 더 명확하게 발음하고, 문장의 끝까지 또렷하게 말하는 연습을 해보세요.'
+          'title': '설득력 향상',
+          'content': '데이터와 구체적인 사례를 활용하여 논리적으로 설명하고, 핵심 메시지를 명확하게 전달해보세요.'
         });
       }
       
     } else if (analysis.category == '면접') {
-      // 면접 시나리오 제안
-      final confidence = analysis.metrics.emotionMetrics.averageLikeability;
+      // 면접 시나리오 제안 - 말하기 자신감 사용
+      final confidence = _calculateSpeakingConfidence(analysis);
       final clarity = analysis.metrics.speakingMetrics.clarity;
       
       if (confidence < 60) {
@@ -1038,7 +1031,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       }
       
     } else {
-      // 소개팅 시나리오 제안 (기본)
+      // 소개팅 시나리오 제안 - 감정적 호감도 사용 (적절함)
       final likeability = analysis.metrics.emotionMetrics.averageLikeability;
       final listening = analysis.metrics.conversationMetrics.listeningScore;
       
@@ -1301,4 +1294,55 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     if (listening >= 40) return '보통의 경청';
     return '경청 능력 향상 필요';
   }
+
+  double _calculatePersuasionLevel(AnalysisResult analysis) {
+    // 🔥 발표에서 설득력 = 톤(억양) + 명확성 조합 (말하기 패턴 탭과 동일)
+    final tonality = analysis.metrics.speakingMetrics.tonality;
+    final clarity = analysis.metrics.speakingMetrics.clarity;
+    
+    // 🔧 값이 0-1 범위인지 0-100 범위인지 확인하여 정규화
+    final normalizedTonality = tonality > 1 ? tonality : tonality * 100;
+    final normalizedClarity = clarity > 1 ? clarity : clarity * 100;
+    
+    // 발표 설득력 = 톤(50%) + 명확성(50%)
+    final persuasionScore = (normalizedTonality * 0.5 + normalizedClarity * 0.5);
+    
+    print('📊 분석결과 탭 설득력: 말하기 기반 계산 (${persuasionScore.toStringAsFixed(1)}%) - tonality=$normalizedTonality, clarity=$normalizedClarity');
+    return persuasionScore;
+  }
+
+  double _calculateSpeakingConfidence(AnalysisResult analysis) {
+    // 🔥 발표/면접에서 자신감 = 실제 timeline의 confidence 평균 (말하기 기반)
+    
+    // 실제 API 데이터에서 confidence 추출 시도
+    final rawApiData = analysis.rawApiData;
+    if (rawApiData != null && rawApiData['detailedTimeline'] != null) {
+      final detailedTimeline = rawApiData['detailedTimeline'] as List;
+      if (detailedTimeline.isNotEmpty) {
+        final confidenceValues = detailedTimeline
+            .map((point) => (point['confidence'] ?? 0.6) as double)
+            .where((conf) => conf > 0)
+            .toList();
+        
+        if (confidenceValues.isNotEmpty) {
+          final averageConfidence = confidenceValues.reduce((a, b) => a + b) / confidenceValues.length;
+          final result = (averageConfidence * 100).clamp(20.0, 95.0);
+          print('📊 분석결과 탭 말하기 자신감: timeline confidence 평균 (${result.toStringAsFixed(1)}%) - ${confidenceValues.length}개 포인트');
+          return result;
+        }
+      }
+    }
+    
+    // 백업: emotionData의 평균값 사용
+    if (analysis.emotionData.isNotEmpty) {
+      final average = analysis.emotionData.map((e) => e.value).reduce((a, b) => a + b) / analysis.emotionData.length;
+      print('📊 분석결과 탭 말하기 자신감: emotionData 평균 (${average.toStringAsFixed(1)}%) - ${analysis.emotionData.length}개 포인트');
+      return average;
+    }
+    
+    // 최종 백업: 기본값
+    print('📊 분석결과 탭 말하기 자신감: 기본값 사용 (60.0%)');
+    return 60.0;
+  }
 }
+

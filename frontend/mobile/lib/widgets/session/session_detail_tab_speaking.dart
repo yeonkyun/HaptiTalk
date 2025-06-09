@@ -372,28 +372,37 @@ class SessionDetailTabSpeaking extends StatelessWidget {
 
   // 🔥 실제 API 데이터 기반 분석 메서드들
   int _getPersuasionLevel() {
-    // 🔥 SpeakingMetrics의 실제 필드들을 사용하여 설득력 계산
+    // 🔥 발표에서 설득력 = 톤(억양) + 명확성 조합이 더 적절
+    // averageInterest(감정적 관심도)보다 실제 말하기 스킬이 중요
     final tonality = analysisResult.metrics.speakingMetrics.tonality;
     final clarity = analysisResult.metrics.speakingMetrics.clarity;
     
-    // 음성 톤과 명확성을 기반으로 설득력 계산 (분석결과 탭과 동일한 로직)
-    final persuasionScore = (tonality * 0.5 + clarity * 0.5);
-    final result = (persuasionScore * 100).round();
-    print('📊 설득력: metrics 기반 계산 ($result%) - tonality=$tonality, clarity=$clarity');
+    // 🔧 값이 0-1 범위인지 0-100 범위인지 확인하여 정규화
+    final normalizedTonality = tonality > 1 ? tonality : tonality * 100;
+    final normalizedClarity = clarity > 1 ? clarity : clarity * 100;
+    
+    // 발표 설득력 = 톤(50%) + 명확성(50%)
+    final persuasionScore = (normalizedTonality * 0.5 + normalizedClarity * 0.5);
+    final result = persuasionScore.round();
+    print('📊 설득력: 말하기 기반 계산 ($result%) - tonality=$normalizedTonality, clarity=$normalizedClarity (발표에 적합한 지표)');
     return result;
   }
 
   int _getClarityLevel() {
     // 🔥 specializationInsights 대신 metrics 사용 (분석결과 탭과 동일)
     final clarity = analysisResult.metrics.speakingMetrics.clarity;
-    return (clarity * 100).round(); // 0.8 -> 80
+    // 🔧 clarity 값이 이미 0-100 범위인지 0-1 범위인지 확인하여 정규화
+    final normalizedClarity = clarity > 1 ? clarity : clarity * 100;
+    return normalizedClarity.round();
   }
 
   int _getEngagementLevel() {
-    // 🔥 specializationInsights 대신 metrics 사용 (분석결과 탭과 동일)
+    // 🔥 발표 주도도 = 얼마나 발화를 주도했는지 (자신감과는 다른 개념)
+    // 자신감 = 감정적 자신감 (averageLikeability)
+    // 발표 주도도 = 발화 비율/기여도 (contributionRatio)
     final contributionRatio = analysisResult.metrics.conversationMetrics.contributionRatio;
     final result = contributionRatio.round();
-    print('📊 발표 주도도: metrics 기반 계산 ($result%) - contributionRatio=$contributionRatio');
+    print('📊 발표 주도도: metrics 기반 계산 ($result%) - contributionRatio=$contributionRatio (≠자신감)');
     return result;
   }
 
