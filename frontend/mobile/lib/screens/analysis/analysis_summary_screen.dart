@@ -342,6 +342,33 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
 
     return LineChart(
       LineChartData(
+        lineTouchData: LineTouchData(
+          enabled: true,
+          touchTooltipData: LineTouchTooltipData(
+            tooltipRoundedRadius: 8,
+            tooltipPadding: const EdgeInsets.all(8),
+            getTooltipColor: (touchedSpot) => AppColors.primary.withOpacity(0.8),
+            getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+              return touchedBarSpots.map((barSpot) {
+                final timePoint = barSpot.x.toInt();
+                final value = barSpot.y;
+                final timeInSeconds = timePoint * 30; // 30초 간격
+                final minutes = timeInSeconds ~/ 60;
+                final seconds = timeInSeconds % 60;
+                final timeLabel = '${minutes}:${seconds.toString().padLeft(2, '0')}';
+                
+                return LineTooltipItem(
+                  '$timeLabel\n${value.toStringAsFixed(1)}%',
+                  const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                );
+              }).toList();
+            },
+          ),
+        ),
         gridData: FlGridData(
           show: true,
           horizontalInterval: 25,
@@ -434,10 +461,11 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   List<String> _generateTimeLabels(int totalMinutes, int dataPoints) {
     List<String> labels = [];
     
+    // 🔥 실제 30초 간격으로 라벨 생성
     for (int i = 0; i < dataPoints; i++) {
-      final timePoint = (totalMinutes * i / (dataPoints - 1)).round();
-      final minutes = timePoint ~/ 60;
-      final seconds = timePoint % 60;
+      final timeInSeconds = i * 30; // 정확히 30초 간격
+      final minutes = timeInSeconds ~/ 60;
+      final seconds = timeInSeconds % 60;
       labels.add('${minutes}:${seconds.toString().padLeft(2, '0')}');
     }
     
@@ -445,33 +473,14 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   }
 
   List<double> _generatePresentationData(AnalysisResult analysis) {
-    // 🔥 실제 detailedTimeline 데이터가 있으면 사용
+    // 🔥 실제 detailedTimeline 데이터가 있으면 30초 간격 그대로 사용
     if (analysis.emotionData.isNotEmpty) {
-      print('✅ 발표 그래프: 실제 API 데이터 사용 (${analysis.emotionData.length}개 포인트)');
+      print('✅ 발표 그래프: 실제 30초 간격 데이터 사용 (${analysis.emotionData.length}개 포인트)');
       
-      // 실제 타임라인 데이터를 5개 구간으로 나누어 평균 계산
-      final dataLength = analysis.emotionData.length;
-      final segmentSize = (dataLength / 5).ceil();
+      // 30초 간격 데이터를 그대로 사용 (압축하지 않음)
+      List<double> presentationValues = analysis.emotionData.map((e) => e.value).toList();
       
-      List<double> presentationValues = [];
-      
-      for (int i = 0; i < 5; i++) {
-        final startIndex = i * segmentSize;
-        final endIndex = math.min((i + 1) * segmentSize, dataLength);
-        
-        if (startIndex < dataLength) {
-          final segmentData = analysis.emotionData.sublist(startIndex, endIndex);
-          final average = segmentData.map((e) => e.value).reduce((a, b) => a + b) / segmentData.length;
-          presentationValues.add(average);
-          
-          print('🔢 발표 구간${i + 1}: ${segmentData.length}개 포인트, 평균: ${average.toStringAsFixed(1)}%');
-        } else {
-          // 데이터가 없는 구간은 이전 값으로 보간
-          presentationValues.add(presentationValues.isNotEmpty ? presentationValues.last : 70.0);
-        }
-      }
-      
-      print('📊 발표 그래프 최종값: ${presentationValues.map((v) => v.toStringAsFixed(1)).join(', ')}');
+      print('📊 발표 그래프 30초 간격: ${presentationValues.take(5).map((v) => v.toStringAsFixed(1)).join(', ')}... (총 ${presentationValues.length}개)');
       return presentationValues;
     }
     
@@ -479,7 +488,6 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     print('⚠️ 발표 그래프: 시뮬레이션 데이터 사용 (실제 데이터 없음)');
     final confidence = analysis.metrics.emotionMetrics.averageLikeability;
     final persuasion = _calculatePersuasionLevel(analysis);
-    final speed = analysis.metrics.speakingMetrics.speechRate;
     final average = (confidence + persuasion) / 2;
     
     // 발표는 보통 시작할 때 낮고 중간에 높아지는 패턴
@@ -493,33 +501,14 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   }
 
   List<double> _generateInterviewData(AnalysisResult analysis) {
-    // 🔥 실제 detailedTimeline 데이터가 있으면 사용
+    // 🔥 실제 detailedTimeline 데이터가 있으면 30초 간격 그대로 사용
     if (analysis.emotionData.isNotEmpty) {
-      print('✅ 면접 그래프: 실제 API 데이터 사용 (${analysis.emotionData.length}개 포인트)');
+      print('✅ 면접 그래프: 실제 30초 간격 데이터 사용 (${analysis.emotionData.length}개 포인트)');
       
-      // 실제 타임라인 데이터를 5개 구간으로 나누어 평균 계산
-      final dataLength = analysis.emotionData.length;
-      final segmentSize = (dataLength / 5).ceil();
+      // 30초 간격 데이터를 그대로 사용 (압축하지 않음)
+      List<double> interviewValues = analysis.emotionData.map((e) => e.value).toList();
       
-      List<double> interviewValues = [];
-      
-      for (int i = 0; i < 5; i++) {
-        final startIndex = i * segmentSize;
-        final endIndex = math.min((i + 1) * segmentSize, dataLength);
-        
-        if (startIndex < dataLength) {
-          final segmentData = analysis.emotionData.sublist(startIndex, endIndex);
-          final average = segmentData.map((e) => e.value).reduce((a, b) => a + b) / segmentData.length;
-          interviewValues.add(average);
-          
-          print('🔢 면접 구간${i + 1}: ${segmentData.length}개 포인트, 평균: ${average.toStringAsFixed(1)}%');
-        } else {
-          // 데이터가 없는 구간은 이전 값으로 보간
-          interviewValues.add(interviewValues.isNotEmpty ? interviewValues.last : 65.0);
-        }
-      }
-      
-      print('📊 면접 그래프 최종값: ${interviewValues.map((v) => v.toStringAsFixed(1)).join(', ')}');
+      print('📊 면접 그래프 30초 간격: ${interviewValues.take(5).map((v) => v.toStringAsFixed(1)).join(', ')}... (총 ${interviewValues.length}개)');
       return interviewValues;
     }
     
@@ -541,33 +530,14 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   }
 
   List<double> _generateEmotionData(AnalysisResult analysis) {
-    // 🔥 실제 detailedTimeline 데이터가 있으면 사용
+    // 🔥 실제 detailedTimeline 데이터가 있으면 30초 간격 그대로 사용
     if (analysis.emotionData.isNotEmpty) {
-      print('✅ 감정 그래프: 실제 API 데이터 사용 (${analysis.emotionData.length}개 포인트)');
+      print('✅ 감정 그래프: 실제 30초 간격 데이터 사용 (${analysis.emotionData.length}개 포인트)');
       
-      // 실제 타임라인 데이터를 5개 구간으로 나누어 평균 계산
-      final dataLength = analysis.emotionData.length;
-      final segmentSize = (dataLength / 5).ceil();
+      // 30초 간격 데이터를 그대로 사용 (압축하지 않음)
+      List<double> emotionValues = analysis.emotionData.map((e) => e.value).toList();
       
-      List<double> emotionValues = [];
-      
-      for (int i = 0; i < 5; i++) {
-        final startIndex = i * segmentSize;
-        final endIndex = math.min((i + 1) * segmentSize, dataLength);
-        
-        if (startIndex < dataLength) {
-          final segmentData = analysis.emotionData.sublist(startIndex, endIndex);
-          final average = segmentData.map((e) => e.value).reduce((a, b) => a + b) / segmentData.length;
-          emotionValues.add(average);
-          
-          print('🔢 감정 구간${i + 1}: ${segmentData.length}개 포인트, 평균: ${average.toStringAsFixed(1)}%');
-        } else {
-          // 데이터가 없는 구간은 이전 값으로 보간
-          emotionValues.add(emotionValues.isNotEmpty ? emotionValues.last : 60.0);
-        }
-      }
-      
-      print('📊 감정 그래프 최종값: ${emotionValues.map((v) => v.toStringAsFixed(1)).join(', ')}');
+      print('📊 감정 그래프 30초 간격: ${emotionValues.take(5).map((v) => v.toStringAsFixed(1)).join(', ')}... (총 ${emotionValues.length}개)');
       return emotionValues;
     }
     

@@ -451,15 +451,15 @@ class SessionDetailTabTimeline extends StatelessWidget {
           speedComment = '말하기 속도는 ${speechRate}WPM으로 적절했으며,';
         }
         
-        return '${duration}분간의 발표 세션에서 평균 ${avgEmotion.toInt()}%의 발표 자신감을 보였습니다. '
+        return '${duration}분간의 발표 세션에서 평균 ${avgEmotion.round()}%의 발표 자신감을 보였습니다. '
                '$speedComment 전반적으로 안정적인 발표가 이루어졌습니다. '
                '핵심 메시지 전달과 구조적 설명이 효과적이었습니다.';
       case 'interview':
-        return '${duration}분간의 면접 세션에서 평균 ${avgEmotion.toInt()}%의 면접관 평가를 받았습니다. '
+        return '${duration}분간의 면접 세션에서 평균 ${avgEmotion.round()}%의 면접관 평가를 받았습니다. '
                '말하기 속도도 ${speechRate}WPM으로 적절했습니다. '
                '체계적인 답변과 전문성 어필이 돋보였습니다.';
       case 'dating':
-        return '${duration}분간의 소개팅에서 평균 ${avgEmotion.toInt()}%의 호감도를 유지했습니다. '
+        return '${duration}분간의 소개팅에서 평균 ${avgEmotion.round()}%의 호감도를 유지했습니다. '
                '자연스러운 대화 흐름과 적절한 상호작용으로 좋은 분위기를 만들었습니다.';
       default:
         return '${duration}분간의 세션이 성공적으로 완료되었습니다.';
