@@ -1446,39 +1446,54 @@ const analyzeInterviewTechnical = (segments) => {
 };
 
 const analyzePresentationClarity = (segments) => {
-    const clarityWords = ['핵심은', '요점은', '중요한', '주요', '기본적으로'];
+    const clarityWords = ['핵심은', '요점은', '중요한', '주요', '기본적으로', '첫째', '둘째', '마지막으로', '결론적으로'];
     const clarityCount = segments.filter(s => 
         clarityWords.some(word => s.transcription.includes(word))
     ).length;
     
+    // 🔥 기본 점수 + 키워드 분석 + 발화량 분석
+    const baseScore = 40; // 기본 점수
+    const keywordScore = Math.min(40, clarityCount * 10); // 키워드 기여분
+    const lengthScore = Math.min(20, segments.length * 2); // 발화량 기여분
+    
     return {
-        clarity_score: Math.min(100, clarityCount * 25),
+        clarity_score: Math.min(100, baseScore + keywordScore + lengthScore),
         presentation_style: clarityCount > 1 ? '명확함' : '보통',
         improvement: '핵심 포인트를 먼저 제시하고 설명하세요'
     };
 };
 
 const analyzePresentationPersuasion = (segments) => {
-    const persuasionWords = ['장점', '이익', '효과', '결과', '성과', '가치'];
+    const persuasionWords = ['장점', '이익', '효과', '결과', '성과', '가치', '개선', '향상', '도움', '유용'];
     const persuasionCount = segments.filter(s => 
         persuasionWords.some(word => s.transcription.includes(word))
     ).length;
     
+    // 🔥 기본 점수 + 키워드 분석 + 자신감 지표
+    const baseScore = 25; // 기본 점수
+    const keywordScore = Math.min(50, persuasionCount * 15); // 키워드 기여분
+    const confidenceScore = segments.length > 5 ? 25 : 15; // 충분한 발화량 기여분
+    
     return {
-        persuasion_level: Math.min(100, persuasionCount * 20),
+        persuasion_level: Math.min(100, baseScore + keywordScore + confidenceScore),
         approach: persuasionCount > 2 ? '설득적' : '정보 전달형',
         recommendation: '구체적인 이익과 가치를 더 강조하세요'
     };
 };
 
 const analyzePresentationEngagement = (segments) => {
-    const engagementWords = ['질문', '의견', '생각', '어떻게', '동의'];
+    const engagementWords = ['질문', '의견', '생각', '어떻게', '동의', '어떤가요', '궁금', '어떠세요'];
     const engagementCount = segments.filter(s => 
         engagementWords.some(word => s.transcription.includes(word))
     ).length;
     
+    // 🔥 기본 점수 + 키워드 분석 + 발화 패턴 분석
+    const baseScore = 20; // 기본 점수
+    const keywordScore = Math.min(40, engagementCount * 20); // 키워드 기여분
+    const interactionScore = segments.length > 8 ? 40 : Math.min(40, segments.length * 5); // 상호작용 기여분
+    
     return {
-        engagement_score: Math.min(100, engagementCount * 15),
+        engagement_score: Math.min(100, baseScore + keywordScore + interactionScore),
         interaction_level: engagementCount > 2 ? '상호작용적' : '일방향적',
         tip: '청중과의 상호작용을 더 늘려보세요'
     };
