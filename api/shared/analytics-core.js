@@ -275,12 +275,22 @@ class AnalyticsCore {
   static checkPresentationHapticConditions(current, previous) {
     const conditions = [];
     
-    // 자신감 급상승
-    if (current.confidence - previous.confidence >= 15) {
+    // 🎉 발표 자신감 우수 (높을 때 격려)
+    if (current.confidence >= 80) {
       conditions.push({
-        type: 'confidence_up',
+        type: 'confidence_excellent',
+        priority: 'medium',
+        message: '🎉 훌륭한 발표 자신감이에요!',
+        pattern: 'confidence_excellent'
+      });
+    }
+    
+    // 자신감 부족 (낮을 때 개선 메시지)
+    else if (current.confidence < 50) {
+      conditions.push({
+        type: 'confidence_low',
         priority: 'high',
-        message: '💪 발표 자신감이 상승했어요!',
+        message: '💪 더 자신감 있게 말해보세요!',
         pattern: 'confidence_boost'
       });
     }
@@ -295,8 +305,18 @@ class AnalyticsCore {
       });
     }
     
+    // 🎉 설득력 우수 (높을 때 격려)
+    if (current.persuasion >= 75) {
+      conditions.push({
+        type: 'persuasion_excellent',
+        priority: 'medium',
+        message: '🎯 설득력이 뛰어나요!',
+        pattern: 'persuasion_excellent'
+      });
+    }
+    
     // 설득력 저조
-    if (current.persuasion < 40) {
+    else if (current.persuasion < 40) {
       conditions.push({
         type: 'persuasion_low',
         priority: 'medium',
@@ -324,18 +344,38 @@ class AnalyticsCore {
   static checkInterviewHapticConditions(current, previous) {
     const conditions = [];
     
-    // 자신감 상승
-    if (current.confidence - previous.confidence >= 15) {
+    // 🎉 면접 자신감 우수 (높을 때 격려)
+    if (current.confidence >= 75) {
       conditions.push({
-        type: 'confidence_up',
+        type: 'confidence_excellent',
+        priority: 'medium',
+        message: '👔 면접 자신감이 훌륭해요!',
+        pattern: 'confidence_excellent'
+      });
+    }
+    
+    // 자신감 부족 (낮을 때 개선 메시지)
+    else if (current.confidence < 45) {
+      conditions.push({
+        type: 'confidence_low',
         priority: 'high',
-        message: '👔 면접 자신감이 좋아요!',
+        message: '👔 자신감을 가지고 답변해보세요!',
         pattern: 'confidence_boost'
       });
     }
     
+    // 🎉 안정감 우수 (높을 때 격려)
+    if (current.stability >= 80) {
+      conditions.push({
+        type: 'stability_excellent',
+        priority: 'medium',
+        message: '🧘‍♂️ 매우 안정적인 답변이에요!',
+        pattern: 'stability_excellent'
+      });
+    }
+    
     // 안정감 부족
-    if (current.stability < 45) {
+    else if (current.stability < 45) {
       conditions.push({
         type: 'stability_low',
         priority: 'medium',
@@ -353,22 +393,52 @@ class AnalyticsCore {
   static checkDatingHapticConditions(current, previous) {
     const conditions = [];
     
-    // 호감도 상승
-    if (current.likeability - previous.likeability >= 15) {
+    // 🎉 호감도 우수 (높을 때 격려)
+    if (current.likeability >= 80) {
       conditions.push({
-        type: 'likeability_up',
-        priority: 'high',
-        message: '💕 호감도가 상승했어요!',
+        type: 'likeability_excellent',
+        priority: 'medium',
+        message: '💕 상대방이 매우 좋아해요!',
+        pattern: 'likeability_excellent'
+      });
+    }
+    
+    // 호감도 부족 (낮을 때 개선 메시지)
+    else if (current.likeability < 50) {
+      conditions.push({
+        type: 'likeability_low',
+        priority: 'medium',
+        message: '💕 더 밝고 긍정적으로 대화해보세요!',
         pattern: 'likeability_boost'
       });
     }
     
+    // 🎉 관심도 우수 (높을 때 격려)
+    if (current.interest >= 75) {
+      conditions.push({
+        type: 'interest_excellent',
+        priority: 'medium',
+        message: '🗣️ 흥미로운 대화가 이어지고 있어요!',
+        pattern: 'interest_excellent'
+      });
+    }
+    
     // 관심도 하락
-    if (previous.interest - current.interest >= 20) {
+    else if (previous.interest - current.interest >= 20) {
       conditions.push({
         type: 'interest_down',
         priority: 'high',
         message: '⚠️ 주제를 바꿔보세요',
+        pattern: 'topic_change'
+      });
+    }
+    
+    // 관심도 부족 (낮을 때 개선 메시지)
+    else if (current.interest < 45) {
+      conditions.push({
+        type: 'interest_low',
+        priority: 'medium',
+        message: '🗣️ 더 흥미로운 대화를 시도해보세요!',
         pattern: 'topic_change'
       });
     }

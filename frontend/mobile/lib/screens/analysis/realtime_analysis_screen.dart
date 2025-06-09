@@ -436,12 +436,133 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
   /// Apple Watch 햅틱 전송
   Future<void> _sendHapticToWatch(String type, String pattern, String message) async {
     try {
-      // WatchService는 message 파라미터만 받으므로 형식을 맞춰서 전송
-      final hapticMessage = '$type: $message';
-      await _watchService.sendHapticFeedback(hapticMessage);
-      print('📱 Apple Watch 햅틱 전송: $type - $pattern');
+      // 🎯 백엔드 패턴을 Apple Watch MVP 패턴으로 매핑
+      final mappedPattern = _mapToWatchPattern(type);
+      
+      if (mappedPattern != null) {
+        // 🎯 패턴 기반 햅틱 전송 (MVP 패턴 사용)
+        await _watchService.sendHapticFeedbackWithPattern(
+          message: message,
+          pattern: mappedPattern['pattern']!,
+          category: mappedPattern['category']!,
+          patternId: mappedPattern['patternId']!,
+        );
+        print('📱 Apple Watch MVP 패턴 햅틱 전송: ${mappedPattern['patternId']} - $message');
+      } else {
+        // 🔄 매핑되지 않은 패턴은 기본 햅틱으로 폴백
+        await _watchService.sendHapticFeedback(message);
+        print('📱 Apple Watch 기본 햅틱 전송: $type - $message');
+      }
     } catch (e) {
       print('❌ Apple Watch 햅틱 전송 실패: $e');
+      // 실패 시 기본 햅틱으로 재시도
+      try {
+        await _watchService.sendHapticFeedback(message);
+        print('📱 Apple Watch 기본 햅틱 폴백 성공');
+      } catch (fallbackError) {
+        print('❌ Apple Watch 기본 햅틱 폴백도 실패: $fallbackError');
+      }
+    }
+  }
+
+  /// 🎯 백엔드 햅틱 타입을 Apple Watch MVP 패턴으로 매핑
+  Map<String, String>? _mapToWatchPattern(String backendType) {
+    const patternMapping = {
+      // 자신감 관련 (발표/면접) - 개선 메시지들
+      'confidence_low': {
+        'patternId': 'F1', // 주제 전환 패턴 (관심도 하락 패턴 활용)
+        'pattern': 'topic_change',
+        'category': 'flow',
+      },
+      'confidence_down': {
+        'patternId': 'R2', // 관심도 하락 패턴 (강한 경고)
+        'pattern': 'interest_down',
+        'category': 'reaction',
+      },
+      
+      // 🎉 자신감 우수 - R1 패턴 활용
+      'confidence_excellent': {
+        'patternId': 'R1', // 호감도 상승 패턴 (아름다운 4단계 상승 파동)
+        'pattern': 'likability_up',
+        'category': 'reaction',
+      },
+      
+      // 설득력 관련 (발표)
+      'persuasion_low': {
+        'patternId': 'L3', // 질문 제안 패턴 (물음표 형태)
+        'pattern': 'question_suggestion',
+        'category': 'listener',
+      },
+      
+      // 🎉 설득력 우수 - R1 패턴 활용
+      'persuasion_excellent': {
+        'patternId': 'R1', // 호감도 상승 패턴
+        'pattern': 'likability_up',
+        'category': 'reaction',
+      },
+      
+      // 안정감 관련 (면접)
+      'stability_low': {
+        'patternId': 'F2', // 침묵 관리 패턴 (부드러운 알림)
+        'pattern': 'silence_management',
+        'category': 'flow',
+      },
+      
+      // 🎉 안정감 우수 - R1 패턴 활용
+      'stability_excellent': {
+        'patternId': 'R1', // 호감도 상승 패턴
+        'pattern': 'likability_up',
+        'category': 'reaction',
+      },
+      
+      // 호감도 관련 (소개팅) - 개선 메시지
+      'likeability_low': {
+        'patternId': 'F1', // 주제 전환 패턴 (관심도 하락 패턴 활용)
+        'pattern': 'topic_change',
+        'category': 'flow',
+      },
+      
+      // 🎉 호감도 우수 - R1 패턴 활용
+      'likeability_excellent': {
+        'patternId': 'R1', // 호감도 상승 패턴 (본래 용도)
+        'pattern': 'likability_up',
+        'category': 'reaction',
+      },
+      
+      // 관심도 관련 (소개팅) - 개선 메시지들
+      'interest_down': {
+        'patternId': 'F1', // 주제 전환 패턴
+        'pattern': 'topic_change',
+        'category': 'flow',
+      },
+      'interest_low': {
+        'patternId': 'F1', // 주제 전환 패턴 (관심도 하락 패턴 활용)
+        'pattern': 'topic_change',
+        'category': 'flow',
+      },
+      
+      // 🎉 관심도 우수 - R1 패턴 활용
+      'interest_excellent': {
+        'patternId': 'R1', // 호감도 상승 패턴
+        'pattern': 'likability_up',
+        'category': 'reaction',
+      },
+      
+      // 말하기 속도 관련
+      'speed_fast': {
+        'patternId': 'S1', // 속도 조절 패턴
+        'pattern': 'speed_control',
+        'category': 'speaker',
+      },
+    };
+    
+    final mapping = patternMapping[backendType];
+    if (mapping != null) {
+      print('🎯 패턴 매핑 성공: $backendType -> ${mapping['patternId']} (${mapping['category']})');
+      return Map<String, String>.from(mapping);
+    } else {
+      print('⚠️ 매핑되지 않은 백엔드 패턴: $backendType');
+      return null;
     }
   }
 
