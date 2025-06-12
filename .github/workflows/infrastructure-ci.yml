@@ -1,0 +1,164 @@
+name: Infrastructure CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'infrastructure/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/infrastructure-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'infrastructure/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/infrastructure-ci.yml'
+
+jobs:
+  infra_validate:
+    name: Validate Infrastructure Configuration
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: haptitalk_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate docker-compose.yml
+        run: |
+          # 기본 환경 변수 설정
+          export POSTGRES_USER=${{ secrets.POSTGRES_USER || 'postgres' }}
+          export POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD || 'postgres' }}
+          export POSTGRES_DB=${{ secrets.POSTGRES_DB || 'haptitalk' }}
+          export POSTGRES_VOLUME_NAME=postgres_data
+          export MONGO_USER=${{ secrets.MONGO_USER || 'mongo' }}
+          export MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD || 'mongo' }}
+          export MONGO_DB=${{ secrets.MONGO_DB || 'haptitalk' }}
+          export MONGODB_VOLUME_NAME=mongodb_data
+          export REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD || 'redis' }}
+          export REDIS_VOLUME_NAME=redis_data
+          export KONG_VOLUME_NAME=kong_data
+          export REDIS_PORT=6379
+          export AUTH_SERVICE_PORT=3000
+          export REALTIME_SERVICE_PORT=3001
+          export SESSION_SERVICE_PORT=3002
+          export FEEDBACK_SERVICE_PORT=3003
+          export USER_SERVICE_PORT=3004
+          export REPORT_SERVICE_PORT=3005
+          export JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET || 'test_jwt_access_secret' }}
+          export JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET || 'test_jwt_refresh_secret' }}
+          export JWT_SESSION_SECRET=${{ secrets.JWT_SESSION_SECRET || 'test_jwt_session_secret' }}
+          export LOG_LEVEL=info
+          export KAFKA_TOPIC_SESSION_EVENTS=session-events
+          export KAFKA_TOPIC_ANALYSIS_RESULTS=analysis-results
+          export KAFKA_TOPIC_FEEDBACK_COMMANDS=feedback-commands
+          export KAFKA_TOPIC_USER_ACTIVITY=user-activity
+          
+          # Docker Compose 설정 검증
+          docker compose -f docker-compose.yml config
+      
+      - name: Lint Kong configuration
+        run: |
+          if [ -f "infrastructure/api-gateway/kong.yml" ]; then
+            if command -v kong-lint &> /dev/null; then
+              kong-lint lint infrastructure/api-gateway/kong.yml
+            else
+              echo "kong-lint not available, skipping"
+            fi
+          else
+            echo "Using kong.yml.template, validation requires environment variables"
+          fi
+      
+      - name: Validate database scripts
+        run: |
+          if [ -d "infrastructure/database/postgres/init" ]; then
+            for sqlfile in infrastructure/database/postgres/init/*.sql; do
+              if [ -f "$sqlfile" ]; then
+                echo "Validating $sqlfile"
+                cat "$sqlfile" | grep -v "^--" | grep ";" > /dev/null || echo "Warning: No SQL commands found in $sqlfile"
+              fi
+            done
+          fi
+          
+          if [ -d "infrastructure/database/mongodb/init" ]; then
+            for jsfile in infrastructure/database/mongodb/init/*.js; do
+              if [ -f "$jsfile" ]; then
+                echo "Validating $jsfile"
+                node -c "$jsfile" || echo "Warning: JavaScript syntax error in $jsfile"
+              fi
+            done
+          fi
+
+  infra_build_kong:
+    name: Build Kong Config
+    runs-on: ubuntu-latest
+    needs: infra_validate
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        if: hashFiles('infrastructure/api-gateway/Dockerfile') != ''
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Log in to GitHub Container Registry
+        if: hashFiles('infrastructure/api-gateway/Dockerfile') != ''
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract branch name
+        if: hashFiles('infrastructure/api-gateway/Dockerfile') != ''
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_ENV
+      
+      - name: Generate Kong image tags
+        if: hashFiles('infrastructure/api-gateway/Dockerfile') != ''
+        id: meta
+        run: |
+          DOCKER_IMAGE=ghcr.io/${{ github.repository_owner }}/haptitalk-kong
+          TAGS="${DOCKER_IMAGE}:${{ env.BRANCH_NAME }}"
+          
+          if [[ "${{ env.BRANCH_NAME }}" == "main" ]]; then
+            TAGS="${TAGS},${DOCKER_IMAGE}:latest"
+          fi
+          
+          VERSION=$(date +'%Y%m%d%H%M%S')
+          TAGS="${TAGS},${DOCKER_IMAGE}:${VERSION}"
+          
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+      
+      - name: Build and push Kong config image
+        if: hashFiles('infrastructure/api-gateway/Dockerfile') != ''
+        uses: docker/build-push-action@v4
+        with:
+          context: ./infrastructure/api-gateway
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

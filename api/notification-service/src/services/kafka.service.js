@@ -1,7 +1,7 @@
 /**
  * 알림 서비스의 Kafka 관리 모듈
  */
-const { createKafkaClient } = require('../../../shared/kafka-client');
+const { createKafkaClient } = require('../../api/shared/kafka-client');
 const logger = require('../utils/logger');
 const notificationService = require('./notification.service');
 

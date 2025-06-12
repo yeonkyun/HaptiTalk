@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:hapti_talk/constants/colors.dart';
-import 'package:hapti_talk/screens/auth/login_screen.dart';
-import 'package:hapti_talk/screens/main_tab.dart';
-import 'package:hapti_talk/services/auth_service.dart';
-import 'package:hapti_talk/services/service_locator.dart';
+import 'package:haptitalk/constants/colors.dart';
+import 'package:haptitalk/screens/auth/login_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:haptitalk/services/auth_service.dart';
+import 'package:haptitalk/screens/main/main_tab_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({Key? key}) : super(key: key);
@@ -20,7 +19,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _phoneController = TextEditingController();
-  final AuthService _authService = serviceLocator.authService; // 서비스 로케이터 사용
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -29,7 +27,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _agreePrivacy = false;
   bool _agreeMarketing = false;
   bool _isLoading = false;
-  String? _errorMessage;
 
   @override
   void dispose() {
@@ -56,68 +53,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
     });
   }
 
-  // 회원가입 처리
-  void _processSignup() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    // 필수 약관 동의 검사
-    if (!_agreeTerms || !_agreePrivacy) {
-      setState(() {
-        _errorMessage = '필수 약관에 동의해주세요';
-      });
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    // 회원가입 서비스 호출
-    final response = await _authService.signup(
-      _emailController.text.trim(),
-      _passwordController.text,
-      _nameController.text.trim(),
-    );
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (response.success) {
-      // 회원가입 성공
-      if (!mounted) return;
-
-      // 메인 화면으로 이동
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainTab()),
-      );
-    } else {
-      // 회원가입 실패
-      setState(() {
-        _errorMessage = response.errorMessage ?? '회원가입에 실패했습니다.';
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textColor),
+          icon: const Icon(Icons.arrow_back, color: AppColors.text),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
           '회원가입',
           style: TextStyle(
-            color: AppColors.textColor,
+            color: AppColors.text,
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
@@ -182,7 +132,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           _obscurePassword
                               ? Icons.visibility_off
                               : Icons.visibility,
-                          color: AppColors.secondaryTextColor,
+                          color: AppColors.secondaryText,
                         ),
                         onPressed: () {
                           setState(() {
@@ -209,7 +159,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const Text(
                       '영문, 숫자, 특수문자 조합 8자 이상',
                       style: TextStyle(
-                        color: AppColors.hintTextColor,
+                        color: AppColors.secondaryText,
                         fontSize: 12,
                       ),
                     ),
@@ -227,7 +177,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           _obscureConfirmPassword
                               ? Icons.visibility_off
                               : Icons.visibility,
-                          color: AppColors.secondaryTextColor,
+                          color: AppColors.secondaryText,
                         ),
                         onPressed: () {
                           setState(() {
@@ -253,7 +203,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         const Text(
                           '전화번호',
                           style: TextStyle(
-                            color: AppColors.textColor,
+                            color: AppColors.text,
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
@@ -262,7 +212,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         const Text(
                           '(선택)',
                           style: TextStyle(
-                            color: AppColors.hintTextColor,
+                            color: AppColors.secondaryText,
                             fontSize: 12,
                           ),
                         ),
@@ -281,7 +231,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const Text(
                       '약관 동의',
                       style: TextStyle(
-                        color: AppColors.textColor,
+                        color: AppColors.text,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -317,7 +267,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           child: const Icon(
                             Icons.arrow_forward_ios,
                             size: 18,
-                            color: AppColors.hintTextColor,
+                            color: AppColors.secondaryText,
                           ),
                         ),
                       ],
@@ -378,14 +328,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               const Text(
                                 '마케팅 정보 수신 동의 ',
                                 style: TextStyle(
-                                  color: AppColors.textColor,
+                                  color: AppColors.text,
                                   fontSize: 14,
                                 ),
                               ),
                               const Text(
                                 '(선택)',
                                 style: TextStyle(
-                                  color: AppColors.hintTextColor,
+                                  color: AppColors.secondaryText,
                                   fontSize: 12,
                                 ),
                               ),
@@ -399,39 +349,34 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           child: const Icon(
                             Icons.arrow_forward_ios,
                             size: 18,
-                            color: AppColors.hintTextColor,
+                            color: AppColors.secondaryText,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 30),
 
-                    // 오류 메시지 표시
-                    if (_errorMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(
-                            color: Colors.red,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-
                     // 회원가입 버튼
                     SizedBox(
                       width: double.infinity,
                       height: 55,
                       child: ElevatedButton(
-                        onPressed: _isLoading ? null : _processSignup,
+                        onPressed: _isLoading ? null : () async {
+                          if (_formKey.currentState!.validate() &&
+                              _agreeTerms &&
+                              _agreePrivacy) {
+                            await _handleSignUp();
+                          } else if (!_agreeTerms || !_agreePrivacy) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('필수 약관에 동의해주세요')),
+                            );
+                          }
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primaryColor,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          disabledBackgroundColor:
-                              AppColors.primaryColor.withOpacity(0.6),
                         ),
                         child: _isLoading
                             ? const SizedBox(
@@ -439,17 +384,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 height: 24,
                                 child: CircularProgressIndicator(
                                   color: Colors.white,
-                                  strokeWidth: 2.0,
+                                  strokeWidth: 2,
                                 ),
                               )
                             : const Text(
-                                '회원가입',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                          '회원가입',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -459,7 +404,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       children: [
                         const Expanded(
                           child: Divider(
-                            color: AppColors.dividerColor,
+                            color: AppColors.border,
                             thickness: 1,
                           ),
                         ),
@@ -468,14 +413,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           child: Text(
                             '또는',
                             style: TextStyle(
-                              color: AppColors.hintTextColor,
+                              color: AppColors.secondaryText,
                               fontSize: 14,
                             ),
                           ),
                         ),
                         const Expanded(
                           child: Divider(
-                            color: AppColors.dividerColor,
+                            color: AppColors.border,
                             thickness: 1,
                           ),
                         ),
@@ -692,5 +637,60 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ),
       child: Center(child: icon),
     );
+  }
+
+  Future<void> _handleSignUp() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
+      final name = _nameController.text.trim();
+
+      // AuthService를 사용한 회원가입
+      final success = await AuthService().register(email, password, name);
+
+      if (success) {
+        if (!mounted) return;
+        
+        // 회원가입 성공 시 로그인 화면으로 이동
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('회원가입이 완료되었습니다! 자동으로 로그인됩니다.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // 메인 화면으로 이동 (AuthService에서 자동 로그인됨)
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const MainTabScreen(),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('회원가입에 실패했습니다. 다시 시도해주세요.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('회원가입 오류: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('회원가입 중 오류가 발생했습니다: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 }

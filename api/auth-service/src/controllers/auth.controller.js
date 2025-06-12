@@ -4,6 +4,7 @@ const emailService = require('../services/email.service');
 const tokenService = require('../services/token.service');
 const logger = require('../utils/logger');
 const { metrics } = require('../utils/metrics');
+const { withDbResilience } = require('../utils/serviceClient');
 
 const authController = {
     /**
@@ -16,16 +17,35 @@ const authController = {
         try {
             const {email, password, device_info} = req.body;
 
-            // Register user
-            const newUser = await authService.register({email, password});
+            // Register user with resilience
+            const newUser = await withDbResilience(
+                async () => authService.register({email, password}),
+                { operationName: 'user_registration' }
+            );
 
-            // Send verification email
-            // This is a placeholder - implement email service as needed
+            // Send verification email with resilience
             if (newUser.verification_token) {
-                await emailService.sendVerificationEmail(
-                    newUser.email,
-                    newUser.verification_token
-                );
+                try {
+                    await withDbResilience(
+                        async () => emailService.sendVerificationEmail(
+                            newUser.email,
+                            newUser.verification_token
+                        ),
+                        { 
+                            operationName: 'send_verification_email',
+                            fallbackKey: 'email',
+                            resilienceOptions: {
+                                timeout: 5000 // 이메일 전송은 더 긴 타임아웃
+                            }
+                        }
+                    );
+                } catch (emailError) {
+                    // 이메일 전송 실패는 치명적이지 않으므로 로깅만 하고 계속 진행
+                    logger.error('Failed to send verification email', { 
+                        error: emailError.message,
+                        email: newUser.email 
+                    });
+                }
             }
 
             // Record successful registration in metrics
@@ -60,8 +80,14 @@ const authController = {
         try {
             const {email, password, device_info} = req.body;
 
-            // Login user
-            const {user, tokens} = await authService.login(email, password, device_info);
+            // Login user with resilience
+            const {user, tokens} = await withDbResilience(
+                async () => authService.login(email, password, device_info),
+                { 
+                    operationName: 'user_login',
+                    fallbackKey: 'login'
+                }
+            );
 
             // Record successful login in metrics
             metrics.loginAttemptsTotal.inc({ status: 'success' });
@@ -96,8 +122,11 @@ const authController = {
             const accessToken = authHeader.split(' ')[1];
             const {refresh_token} = req.body;
 
-            // Logout user
-            await authService.logout(accessToken, refresh_token);
+            // Logout user with resilience
+            await withDbResilience(
+                async () => authService.logout(accessToken, refresh_token),
+                { operationName: 'user_logout' }
+            );
 
             // Return response
             return res.status(httpStatus.OK).json({
@@ -119,8 +148,14 @@ const authController = {
         try {
             const {refresh_token} = req.body;
 
-            // Refresh token
-            const tokens = await authService.refreshAuth(refresh_token);
+            // Refresh token with resilience
+            const tokens = await withDbResilience(
+                async () => authService.refreshAuth(refresh_token),
+                { 
+                    operationName: 'token_refresh',
+                    fallbackKey: 'refresh_token'
+                }
+            );
 
             // Record successful token refresh in metrics
             metrics.tokenRefreshTotal.inc({ status: 'success' });
@@ -161,8 +196,11 @@ const authController = {
             
             const token = authHeader.split(' ')[1];
             
-            // Check token status
-            const status = await tokenService.checkTokenStatus(token);
+            // Check token status with resilience
+            const status = await withDbResilience(
+                async () => tokenService.checkTokenStatus(token),
+                { operationName: 'check_token_status' }
+            );
             
             return res.status(httpStatus.OK).json({
                 success: true,
@@ -192,8 +230,11 @@ const authController = {
             
             const token = authHeader.split(' ')[1];
             
-            // Try to refresh token proactively
-            const newToken = await tokenService.proactiveTokenRefresh(token);
+            // Try to refresh token proactively with resilience
+            const newToken = await withDbResilience(
+                async () => tokenService.proactiveTokenRefresh(token),
+                { operationName: 'proactive_token_refresh' }
+            );
             
             if (!newToken) {
                 return res.status(httpStatus.OK).json({
@@ -241,8 +282,11 @@ const authController = {
                 });
             }
 
-            // Verify email
-            const user = await authService.verifyEmail(token);
+            // Verify email with resilience
+            const user = await withDbResilience(
+                async () => authService.verifyEmail(token),
+                { operationName: 'verify_email' }
+            );
 
             // Return response
             return res.status(httpStatus.OK).json({
@@ -274,15 +318,34 @@ const authController = {
                 });
             }
 
-            // Request password reset
-            const result = await authService.requestPasswordReset(email);
-
-            // Send password reset email
-            if (result.resetToken) {
-                await emailService.sendPasswordResetEmail(
-                    result.email,
-                    result.resetToken
+            // Request password reset with resilience
+            try {
+                const result = await withDbResilience(
+                    async () => authService.requestPasswordReset(email),
+                    { 
+                        operationName: 'request_password_reset',
+                        fallbackKey: 'password_reset'
+                    }
                 );
+
+                // Send password reset email with resilience
+                if (result.resetToken) {
+                    await withDbResilience(
+                        async () => emailService.sendPasswordResetEmail(
+                            result.email,
+                            result.resetToken
+                        ),
+                        { 
+                            operationName: 'send_password_reset_email',
+                            resilienceOptions: {
+                                timeout: 5000
+                            }
+                        }
+                    );
+                }
+            } catch (error) {
+                // 보안을 위해 에러가 발생해도 동일한 응답 반환
+                logger.error('Password reset error', { error: error.message, email });
             }
 
             // Return response (always the same for security)
@@ -316,8 +379,11 @@ const authController = {
                 });
             }
 
-            // Reset password
-            const user = await authService.resetPassword(token, password);
+            // Reset password with resilience
+            const user = await withDbResilience(
+                async () => authService.resetPassword(token, password),
+                { operationName: 'reset_password' }
+            );
 
             // Return response
             return res.status(httpStatus.OK).json({

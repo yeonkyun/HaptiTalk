@@ -1,0 +1,15 @@
+{
+  "name": "@haptitalk/resilience",
+  "version": "1.0.0",
+  "description": "HaptiTalk 서비스 회복성 패턴 모듈",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "HaptiTalk Team",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.27.2",
+    "opossum": "^6.3.0"
+  }
+}

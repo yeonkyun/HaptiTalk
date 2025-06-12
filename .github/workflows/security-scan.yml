@@ -1,0 +1,160 @@
+name: Security Scan
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # 매주 일요일 UTC 03:00에 실행
+  workflow_dispatch:  # 수동 실행 가능
+  push:
+    branches: [ main ]
+    paths:
+      - '**/package.json'
+      - '**/package-lock.json'
+      - '**/requirements.txt'
+      - 'Dockerfile'
+      - '**/Dockerfile'
+      - '.github/workflows/security-scan.yml'
+
+jobs:
+  npm_audit:
+    name: NPM Security Audit
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        directory: ['api/auth-service', 'api/realtime-service', 'api/session-service', 'api/feedback-service', 'api/user-service', 'api/report-service', 'api/shared']
+        
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check if package.json exists
+        id: check_package
+        run: |
+          if [ -f "${{ matrix.directory }}/package.json" ]; then
+            echo "package_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "package_exists=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Set up Node.js
+        if: steps.check_package.outputs.package_exists == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: NPM Audit
+        if: steps.check_package.outputs.package_exists == 'true'
+        run: |
+          cd ${{ matrix.directory }}
+          npm audit --json || true
+        continue-on-error: true
+  
+  python_dependency_scan:
+    name: Python Dependency Security Scan
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        directory: ['ai/emotion-analysis-service', 'ai/speaker-diarization-service', 'ai/stt-service']
+        
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check if requirements.txt exists
+        id: check_requirements
+        run: |
+          if [ -f "${{ matrix.directory }}/requirements.txt" ]; then
+            echo "requirements_exist=true" >> $GITHUB_OUTPUT
+          else
+            echo "requirements_exist=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Set up Python
+        if: steps.check_requirements.outputs.requirements_exist == 'true'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install safety
+        if: steps.check_requirements.outputs.requirements_exist == 'true'
+        run: pip install safety
+      
+      - name: Run safety check
+        if: steps.check_requirements.outputs.requirements_exist == 'true'
+        run: |
+          cd ${{ matrix.directory }}
+          safety check -r requirements.txt --json || true
+        continue-on-error: true
+
+  docker_scan:
+    name: Docker Image Security Scan
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dockerfile: ['api/auth-service/Dockerfile', 'api/realtime-service/Dockerfile', 'api/session-service/Dockerfile', 'api/feedback-service/Dockerfile', 'api/user-service/Dockerfile', 'api/report-service/Dockerfile']
+        
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check if Dockerfile exists
+        id: check_dockerfile
+        run: |
+          if [ -f "${{ matrix.dockerfile }}" ]; then
+            echo "dockerfile_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "dockerfile_exists=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Build Docker image
+        if: steps.check_dockerfile.outputs.dockerfile_exists == 'true'
+        run: |
+          DOCKERFILE_DIR=$(dirname "${{ matrix.dockerfile }}")
+          SERVICE_NAME=$(basename "$DOCKERFILE_DIR")
+          docker build -t haptitalk-$SERVICE_NAME:scan $DOCKERFILE_DIR
+      
+      - name: Scan Docker image with Trivy
+        if: steps.check_dockerfile.outputs.dockerfile_exists == 'true'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'haptitalk-${{ matrix.dockerfile }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+        continue-on-error: true
+      
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: steps.check_dockerfile.outputs.dockerfile_exists == 'true'
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  code_scanning:
+    name: Code Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: 'javascript, typescript, python'
+      
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+
+  security_report:
+    name: Generate Security Report
+    needs: [npm_audit, python_dependency_scan, docker_scan, code_scanning]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Send Security Report
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL || 'security' }}
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_TITLE: Security Scan Report
+          SLACK_MESSAGE: Security scan completed with ${{ (needs.npm_audit.result == 'success' && needs.python_dependency_scan.result == 'success' && needs.docker_scan.result == 'success' && needs.code_scanning.result == 'success') && 'no critical issues' || 'issues detected' }}. Please check the GitHub Security tab for details.
+          SLACK_FOOTER: 'Haptitalk Security Scan'

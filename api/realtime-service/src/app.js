@@ -17,6 +17,10 @@ const HybridMessaging = require('./utils/hybrid-messaging'); // 하이브리드 
 const ConnectionManager = require('./utils/connection-manager');
 const SocketMonitor = require('./utils/socket-monitor');
 const { v4: uuidv4 } = require('uuid');
+const { swaggerUi, specs } = require('./utils/swagger');
+const compression = require('compression');
+const jwt = require('jsonwebtoken');
+const Redis = require('ioredis');
 
 // 기본 설정
 const PORT = process.env.PORT || 3001;
@@ -30,7 +34,13 @@ const KAFKA_TOPIC_ANALYSIS_RESULTS = process.env.KAFKA_TOPIC_ANALYSIS_RESULTS ||
 const KAFKA_TOPIC_FEEDBACK_COMMANDS = process.env.KAFKA_TOPIC_FEEDBACK_COMMANDS || 'haptitalk-feedback-commands';
 
 // Redis 클라이언트 초기화
-const redisClient = createRedisClient();
+const redisClient = new Redis({
+  host: process.env.REDIS_HOST || 'localhost',
+  port: process.env.REDIS_PORT || 6379,
+  password: process.env.REDIS_PASSWORD,
+  retryDelayOnFailure: 100,
+  maxRetriesPerRequest: 3,
+});
 
 // Express 앱 초기화
 const app = express();
@@ -83,6 +93,7 @@ app.get('/api/v1/realtime/version', (req, res) => {
     });
 });
 
+
 // Socket.io 초기화
 const io = new Server(server, {
     cors: {
@@ -120,10 +131,27 @@ const messagingSystem = new HybridMessaging(redisClient, io, {
 // Socket.io 미들웨어 적용
 io.use(async (socket, next) => {
     try {
-        const token = socket.handshake.auth.token;
+        // 다양한 방식으로 토큰 추출 시도
+        let token = socket.handshake.auth.token 
+                 || socket.handshake.query.token
+                 || socket.handshake.headers.authorization?.replace('Bearer ', '')
+                 || socket.handshake.auth.authorization?.replace('Bearer ', '');
+
         if (!token) {
+            logger.warn('토큰 없음 - handshake 정보:', {
+                auth: socket.handshake.auth,
+                query: socket.handshake.query,
+                headers: Object.keys(socket.handshake.headers)
+            });
             return next(new Error('인증 토큰이 필요합니다'));
         }
+
+        logger.info('토큰 발견:', { 
+            tokenPreview: token.substring(0, 20) + '...',
+            source: socket.handshake.auth.token ? 'auth' : 
+                   socket.handshake.query.token ? 'query' :
+                   socket.handshake.headers.authorization ? 'headers.authorization' : 'auth.authorization'
+        });
 
         // 토큰 검증
         const user = await authMiddleware.verifySocketToken(token, redisClient);
@@ -135,11 +163,19 @@ io.use(async (socket, next) => {
         // 소켓 연결 로깅
         logger.socketLogger.connect(socket.id, user.id);
         
+        logger.info('Socket.IO 인증 성공:', {
+            socketId: socket.id,
+            userId: user.id,
+            userEmail: user.email
+        });
+        
         next();
     } catch (error) {
         logger.error(`소켓 인증 오류:`, {
             error: error.message,
-            stack: error.stack
+            stack: error.stack,
+            auth: socket.handshake.auth,
+            query: socket.handshake.query
         });
         next(new Error('유효하지 않은 토큰입니다'));
     }
@@ -164,6 +200,9 @@ app.get('/api/v1/realtime/socket/:socketId', authMiddleware.validateServiceToken
         data: socketInfo
     });
 });
+
+// Swagger UI 설정
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, { explorer: true }));
 
 // 에러 미들웨어 추가
 app.use(logger.errorMiddleware);
@@ -212,6 +251,21 @@ io.on('connection', (socket) => {
     });
 });
 
+// 🔥 서비스 간 인증 토큰 설정
+const initializeServiceAuth = () => {
+  try {
+    const serviceToken = process.env.INTER_SERVICE_TOKEN;
+    if (serviceToken) {
+      setServiceAuthToken(serviceToken);
+      logger.info('✅ 서비스 간 인증 토큰 설정 완료');
+    } else {
+      logger.warn('⚠️ INTER_SERVICE_TOKEN 환경변수가 설정되지 않음');
+    }
+  } catch (error) {
+    logger.error('❌ 서비스 간 인증 토큰 설정 실패:', error);
+  }
+};
+
 // 서버 시작
 const startServer = async () => {
     try {
@@ -223,11 +277,7 @@ const startServer = async () => {
         });
 
         // 서비스 간 통신을 위한 API 토큰 설정
-        setServiceAuthToken(INTER_SERVICE_TOKEN);
-        logger.info('서비스 간 통신을 위한 인증 토큰이 설정되었습니다', {
-            component: 'auth',
-            status: 'configured'
-        });
+        initializeServiceAuth();
         
         // 연결 관리자 초기화
         connectionManager.initialize();
