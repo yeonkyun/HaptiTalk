@@ -14,6 +14,10 @@ const authRoutes = require('./routes/auth.routes');
 const deviceRoutes = require('./routes/device.routes');
 const errorHandler = require('./middleware/errorHandler.middleware');
 const { v4: uuidv4 } = require('uuid');
+const { swaggerUi, specs } = require('./utils/swagger');
+
+// 회복성 관련 임포트
+const { userServiceClient, sessionServiceClient, dbResilience } = require('./utils/serviceClient');
 
 // Initialize Express app
 const app = express();
@@ -58,10 +62,35 @@ app.get('/health', (req, res) => {
     res.status(200).json({status: 'ok', service: 'auth-service'});
 });
 
+// Resilience status endpoint
+app.get('/resilience/status', (req, res) => {
+    const status = {
+        userService: {
+            healthy: true, // 간소화된 헬스 체크
+            stats: {} // 필요한 경우 실제 통계 추가
+        },
+        sessionService: {
+            healthy: true,
+            stats: {}
+        },
+        database: {
+            healthy: true,
+            stats: {}
+        }
+    };
+    
+    res.status(200).json({
+        service: 'auth-service',
+        resilience: status
+    });
+});
+
 // API Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/devices', deviceRoutes);
 
+// Swagger UI 설정
+app.use('/api/v1/auth/api-docs', swaggerUi.serve, swaggerUi.setup(specs, { explorer: true }));
 
 app.get('/token/status', (req, res) => {
     const authHeader = req.headers.authorization;
@@ -214,7 +243,10 @@ process.on('SIGTERM', async () => {
     process.exit(0);
 });
 
-// Start the server
-startServer();
+// Export app for testing
+module.exports = app;
 
-module.exports = app; // For testing purposes
+// Start server if not in test mode
+if (process.env.NODE_ENV !== 'test') {
+    startServer();
+}

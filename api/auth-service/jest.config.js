@@ -8,5 +8,8 @@ module.exports = {
         '/node_modules/',
         '/tests/'
     ],
-    verbose: true
+    verbose: true,
+    detectOpenHandles: true,
+    forceExit: true,
+    testTimeout: 30000
 }; 

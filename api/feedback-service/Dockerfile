@@ -2,16 +2,17 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY api/feedback-service/package*.json ./
 
-RUN npm ci --only=production && \
-    npm install morgan prom-client
+RUN npm install
 
-COPY . .
+COPY api/shared /app/api/shared
 
-EXPOSE 3003
+COPY api/feedback-service .
+
+EXPOSE ${PORT}
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD wget -qO- http://localhost:${PORT:-3003}/health || exit 1
 
-CMD ["node", "src/app.js"]
+CMD ["npm", "start"]

@@ -30,6 +30,20 @@ const getUserSettings = async (userId) => {
                 },
                 updated_at: new Date()
             });
+
+            logger.info(`사용자 피드백 설정 기본값 생성 성공: ${userId}`, {
+                userId,
+                hapticStrength: settings.haptic_strength,
+                activePatterns: settings.active_patterns,
+                priorityThreshold: settings.priority_threshold,
+                minimumInterval: settings.minimum_interval_seconds
+            });
+        } else {
+            logger.debug(`사용자 피드백 설정 조회 성공: ${userId}`, {
+                userId,
+                hapticStrength: settings.haptic_strength,
+                feedbackFrequency: settings.feedback_frequency
+            });
         }
 
         return settings;
@@ -51,6 +65,13 @@ const updateUserSettings = async (userId, updateData) => {
         settings = await settings.update({
             ...updateData,
             updated_at: new Date()
+        });
+
+        logger.info(`사용자 피드백 설정 업데이트 성공: ${userId}`, {
+            userId,
+            updatedFields: Object.keys(updateData),
+            newHapticStrength: settings.haptic_strength,
+            newFeedbackFrequency: settings.feedback_frequency
         });
 
         return settings;

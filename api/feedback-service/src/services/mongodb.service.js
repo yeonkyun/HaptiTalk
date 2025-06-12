@@ -12,6 +12,13 @@ const saveFeedbackHistory = async (feedbackData) => {
             timestamp: new Date()
         });
 
+        logger.info(`피드백 이력 저장 성공: ${result.insertedId}`, {
+            feedbackId: result.insertedId,
+            userId: feedbackData.userId,
+            sessionId: feedbackData.sessionId,
+            patternId: feedbackData.patternId
+        });
+
         return result.insertedId;
     } catch (error) {
         logger.error('Error in saveFeedbackHistory:', error);
@@ -38,6 +45,14 @@ const getFeedbackHistory = async (query, options = {}) => {
             collection.countDocuments(query)
         ]);
 
+        logger.info(`피드백 이력 조회 성공`, {
+            query,
+            resultCount: feedbacks.length,
+            totalCount: total,
+            page,
+            limit
+        });
+
         return {
             data: feedbacks,
             meta: {
@@ -60,6 +75,20 @@ const getSessionAnalytics = async (sessionId) => {
     try {
         const collection = getCollection('sessionAnalytics');
         const analytics = await collection.findOne({ sessionId });
+        
+        if (analytics) {
+            logger.info(`세션 분석 데이터 조회 성공: ${sessionId}`, {
+                sessionId,
+                hasData: true,
+                analyticsId: analytics._id
+            });
+        } else {
+            logger.debug(`세션 분석 데이터 없음: ${sessionId}`, {
+                sessionId,
+                hasData: false
+            });
+        }
+        
         return analytics;
     } catch (error) {
         logger.error(`Error in getSessionAnalytics for sessionId ${sessionId}:`, error);
