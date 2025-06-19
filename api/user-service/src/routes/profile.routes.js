@@ -5,6 +5,20 @@ const profileController = require('../controllers/profile.controller');
 
 const router = express.Router();
 
+// 프로필 생성 (서비스 간 통신용 - 인증 불필요)
+router.post(
+    '/profile/create',
+    [
+        body('userId')
+            .isUUID()
+            .withMessage('유효한 사용자 ID가 필요합니다.'),
+        body('email')
+            .isEmail()
+            .withMessage('유효한 이메일이 필요합니다.')
+    ],
+    profileController.createProfile
+);
+
 // 프로필 조회
 router.get('/profile', verifyToken, profileController.getProfile);
 

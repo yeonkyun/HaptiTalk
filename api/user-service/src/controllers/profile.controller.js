@@ -3,6 +3,56 @@ const profileService = require('../services/profile.service');
 const logger = require('../utils/logger');
 
 /**
+ * 프로필 생성 (서비스 간 통신용)
+ * @param {Object} req - 요청 객체
+ * @param {Object} res - 응답 객체
+ * @param {Function} next - 다음 미들웨어 함수
+ */
+const createProfile = async (req, res, next) => {
+    try {
+        // 유효성 검사 결과 확인
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(422).json({
+                success: false,
+                message: '유효성 검사 오류가 발생했습니다.',
+                errors: errors.array().map(error => ({
+                    code: 'validation_error',
+                    field: error.param,
+                    message: error.msg
+                }))
+            });
+        }
+
+        const { userId, email } = req.body;
+
+        // 이미 프로필이 존재하는지 확인
+        const existingProfile = await profileService.getProfile(userId);
+        if (existingProfile && existingProfile.id) {
+            return res.status(200).json({
+                success: true,
+                data: existingProfile,
+                message: '프로필이 이미 존재합니다.'
+            });
+        }
+
+        // 새 프로필 생성
+        const newProfile = await profileService.createDefaultProfile(userId);
+
+        logger.info(`서비스 간 프로필 생성 성공: ${userId} (${email})`);
+
+        return res.status(201).json({
+            success: true,
+            data: newProfile,
+            message: '프로필이 성공적으로 생성되었습니다.'
+        });
+    } catch (error) {
+        logger.error('Error in createProfile controller:', error);
+        next(error);
+    }
+};
+
+/**
  * 프로필 조회
  * @param {Object} req - 요청 객체
  * @param {Object} res - 응답 객체
@@ -63,6 +113,7 @@ const updateProfile = async (req, res, next) => {
 };
 
 module.exports = {
+    createProfile,
     getProfile,
     updateProfile
 };
