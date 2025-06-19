@@ -6,7 +6,7 @@ COPY api/feedback-service/package*.json ./
 
 RUN npm install
 
-COPY api/shared /app/api/shared
+COPY api/shared ../shared
 
 COPY api/feedback-service .
 

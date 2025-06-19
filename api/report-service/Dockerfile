@@ -20,7 +20,7 @@ RUN sed -i 's/"chart.js": ".*",//g' package.json && \
 RUN npm install --production morgan prom-client express winston cors helmet jsonwebtoken ioredis pg sequelize
 
 # 공유 모듈 복사 (먼저)
-COPY api/shared /app/api/shared
+COPY api/shared ../../shared
 
 # 소스 코드 복사
 COPY api/report-service .
