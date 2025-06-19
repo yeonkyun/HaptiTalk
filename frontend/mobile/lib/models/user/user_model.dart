@@ -20,11 +20,11 @@ class UserModel {
       name = json['first_name'];
     } else if (json['last_name'] != null) {
       name = json['last_name'];
-    } else if (json['name'] != null) {
+    } else if (json['name'] != null && json['name'].toString().isNotEmpty) {
       name = json['name'];
-    } else if (json['username'] != null) {
+    } else if (json['username'] != null && json['username'].toString().isNotEmpty) {
       name = json['username'];
-    } else if (json['email'] != null) {
+    } else if (json['email'] != null && json['email'].toString().isNotEmpty) {
       // 이메일의 @ 앞부분을 이름으로 사용
       final email = json['email'] as String;
       final atIndex = email.indexOf('@');
