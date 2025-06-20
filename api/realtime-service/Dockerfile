@@ -10,7 +10,12 @@ COPY api/realtime-service/package*.json ./
 RUN npm install
 
 # 공유 모듈 복사 (먼저)
-COPY api/shared ../shared
+COPY api/shared ../../shared
+
+# 공유 모듈의 의존성 설치
+WORKDIR ../../shared/kafka-client
+RUN npm install
+WORKDIR /app
 
 # 앱 소스 복사
 COPY api/realtime-service .
