@@ -1338,7 +1338,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       final detailedTimeline = rawApiData['detailedTimeline'] as List;
       if (detailedTimeline.isNotEmpty) {
         final confidenceValues = detailedTimeline
-            .map((point) => (point['confidence'] ?? 0.6) as double)
+            .map((point) => ((point['confidence'] ?? 0.6) as num).toDouble())
             .where((conf) => conf > 0)
             .toList();
         
