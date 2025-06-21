@@ -176,31 +176,31 @@ average_wpm = sum(segment_wpms) / len(segments)  # 순수 발화 시간만 계�
 ## 모니터링 시스템
 
 ### 통합 관찰성 플랫폼 (Grafana)
-<img width="500" alt="image" src="https://github.com/user-attachments/assets/9e8aabcc-ffb8-4aff-89e8-bf1bd8e58e01" />
-<img width="500" alt="image" src="https://github.com/user-attachments/assets/43575777-2d81-49aa-8abb-d5469f1896c5" />
+<img width="499" alt="image" src="https://github.com/user-attachments/assets/9e8aabcc-ffb8-4aff-89e8-bf1bd8e58e01" />
+<img width="499" alt="image" src="https://github.com/user-attachments/assets/43575777-2d81-49aa-8abb-d5469f1896c5" />
 
 - **기능**: 메트릭, 로그, 트레이스 통합 시각화 및 분석
 - **통합 기능**: 트레이스→로그 연결, 메트릭→트레이스 드릴다운
 - **모니터링 항목**: API 응답시간, 메모리 사용량, 처리 성공률, 에러율
 
 ### 메트릭 수집 (Prometheus)  
-<img width="500" alt="image" src="https://github.com/user-attachments/assets/6adf560a-fbdd-4dd8-a097-c466e202a9a8" />
-<img width="500" alt="image" src="https://github.com/user-attachments/assets/6f23aaa6-9002-443e-946f-0b7ba4d84c44" />
+<img width="499" alt="image" src="https://github.com/user-attachments/assets/6adf560a-fbdd-4dd8-a097-c466e202a9a8" />
+<img width="499" alt="image" src="https://github.com/user-attachments/assets/6f23aaa6-9002-443e-946f-0b7ba4d84c44" />
 
 - **기능**: 시계열 메트릭 수집 및 저장
 - **수집 대상**: 시스템 리소스, 애플리케이션 성능, 데이터베이스 상태
 - **Exporters**: Node, PostgreSQL, Redis, MongoDB, Elasticsearch 메트릭
 
 ### 로그 관리 (ELK Stack)
-<img width="500" alt="image" src="https://github.com/user-attachments/assets/8e4a30d6-a596-41f1-927a-c4a733d1fe02" />
+<img width="499" alt="image" src="https://github.com/user-attachments/assets/8e4a30d6-a596-41f1-927a-c4a733d1fe02" />
 
 - **기능**: 중앙화된 로그 수집, 처리 및 검색
 - **구성**: Filebeat → Logstash → Elasticsearch → Kibana
 - **활용**: 에러 추적, 사용자 행동 분석, 성능 병목 식별
 
 ### 분산 트레이싱 (Jaeger)
-<img width="500" alt="image" src="https://github.com/user-attachments/assets/932db154-b322-4ad7-9e50-237f1df9df9b" />
-<img width="500" alt="image" src="https://github.com/user-attachments/assets/df644c80-ba65-4ac7-a914-743b7f8a9acf" />
+<img width="499" alt="image" src="https://github.com/user-attachments/assets/932db154-b322-4ad7-9e50-237f1df9df9b" />
+<img width="499" alt="image" src="https://github.com/user-attachments/assets/df644c80-ba65-4ac7-a914-743b7f8a9acf" />
 
 - **기능**: 마이크로서비스 간 요청 추적 및 성능 분석
 - **수집**: OpenTelemetry Collector를 통한 트레이스 데이터 수집
