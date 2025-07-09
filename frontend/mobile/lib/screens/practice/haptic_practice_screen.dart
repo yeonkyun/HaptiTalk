@@ -28,8 +28,9 @@ class _HapticPracticeScreenState extends State<HapticPracticeScreen>
   bool _showVisualFeedback = false;
   String _currentVisualPattern = '';
 
-  // 🎯 HaptiTalk 설계 문서 기반 8개 기본 MVP 패턴 (🔥 수정된 버전)
+  // 🎯 핵심 햅틱 패턴 4개 (발표/면접 전문화)
   final List<Map<String, dynamic>> _allHapticPatterns = [
+    // ✅ 활성화된 핵심 패턴들
     {
       'patternId': 'S1',
       'category': 'speaker',
@@ -39,19 +40,84 @@ class _HapticPracticeScreenState extends State<HapticPracticeScreen>
       'pattern': 'speed_control',
       'icon': Icons.speed,
       'color': Colors.orange,
-      'sessions': ['발표', '면접', '소개팅'], // 모든 세션에서 사용
+      'sessions': ['발표', '면접'], // 발표/면접 전용
       'messages': {
         '발표': '🚀 조금 천천히 말해보세요',
-        '면접': '🚀 답변 속도를 조절하세요', 
-        '소개팅': '🚀 대화 속도를 조절하세요',
+        '면접': '🚀 답변 속도를 조절하세요',
       },
       'titles': {
         '발표': '발표 속도 조절',
         '면접': '답변 속도 조절',
-        '소개팅': '대화 속도 조절',
       },
       'vibration': '3회 강한 진동',
+      'isActive': true, // 🔥 활성화 표시
     },
+    {
+      'patternId': 'R1',
+      'category': 'reaction',
+      'title': '자신감 상승',
+      'description': '자신감이 매우 우수할 때',
+      'metaphor': '상승하는 파동',
+      'pattern': 'likability_up',
+      'icon': Icons.celebration,
+      'color': Colors.pink,
+      'sessions': ['발표', '면접'], // 발표/면접 전용
+      'messages': {
+        '발표': '🎉 훌륭한 발표 자신감이에요!',
+        '면접': '👔 면접 자신감이 훌륭해요!',
+      },
+      'titles': {
+        '발표': '발표 자신감 상승',
+        '면접': '면접 자신감 상승',
+      },
+      'vibration': '4회 상승 파동',
+      'isActive': true, // 🔥 활성화 표시
+    },
+    {
+      'patternId': 'R2',
+      'category': 'reaction',
+      'title': '자신감 하락',
+      'description': '자신감이 부족할 때',
+      'metaphor': '강한 경고 알림',
+      'pattern': 'confidence_low',
+      'icon': Icons.warning,
+      'color': Colors.red,
+      'sessions': ['발표', '면접'], // 발표/면접 전용
+      'messages': {
+        '발표': '💪 더 자신감 있게 말해보세요!',
+        '면접': '👔 자신감을 가지고 답변해보세요!',
+      },
+      'titles': {
+        '발표': '발표 자신감 하락',
+        '면접': '면접 자신감 하락',
+      },
+      'vibration': '4회 강한 경고',
+      'isActive': true, // 🔥 활성화 표시
+    },
+    {
+      'patternId': 'S2',
+      'category': 'speaker',
+      'title': '음량 조절',
+      'description': '목소리 크기 조절이 필요할 때',
+      'metaphor': '음파 증폭/감소',
+      'pattern': 'volume_control',
+      'icon': Icons.volume_up,
+      'color': Colors.purple,
+      'sessions': ['발표', '면접'], // 발표/면접 전용
+      'messages': {
+        '발표': '🔊 발표 음량을 조절하세요',
+        '면접': '🔊 답변 음량을 조절하세요',
+      },
+      'titles': {
+        '발표': '발표 음량 조절',
+        '면접': '답변 음량 조절',
+      },
+      'vibration': '극명한 강도 변화 (약함↔강함)',
+      'isActive': true, // 🔥 활성화 표시
+    },
+    
+    // 🔒 비활성화된 패턴들 (코드 보존, UI에서 숨김)
+    /*
     {
       'patternId': 'L1',
       'category': 'listener',
@@ -73,11 +139,12 @@ class _HapticPracticeScreenState extends State<HapticPracticeScreen>
         '소개팅': '상대방 경청',
       },
       'vibration': '약함→중간→강함',
+      'isActive': false, // 🔒 비활성화
     },
     {
       'patternId': 'F1',
       'category': 'flow',
-      'title': '주제 전환', // 관심도 하락 시 주제 전환 제안
+      'title': '주제 전환',
       'description': '관심도가 하락했을 때 주제를 바꿀 타이밍',
       'metaphor': '페이지 넘기기',
       'pattern': 'topic_change',
@@ -95,28 +162,7 @@ class _HapticPracticeScreenState extends State<HapticPracticeScreen>
         '소개팅': '대화 주제 전환',
       },
       'vibration': '2회 긴 진동',
-    },
-    {
-      'patternId': 'R1',
-      'category': 'reaction',
-      'title': '우수 상태', // 호감도/자신감 우수
-      'description': '상대방의 반응이 매우 좋을 때',
-      'metaphor': '상승하는 파동',
-      'pattern': 'likability_up',
-      'icon': Icons.celebration,
-      'color': Colors.pink,
-      'sessions': ['발표', '면접', '소개팅'],
-      'messages': {
-        '발표': '🎉 훌륭한 발표 자신감이에요!',
-        '면접': '👔 면접 자신감이 훌륭해요!',
-        '소개팅': '💕 상대방이 매우 좋아해요!',
-      },
-      'titles': {
-        '발표': '발표 자신감 우수',
-        '면접': '면접 자신감 우수',
-        '소개팅': '호감도 우수',
-      },
-      'vibration': '4회 상승 파동',
+      'isActive': false, // 🔒 비활성화
     },
     {
       'patternId': 'F2',
@@ -139,50 +185,7 @@ class _HapticPracticeScreenState extends State<HapticPracticeScreen>
         '소개팅': '대화 침묵 관리',
       },
       'vibration': '2회 부드러운 탭',
-    },
-    {
-      'patternId': 'S2',
-      'category': 'speaker',
-      'title': '음량 조절',
-      'description': '목소리 크기 조절이 필요할 때',
-      'metaphor': '음파 증폭/감소',
-      'pattern': 'volume_control',
-      'icon': Icons.volume_up,
-      'color': Colors.purple,
-      'sessions': ['발표', '면접', '소개팅'],
-      'messages': {
-        '발표': '🔊 발표 음량을 조절하세요',
-        '면접': '🔊 답변 음량을 조절하세요',
-        '소개팅': '🔊 목소리 크기를 조절하세요',
-      },
-      'titles': {
-        '발표': '발표 음량 조절',
-        '면접': '답변 음량 조절',
-        '소개팅': '대화 음량 조절',
-      },
-      'vibration': '극명한 강도 변화 (약함↔강함)',
-    },
-    {
-      'patternId': 'R2',
-      'category': 'reaction',
-      'title': '자신감/호감도 부족', // 수정: 관심도 하락 → 자신감/호감도 부족
-      'description': '자신감이 부족하거나 호감도가 떨어졌을 때',
-      'metaphor': '강한 경고 알림',
-      'pattern': 'confidence_low', // 패턴명도 수정
-      'icon': Icons.warning,
-      'color': Colors.red,
-      'sessions': ['발표', '면접', '소개팅'],
-      'messages': {
-        '발표': '💪 더 자신감 있게 말해보세요!',
-        '면접': '👔 자신감을 가지고 답변해보세요!',
-        '소개팅': '💕 더 밝고 긍정적으로 대화해보세요!',
-      },
-      'titles': {
-        '발표': '발표 자신감 부족',
-        '면접': '면접 자신감 부족',
-        '소개팅': '호감도 부족',
-      },
-      'vibration': '4회 강한 경고',
+      'isActive': false, // 🔒 비활성화
     },
     {
       'patternId': 'L3',
@@ -205,19 +208,24 @@ class _HapticPracticeScreenState extends State<HapticPracticeScreen>
         '소개팅': '대화 제안',
       },
       'vibration': '짧음-짧음-긴휴지-긴진동-여운',
+      'isActive': false, // 🔒 비활성화
     },
+    */
   ];
 
-  // 현재 선택된 세션 모드에 맞는 패턴들만 필터링
+  // 활성화된 패턴들만 필터링 (세션 모드별)
   List<Map<String, dynamic>> get _hapticPatterns {
     return _allHapticPatterns.where((pattern) {
-      return (pattern['sessions'] as List<String>).contains(_selectedSessionMode);
+      // 🔥 활성화된 패턴이면서 현재 세션에 속한 패턴만 표시
+      final isActive = pattern['isActive'] ?? false;
+      final sessions = pattern['sessions'] as List<String>;
+      return isActive && sessions.contains(_selectedSessionMode);
     }).map((pattern) {
       // 세션별 메시지 적용
       final sessionMessages = pattern['messages'] as Map<String, String>;
       return {
         ...pattern,
-        'message': sessionMessages[_selectedSessionMode] ?? pattern['messages']['소개팅'],
+        'message': sessionMessages[_selectedSessionMode] ?? '기본 메시지',
       };
     }).toList();
   }
@@ -291,30 +299,35 @@ class _HapticPracticeScreenState extends State<HapticPracticeScreen>
     });
 
     switch (patternId) {
+      // ✅ 활성화된 4개 핵심 패턴
       case 'S1': // 속도 조절 - 빠른 펄스
         _triggerFastPulseAnimation();
         break;
+      case 'R1': // 자신감 상승 - 상승 파동
+        _triggerRisingWaveAnimation();
+        break;
+      case 'R2': // 자신감 하락 - 강한 경고
+        _triggerAlertAnimation();
+        break;
+      case 'S2': // 음량 조절 - 변화하는 크기
+        _triggerVaryingSizeAnimation();
+        break;
+        
+      // 🔒 비활성화된 패턴들 (주석 처리)
+      /*
       case 'L1': // 경청 강화 - 점진적 증가
         _triggerGradualIntensityAnimation();
         break;
       case 'F1': // 주제 전환 - 긴 페이드
         _triggerLongFadeAnimation();
         break;
-      case 'R1': // 호감도 상승 - 상승 파동
-        _triggerRisingWaveAnimation();
-        break;
       case 'F2': // 침묵 관리 - 부드러운 펄스
         _triggerSoftPulseAnimation();
-        break;
-      case 'S2': // 음량 조절 - 변화하는 크기
-        _triggerVaryingSizeAnimation();
-        break;
-      case 'R2': // 자신감/호감도 부족 - 강한 경고
-        _triggerAlertAnimation();
         break;
       case 'L3': // 질문 제안 - 물음표 형태
         _triggerQuestionMarkAnimation();
         break;
+      */
     }
   }
 
@@ -609,7 +622,7 @@ class _HapticPracticeScreenState extends State<HapticPracticeScreen>
                 });
               }
             },
-            items: ['발표', '면접', '소개팅'].map<DropdownMenuItem<String>>((String value) {
+            items: ['발표', '면접'].map<DropdownMenuItem<String>>((String value) {
               return DropdownMenuItem<String>(
                 value: value,
                 child: Text(value),
@@ -626,7 +639,7 @@ class _HapticPracticeScreenState extends State<HapticPracticeScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          '8가지 기본 햅틱 패턴',
+          '4가지 핵심 햅틱 패턴',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -761,11 +774,13 @@ class _HapticPracticeScreenState extends State<HapticPracticeScreen>
   }
 
   Widget _buildCategoryLegend() {
+    // 🔥 활성화된 카테고리만 표시 (speaker, reaction)
     final categories = [
       {'key': 'speaker', 'label': '화자 행동 (S)', 'color': Colors.orange},
-      {'key': 'listener', 'label': '청자 행동 (L)', 'color': Colors.blue},
-      {'key': 'flow', 'label': '대화 흐름 (F)', 'color': Colors.green},
       {'key': 'reaction', 'label': '상대방 반응 (R)', 'color': Colors.pink},
+      // 🔒 비활성화된 카테고리들 (주석 처리)
+      // {'key': 'listener', 'label': '청자 행동 (L)', 'color': Colors.blue},
+      // {'key': 'flow', 'label': '대화 흐름 (F)', 'color': Colors.green},
     ];
 
     return Container(
@@ -953,24 +968,189 @@ class _HapticPracticeScreenState extends State<HapticPracticeScreen>
     Color patternColor = _getPatternColor(_currentVisualPattern);
     
     switch (_currentVisualPattern) {
-      case 'S1': // 속도 조절 - 빠른 펄스
+      // ✅ 활성화된 4개 핵심 패턴 - 개선된 애니메이션
+      case 'S1': // 속도 조절 - 부드러운 리듬 펄스
         return AnimatedBuilder(
           animation: _pulseController,
           builder: (context, child) {
-            return Transform.scale(
-              scale: _scaleAnimation.value,
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: patternColor.withOpacity(0.6 * _opacityAnimation.value),
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                // 외부 링
+                Container(
+                  width: 140,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: patternColor.withOpacity(0.3 * _opacityAnimation.value),
+                      width: 3,
+                    ),
+                  ),
                 ),
-              ),
+                // 중간 펄스
+                Transform.scale(
+                  scale: 0.7 + (0.3 * _scaleAnimation.value),
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: patternColor.withOpacity(0.4 * _opacityAnimation.value),
+                    ),
+                  ),
+                ),
+                // 중심 아이콘
+                Icon(
+                  Icons.speed,
+                  size: 35,
+                  color: patternColor,
+                ),
+              ],
             );
           },
         );
       
+      case 'R1': // 자신감 상승 - 우아한 상승 효과
+        return AnimatedBuilder(
+          animation: _waveController,
+          builder: (context, child) {
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                // 상승하는 화살표 파티클들
+                ...List.generate(5, (index) {
+                  double delay = index * 0.2;
+                  double animationValue = (_waveAnimation.value - delay).clamp(0.0, 1.0);
+                  double yOffset = -30.0 * animationValue;
+                  
+                  return Positioned(
+                    bottom: 50 + yOffset,
+                    child: Transform.scale(
+                      scale: 0.5 + (0.5 * animationValue),
+                      child: Icon(
+                        Icons.keyboard_arrow_up,
+                        size: 25,
+                        color: patternColor.withOpacity(0.8 * (1 - animationValue)),
+                      ),
+                    ),
+                  );
+                }),
+                // 중심 상승 아이콘
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: patternColor.withOpacity(0.2),
+                    border: Border.all(color: patternColor, width: 2),
+                  ),
+                  child: Icon(
+                    Icons.trending_up,
+                    size: 35,
+                    color: patternColor,
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      
+      case 'R2': // 자신감 하락 - 부드러운 하락 효과  
+        return AnimatedBuilder(
+          animation: _pulseController,
+          builder: (context, child) {
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                // 하락하는 화살표 파티클들
+                ...List.generate(3, (index) {
+                  double delay = index * 0.3;
+                  double animationValue = (_pulseController.value + delay) % 1.0;
+                  double yOffset = 40.0 * animationValue;
+                  
+                  return Positioned(
+                    top: 30 + yOffset,
+                    child: Transform.scale(
+                      scale: 1.0 - (0.5 * animationValue),
+                      child: Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 20,
+                        color: Colors.red.withOpacity(0.6 * (1 - animationValue)),
+                      ),
+                    ),
+                  );
+                }),
+                // 중심 하락 아이콘
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.red.withOpacity(0.15),
+                    border: Border.all(color: Colors.red, width: 2),
+                  ),
+                  child: Icon(
+                    Icons.trending_down,
+                    size: 35,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      
+      case 'S2': // 음량 조절 - 우아한 파동 효과
+        return AnimatedBuilder(
+          animation: _visualFeedbackController,
+          builder: (context, child) {
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                // 외부 파동 링들
+                ...List.generate(3, (index) {
+                  double delay = index * 0.3;
+                  double animationValue = (_visualFeedbackController.value + delay) % 1.0;
+                  double scale = 0.5 + (1.5 * animationValue);
+                  
+                  return Transform.scale(
+                    scale: scale,
+                    child: Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: patternColor.withOpacity(0.4 * (1 - animationValue)),
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+                // 중심 음량 아이콘
+                Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: patternColor.withOpacity(0.2),
+                    border: Border.all(color: patternColor, width: 2),
+                  ),
+                  child: Icon(
+                    Icons.volume_up,
+                    size: 35,
+                    color: patternColor,
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      
+      // 🔒 비활성화된 패턴들 (주석 처리)
+      /*
       case 'L1': // 경청 강화 - 점진적 증가
         return AnimatedBuilder(
           animation: _visualFeedbackController,
@@ -1005,29 +1185,6 @@ class _HapticPracticeScreenState extends State<HapticPracticeScreen>
           },
         );
       
-      case 'R1': // 호감도 상승 - 상승 파동
-        return AnimatedBuilder(
-          animation: _waveController,
-          builder: (context, child) {
-            return Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(4, (index) {
-                double delay = index * 0.25;
-                double animationValue = (_waveAnimation.value - delay).clamp(0.0, 1.0);
-                return Container(
-                  margin: EdgeInsets.symmetric(vertical: 3),
-                  width: 140,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6),
-                    color: patternColor.withOpacity(0.8 * animationValue),
-                  ),
-                );
-              }),
-            );
-          },
-        );
-      
       case 'F2': // 침묵 관리 - 부드러운 펄스
         return AnimatedBuilder(
           animation: _pulseController,
@@ -1041,40 +1198,6 @@ class _HapticPracticeScreenState extends State<HapticPracticeScreen>
                   shape: BoxShape.circle,
                   color: patternColor.withOpacity(0.4),
                 ),
-              ),
-            );
-          },
-        );
-      
-      case 'S2': // 음량 조절 - 변화하는 크기
-        return AnimatedBuilder(
-          animation: _visualFeedbackController,
-          builder: (context, child) {
-            double size = 80 + (80 * _visualFeedbackController.value);
-            return Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: patternColor.withOpacity(0.5),
-                border: Border.all(color: patternColor, width: 2),
-              ),
-            );
-          },
-        );
-      
-      case 'R2': // 자신감/호감도 부족 - 강한 경고
-        return AnimatedBuilder(
-          animation: _pulseController,
-          builder: (context, child) {
-            return Container(
-              width: 130,
-              height: 130,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _pulseController.value > 0.5 
-                    ? Colors.red.withOpacity(0.8) 
-                    : Colors.red.withOpacity(0.3),
               ),
             );
           },
@@ -1121,6 +1244,7 @@ class _HapticPracticeScreenState extends State<HapticPracticeScreen>
             );
           },
         );
+      */
       
       default:
         return Container(
@@ -1136,18 +1260,23 @@ class _HapticPracticeScreenState extends State<HapticPracticeScreen>
 
   Color _getPatternColor(String patternId) {
     switch (patternId) {
+      // ✅ 활성화된 패턴들
       case 'S1':
       case 'S2':
-        return Colors.orange;
-      case 'L1':
-      case 'L3':
-        return Colors.blue;
-      case 'F1':
-      case 'F2':
-        return Colors.green;
+        return Colors.orange; // 화자 행동
       case 'R1':
       case 'R2':
-        return Colors.pink;
+        return Colors.pink; // 상대방 반응
+        
+      // 🔒 비활성화된 패턴들 (주석 처리)
+      /*
+      case 'L1':
+      case 'L3':
+        return Colors.blue; // 청자 행동
+      case 'F1':
+      case 'F2':
+        return Colors.green; // 대화 흐름
+      */
       default:
         return Colors.grey;
     }
@@ -1155,54 +1284,60 @@ class _HapticPracticeScreenState extends State<HapticPracticeScreen>
 
   IconData _getPatternIcon(String patternId) {
     switch (patternId) {
+      // ✅ 활성화된 패턴들 - 더 직관적인 아이콘
       case 'S1':
-        return Icons.speed;
+        return Icons.speed; // 속도 조절
+      case 'R1':
+        return Icons.trending_up; // 자신감 상승 (상승 화살표)
+      case 'R2':
+        return Icons.trending_down; // 자신감 하락 (하락 화살표)
+      case 'S2':
+        return Icons.volume_up; // 음량 조절
+        
+      // 🔒 비활성화된 패턴들 (주석 처리)
+      /*
       case 'L1':
         return Icons.hearing;
       case 'F1':
         return Icons.change_circle;
-      case 'R1':
-        return Icons.celebration;
       case 'F2':
         return Icons.volume_off;
-      case 'S2':
-        return Icons.volume_up;
-      case 'R2':
-        return Icons.warning;
       case 'L3':
         return Icons.help_outline;
+      */
       default:
         return Icons.help_outline;
     }
   }
 
   String _getPatternTitle(String patternId) {
-    // 현재 선택된 세션 모드에 따라 다른 제목 반환
+    // 활성화된 4개 핵심 패턴 제목 반환
     switch (patternId) {
+      // ✅ 활성화된 패턴들
       case 'S1':
-        return _selectedSessionMode == '발표' ? '발표 속도 조절' :
-               _selectedSessionMode == '면접' ? '답변 속도 조절' : '대화 속도 조절';
+        return _selectedSessionMode == '발표' ? '발표 속도 조절' : '답변 속도 조절';
+      case 'R1':
+        return _selectedSessionMode == '발표' ? '발표 자신감 상승' : '면접 자신감 상승';
+      case 'R2':
+        return _selectedSessionMode == '발표' ? '발표 자신감 하락' : '면접 자신감 하락';
+      case 'S2':
+        return _selectedSessionMode == '발표' ? '발표 음량 조절' : '답변 음량 조절';
+        
+      // 🔒 비활성화된 패턴들 (주석 처리)
+      /*
       case 'L1':
         return _selectedSessionMode == '발표' ? '청중 소통 강화' :
                _selectedSessionMode == '면접' ? '면접관 경청' : '상대방 경청';
       case 'F1':
         return _selectedSessionMode == '발표' ? '발표 주제 전환' :
                _selectedSessionMode == '면접' ? '면접 주제 전환' : '대화 주제 전환';
-      case 'R1':
-        return _selectedSessionMode == '발표' ? '발표 자신감 우수' :
-               _selectedSessionMode == '면접' ? '면접 자신감 우수' : '호감도 우수';
       case 'F2':
         return _selectedSessionMode == '발표' ? '발표 휴지 관리' :
                _selectedSessionMode == '면접' ? '면접 침묵 관리' : '대화 침묵 관리';
-      case 'S2':
-        return _selectedSessionMode == '발표' ? '발표 음량 조절' :
-               _selectedSessionMode == '면접' ? '답변 음량 조절' : '대화 음량 조절';
-      case 'R2':
-        return _selectedSessionMode == '발표' ? '발표 자신감 부족' :
-               _selectedSessionMode == '면접' ? '면접 자신감 부족' : '호감도 부족';
       case 'L3':
         return _selectedSessionMode == '발표' ? '핵심 포인트 강조' :
                _selectedSessionMode == '면접' ? '질문 제안' : '대화 제안';
+      */
       default:
         return 'Unknown Pattern';
     }
