@@ -9,9 +9,47 @@
 import SwiftUI
 import WatchKit
 
+// 🎨 자신감 상승 애니메이션 스타일 옵션 (전문적 스타일만)
+enum ConfidenceAnimationStyle: String, CaseIterable {
+    case levelUpBar = "성취 바"           // 기본값 - 전문적 성취감
+    case chartRise = "차트 상승"          // 데이터 상승 표현
+    case sparkleStars = "별 반짝임"       // 화려한 축하 효과
+    case firework = "파이어워크"          // 폭발적 성취감
+}
+
 @available(watchOS 6.0, *)
 struct WatchVisualFeedbackView: View {
     @EnvironmentObject var appState: AppState
+    
+    // 🎨 애니메이션 스타일 설정 (기본값: 성취 바 - 발표/면접 전용)
+    @State private var confidenceAnimationStyle: ConfidenceAnimationStyle = .levelUpBar
+    
+    // 🎨 애니메이션 스타일 변경 방법:
+    // ================================================================================
+    // 
+    // 💡 **쉬운 변경 방법:**
+    // 위의 .heartGlow 부분을 다른 스타일로 바꾸면 됩니다!
+    //
+         // 📋 **발표/면접 전용 전문적 스타일들:**
+     // 
+     // 1️⃣ .levelUpBar   - 🎯 성취 바 (기본, 전문적 성취감)  
+     //    → "EXCELLENT!" 텍스트와 함께 바가 채워지는 성취감 효과
+     //
+     // 2️⃣ .chartRise    - 📈 차트 상승 (비즈니스 스타일)
+     //    → 차트 바가 올라가면서 화살표가 위로 향하는 전문적 효과
+     //
+     // 3️⃣ .sparkleStars - ✨ 별 반짝임 (특별한 순간 강조)
+     //    → 별이 빛나면서 주변에 반짝임이 퍼지는 중요한 순간 효과
+     //
+     // 4️⃣ .firework     - 🎆 파이어워크 (큰 성취 달성)
+     //    → 중앙에서 폭발하면서 파티클이 사방으로 퍼지는 큰 성취 효과
+     //
+     // 💻 **변경 예시:**
+     // @State private var confidenceAnimationStyle: ConfidenceAnimationStyle = .chartRise
+    //
+    // ================================================================================
+    
+    // 🎨 애니메이션 상태 변수들
     @State private var animationOffset: CGFloat = 0
     @State private var animationScale: CGFloat = 1.0
     @State private var animationOpacity: Double = 1.0
@@ -79,7 +117,7 @@ struct WatchVisualFeedbackView: View {
         .onDisappear {
             print("🎨 Watch: WatchVisualFeedbackView disappeared")
             resetAnimations()
-            // 🔥 AppState의 시각적 피드백 상태도 완전히 초기화
+            // �� AppState의 시각적 피드백 상태도 완전히 초기화
             DispatchQueue.main.async {
                 appState.showVisualFeedback = false
                 appState.currentVisualPattern = ""
@@ -152,7 +190,8 @@ struct WatchVisualFeedbackView: View {
                 "L3": "면접 질문 제안"
             ],
             
-            // 💕 소개팅 모드 제목
+            // 💕 소개팅 모드 제목 (사용 안함 - 발표/면접 위주로 변경)
+            /*
             "소개팅": [
                 "S1": "대화 속도 조절",
                 "L1": "상대방 경청",
@@ -163,6 +202,7 @@ struct WatchVisualFeedbackView: View {
                 "R2": "호감도 부족", // 🔥 호감도 부족
                 "L3": "대화 흥미도 강화"
             ]
+            */
         ]
         
         // 세션 타입에 맞는 제목 찾기
@@ -282,23 +322,250 @@ struct WatchVisualFeedbackView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    // R1: 호감도 상승 효과 (상승 파동) - 🔧 position 제거
+    // R1: 호감도 상승 효과 - 동적 스타일 선택 (전문적 스타일만)
     @ViewBuilder
     private func buildLikabilityUpEffect() -> some View {
+        // 🎨 설정된 스타일에 따라 다른 애니메이션 표시
+        switch confidenceAnimationStyle {
+        case .levelUpBar:
+            buildLevelUpBarEffect()       // 성취 바 (기본)
+        case .sparkleStars:
+            buildSparkleStarsEffect()     // 별 반짝임
+        case .chartRise:
+            buildChartRiseEffect()        // 차트 상승
+        case .firework:
+            buildFireworkEffect()         // 파이어워크
+        }
+    }
+    
+    // 🎨 옵션 1: 성취 바 효과 (기본)
+    @ViewBuilder
+    private func buildLevelUpBarEffect() -> some View {
         ZStack {
-            VStack(spacing: 12) {
-                ForEach(0..<5) { index in
-                    RoundedRectangle(cornerRadius: 15)
-                        .fill(appState.visualPatternColor.opacity(animationWave * 0.8))
+            VStack(spacing: 8) {
+                // "EXCELLENT!" 텍스트 (발표/면접에 더 적합)
+                Text("EXCELLENT!")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundColor(.yellow)
+                    .opacity(animationOpacity)
+                    .scaleEffect(animationScale)
+                    .animation(
+                        Animation.easeOut(duration: 0.6)
+                            .repeatCount(3, autoreverses: true),
+                        value: animationScale
+                    )
+                
+                // 레벨업 바
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.gray.opacity(0.3))
                         .frame(width: screenSize.width * 0.8, height: 20)
-                        .offset(y: animationOffset)
+                    
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(LinearGradient(
+                            gradient: Gradient(colors: [.yellow, .orange, .red]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ))
+                        .frame(width: screenSize.width * 0.8 * animationWave, height: 20)
                         .animation(
-                            Animation.easeInOut(duration: 0.4)
-                                .repeatCount(4, autoreverses: false)
-                                .delay(Double(index) * 0.08),
-                            value: animationOffset
+                            Animation.easeOut(duration: 2.5)
+                                .repeatCount(1, autoreverses: false),
+                            value: animationWave
                         )
                 }
+                
+                // 자신감 상승 표시
+                Text("자신감 ↗")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.green)
+                    .offset(y: animationOffset)
+                    .opacity(animationOpacity)
+                    .animation(
+                        Animation.easeOut(duration: 1.5),
+                        value: animationOffset
+                    )
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    // 🎨 옵션 2: 별 반짝임 효과 (컴파일 최적화를 위해 서브뷰로 분리)
+    @ViewBuilder
+    private func buildSparkleStarsEffect() -> some View {
+        ZStack {
+            // 중앙 별
+            centralStarView
+            
+            // 주변 작은 별들
+            surroundingStarsView
+            
+            // 반짝임 효과
+            sparkleParticlesView
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    // 🎨 중앙 별 뷰 (분리)
+    @ViewBuilder
+    private var centralStarView: some View {
+        Image(systemName: "star.fill")
+            .font(.system(size: 40, weight: .bold))
+            .foregroundColor(.yellow)
+            .scaleEffect(animationScale)
+            .rotationEffect(.degrees(animationRotation))
+            .animation(
+                Animation.easeInOut(duration: 1.0)
+                    .repeatCount(3, autoreverses: true),
+                value: animationScale
+            )
+    }
+    
+    // 🎨 주변 별들 뷰 (분리 - 단순화)
+    @ViewBuilder
+    private var surroundingStarsView: some View {
+        ForEach(0..<8) { index in
+            singleStarView(for: index)
+        }
+    }
+    
+    // 🎨 개별 별 뷰 (더 단순화)
+    @ViewBuilder
+    private func singleStarView(for index: Int) -> some View {
+        let starSize = 8 + index % 3 * 4
+        let starColor = index % 2 == 0 ? Color.yellow : Color.white
+        let angle = Double(index) * .pi / 4
+        let radius = 50 + animationPulse * 30
+        
+        Image(systemName: "star.fill")
+            .font(.system(size: CGFloat(starSize), weight: .medium))
+            .foregroundColor(starColor)
+            .offset(
+                x: cos(angle) * radius,
+                y: sin(angle) * radius
+            )
+            .opacity(animationOpacity)
+            .animation(
+                Animation.easeInOut(duration: 0.8)
+                    .repeatForever(autoreverses: true)
+                    .delay(Double(index) * 0.1),
+                value: animationPulse
+            )
+    }
+    
+    // 🎨 반짝임 파티클 뷰 (분리 - 단순화)
+    @ViewBuilder
+    private var sparkleParticlesView: some View {
+        ForEach(0..<12) { index in
+            sparkleParticle(for: index)
+        }
+    }
+    
+    // 🎨 개별 반짝임 파티클 (더 단순화)
+    @ViewBuilder
+    private func sparkleParticle(for index: Int) -> some View {
+        let positions: [(CGFloat, CGFloat)] = [
+            (-60, -40), (30, -70), (-40, 50), (70, -20),
+            (-80, 10), (40, 60), (-30, -60), (80, 30),
+            (-50, -10), (20, -50), (-70, 40), (60, -30)
+        ]
+        
+        let position = positions[index % positions.count]
+        
+        Circle()
+            .fill(Color.white)
+            .frame(width: 4, height: 4)
+            .offset(x: position.0, y: position.1)
+            .opacity(animationWave)
+            .animation(
+                Animation.linear(duration: 0.5)
+                    .repeatCount(6, autoreverses: true)
+                    .delay(Double(index) * 0.05),
+                value: animationWave
+            )
+    }
+    
+    // 🎨 옵션 3: 차트 상승 효과
+    @ViewBuilder
+    private func buildChartRiseEffect() -> some View {
+        ZStack {
+            VStack(spacing: 4) {
+                // 상승 화살표
+                Image(systemName: "arrow.up.circle.fill")
+                    .font(.system(size: 25, weight: .bold))
+                    .foregroundColor(.green)
+                    .offset(y: animationOffset)
+                    .animation(
+                        Animation.easeOut(duration: 1.5)
+                            .repeatCount(2, autoreverses: false),
+                        value: animationOffset
+                    )
+                
+                // 차트 바들
+                HStack(alignment: .bottom, spacing: 6) {
+                    ForEach(0..<5) { index in
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(LinearGradient(
+                                gradient: Gradient(colors: [.blue, .green]),
+                                startPoint: .bottom,
+                                endPoint: .top
+                            ))
+                            .frame(
+                                width: 16,
+                                height: 20 + CGFloat(index) * 10 + animationScale * 30
+                            )
+                            .animation(
+                                Animation.easeOut(duration: 0.8)
+                                    .repeatCount(2, autoreverses: false)
+                                    .delay(Double(index) * 0.15),
+                                value: animationScale
+                            )
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    // 🎨 옵션 4: 파이어워크 효과
+    @ViewBuilder
+    private func buildFireworkEffect() -> some View {
+        ZStack {
+            // 중앙 폭발
+            Circle()
+                .fill(RadialGradient(
+                    gradient: Gradient(colors: [.yellow, .orange, .red, .clear]),
+                    center: .center,
+                    startRadius: 5,
+                    endRadius: 80
+                ))
+                .frame(width: 120, height: 120)
+                .scaleEffect(animationPulse)
+                .opacity(animationOpacity)
+                .animation(
+                    Animation.easeOut(duration: 1.2)
+                        .repeatCount(2, autoreverses: false),
+                    value: animationPulse
+                )
+            
+            // 파이어워크 파티클들
+            ForEach(0..<16) { index in
+                Circle()
+                    .fill(index % 4 == 0 ? .yellow : 
+                          index % 4 == 1 ? .orange :
+                          index % 4 == 2 ? .red : .pink)
+                    .frame(width: 6, height: 6)
+                    .offset(
+                        x: cos(Double(index) * .pi / 8) * animationOffset,
+                        y: sin(Double(index) * .pi / 8) * animationOffset
+                    )
+                    .opacity(animationWave)
+                    .animation(
+                        Animation.easeOut(duration: 2.0)
+                            .repeatCount(1, autoreverses: false)
+                            .delay(Double(index) * 0.02),
+                        value: animationOffset
+                    )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -400,13 +667,8 @@ struct WatchVisualFeedbackView: View {
             withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
                 animationOpacity = 0.3
             }
-        case "R1":
-            animationOffset = 50
-            animationWave = 0.5
-            withAnimation(.easeOut(duration: 2.5).repeatForever(autoreverses: false)) {
-                animationOffset = -100
-                animationWave = 1.0
-            }
+        case "R1": // 🎨 자신감 상승 - 동적 스타일별 애니메이션
+            startConfidenceAnimation()
         case "F2":
             animationPulse = 1.3
         case "S2":
@@ -443,6 +705,76 @@ struct WatchVisualFeedbackView: View {
         animationRotation = 0
         animationPulse = 1.0
         animationWave = 0
+    }
+    
+    // 🎨 자신감 상승 애니메이션 스타일별 시작
+    private func startConfidenceAnimation() {
+        switch confidenceAnimationStyle {
+        case .levelUpBar:
+            // 레벨업 바 효과
+            animationScale = 1.0
+            animationOpacity = 1.0
+            animationWave = 0.0
+            animationOffset = 20
+            
+            withAnimation(.easeOut(duration: 0.6).repeatCount(3, autoreverses: true)) {
+                animationScale = 1.2
+            }
+            withAnimation(.easeOut(duration: 2.5).repeatCount(1, autoreverses: false)) {
+                animationWave = 1.0
+            }
+            withAnimation(.easeOut(duration: 1.5)) {
+                animationOffset = -30
+                animationOpacity = 0.8
+            }
+            
+        case .sparkleStars:
+            // 별 반짝임 효과
+            animationScale = 1.0
+            animationRotation = 0
+            animationPulse = 1.0
+            animationOpacity = 1.0
+            animationWave = 0.0
+            
+            withAnimation(.easeInOut(duration: 1.0).repeatCount(3, autoreverses: true)) {
+                animationScale = 1.3
+                animationRotation = 45
+            }
+            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                animationPulse = 1.5
+            }
+            withAnimation(.linear(duration: 0.5).repeatCount(6, autoreverses: true)) {
+                animationWave = 1.0
+            }
+            
+        case .chartRise:
+            // 차트 상승 효과
+            animationOffset = 50
+            animationScale = 0.5
+            
+            withAnimation(.easeOut(duration: 1.5).repeatCount(2, autoreverses: false)) {
+                animationOffset = -20
+            }
+            withAnimation(.easeOut(duration: 0.8).repeatCount(2, autoreverses: false).delay(0.2)) {
+                animationScale = 1.5
+            }
+            
+        case .firework:
+            // 파이어워크 효과
+            animationPulse = 0.5
+            animationOpacity = 1.0
+            animationOffset = 0
+            animationWave = 0.0
+            
+            withAnimation(.easeOut(duration: 1.2).repeatCount(2, autoreverses: false)) {
+                animationPulse = 2.0
+                animationOpacity = 0.3
+            }
+            withAnimation(.easeOut(duration: 2.0).repeatCount(1, autoreverses: false).delay(0.3)) {
+                animationOffset = 120
+                animationWave = 1.0
+            }
+        }
     }
 }
 
@@ -494,10 +826,50 @@ struct Triangle: Shape {
     }
 }
 
+// 🎨 개발자 테스트용 유틸리티
+extension WatchVisualFeedbackView {
+    
+    // 🛠️ 애니메이션 미리보기용 함수 (개발/테스트용)
+    static func previewWithStyle(_ style: ConfidenceAnimationStyle) -> some View {
+        WatchVisualFeedbackView()
+            .environmentObject({
+                let appState = AppState()
+                appState.showVisualFeedback = true
+                appState.currentVisualPattern = "R1"
+                appState.visualPatternColor = .pink
+                return appState
+            }())
+            .onAppear {
+                // 스타일 설정은 내부적으로 처리됨
+            }
+    }
+    
+    // 🔧 애니메이션 스타일 변경 도우미 함수
+    mutating func changeConfidenceStyle(to style: ConfidenceAnimationStyle) {
+        self.confidenceAnimationStyle = style
+        print("🎨 자신감 애니메이션 스타일 변경: \(style.rawValue)")
+    }
+}
+
 struct WatchVisualFeedbackView_Previews: PreviewProvider {
     static var previews: some View {
-        WatchVisualFeedbackView()
-            .environmentObject(AppState())
+        Group {
+            // 성취 바 효과 (기본)
+            WatchVisualFeedbackView.previewWithStyle(.levelUpBar)
+                .previewDisplayName("🎯 성취 바")
+                
+            // 차트 상승 효과
+            WatchVisualFeedbackView.previewWithStyle(.chartRise)
+                .previewDisplayName("📈 차트 상승")
+                
+            // 별 반짝임 효과
+            WatchVisualFeedbackView.previewWithStyle(.sparkleStars)
+                .previewDisplayName("✨ 별 반짝임")
+                
+            // 파이어워크 효과
+            WatchVisualFeedbackView.previewWithStyle(.firework)
+                .previewDisplayName("🎆 파이어워크")
+        }
     }
 }
 #endif 

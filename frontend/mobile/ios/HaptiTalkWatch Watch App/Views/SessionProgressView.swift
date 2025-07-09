@@ -14,7 +14,7 @@ struct SessionProgressView: View {
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var appState: AppState
     @State private var sessionTimer: TimeInterval = 0
-    @State private var sessionMode: String = "소개팅"
+    @State private var sessionMode: String = "발표"
     @State private var formattedTime: String = "00:00:00"
     @State private var showHapticNotification: Bool = false
     @State private var hapticNotificationMessage: String = ""
@@ -25,7 +25,7 @@ struct SessionProgressView: View {
     
     // 햅틱 피드백 구독은 이제 AppState에서 관리됨
     
-    var recommendedTopics = ["여행 경험", "취미 활동", "좋아하는 음식"]
+    var recommendedTopics = ["핵심 메시지", "청중 소통", "결론 강조"]
     
     // AppState에서 실시간 데이터 가져오기
     var emotionState: String { appState.currentEmotion }
@@ -47,7 +47,7 @@ struct SessionProgressView: View {
         if !appState.currentFeedback.isEmpty {
             return appState.currentFeedback
         } else {
-            return "여행 주제에서 높은 호감도를 보였으며, 경청하는 자세가 매우 효과적이었습니다."
+            return "핵심 메시지 전달이 명확했으며, 청중과의 소통이 매우 효과적이었습니다."
         }
     }
     
@@ -289,9 +289,9 @@ struct SessionProgressView: View {
                     .padding(.top, 10)
                 }
                 
-                // 추천 대화 주제
+                // 추천 발표 포인트
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("추천 대화 주제")
+                    Text("추천 발표 포인트")
                         .font(.system(size: 10))
                         .foregroundColor(Color(.sRGB, red: 0.62, green: 0.62, blue: 0.62, opacity: 1.0)) // #9E9E9E
                     

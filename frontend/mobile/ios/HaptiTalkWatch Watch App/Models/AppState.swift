@@ -22,7 +22,7 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
     // 햅틱 피드백 관련 상태
     @Published var showHapticFeedback: Bool = false
     @Published var hapticFeedbackMessage: String = ""
-    @Published var sessionType: String = "소개팅"
+    @Published var sessionType: String = "발표"
     @Published var elapsedTime: String = "00:00:00"
     
     // 세션뷰의 햅틱 구독 관리용 변수
@@ -61,17 +61,17 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
         setupWatchConnectivity()
         
         recentSessions = [
-            Session(id: UUID(), name: "소개팅 모드", date: Date().addingTimeInterval(-86400), duration: 1800)
+            Session(id: UUID(), name: "발표 모드", date: Date().addingTimeInterval(-86400), duration: 1800)
         ]
         
         sessionSummaries = [
             SessionSummary(
                 id: UUID(),
-                sessionMode: "소개팅 모드",
+                sessionMode: "발표 모드",
                 totalTime: "1:32:05",
                 mainEmotion: "긍정적",
                 likeabilityPercent: "88%",
-                coreFeedback: "여행 주제에서 높은 호감도를 보였으며, 경청하는 자세가 매우 효과적이었습니다.",
+                coreFeedback: "핵심 메시지 전달이 명확했으며, 청중과의 소통이 매우 효과적이었습니다.",
                 date: Date().addingTimeInterval(-86400)
             )
         ]
@@ -837,7 +837,8 @@ extension AppState {
                 "L3": "❓ 궁금한 점을 질문해보세요"
             ],
             
-            // 💕 소개팅 모드 메시지 (백엔드 메시지 기반)
+            // 💕 소개팅 모드 메시지 (사용 안함 - 발표/면접 위주로 변경)
+            /*
             "소개팅": [
                 "S1": "🚀 대화 속도를 조절하세요",
                 "L1": "👂 상대방의 말에 집중하세요",
@@ -848,6 +849,7 @@ extension AppState {
                 "R2": "💕 더 밝고 긍정적으로 대화해보세요!", // likeability_low 매핑 (R2 → 강한 경고)
                 "L3": "🗣️ 더 흥미로운 대화를 시도해보세요!" // interest_low 매핑
             ]
+            */
         ]
         
         // 세션 타입에 맞는 메시지 찾기
@@ -857,8 +859,8 @@ extension AppState {
             return specificMessage
         }
         
-        // 폴백: 소개팅 모드 메시지 또는 기본 메시지
-        if let fallbackMessages = messageMapping["소개팅"],
+        // 폴백: 발표 모드 메시지 또는 기본 메시지
+        if let fallbackMessages = messageMapping["발표"],
            let fallbackMessage = fallbackMessages[patternId] {
             print("🔄 Watch: 폴백 메시지 사용 - \(fallbackMessage)")
             return fallbackMessage
