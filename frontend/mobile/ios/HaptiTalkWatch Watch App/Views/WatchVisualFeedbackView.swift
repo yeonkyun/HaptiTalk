@@ -66,36 +66,54 @@ struct WatchVisualFeedbackView: View {
                 .edgesIgnoringSafeArea(.all)
                 .animation(.easeInOut(duration: 0.5), value: appState.visualPatternColor)
             
-            // 🎨 패턴별 시각적 효과 (화면 가득)
-            buildPatternVisualEffect()
-            
-            // 🎨 애니메이션과 조화로운 패턴 정보 오버레이
-            VStack(spacing: 8) {
-                // 패턴 아이콘 (애니메이션과 조화)
-                getPatternIcon()
-                    .font(.system(size: 28, weight: .bold))
+            // 🎨 아이콘과 애니메이션을 정확히 같은 위치에 배치
+            VStack(spacing: 12) {
+                Spacer()
+                
+                // 🎨 아이콘과 애니메이션이 겹쳐지는 중앙 영역
+                ZStack {
+                    // 패턴별 시각적 효과 (배경 애니메이션)
+                    buildPatternVisualEffect()
+                        .zIndex(0) // 배경
+                    
+                    // 패턴 아이콘 (전경에서 항상 보임) - 흰색 고정으로 명확하게 표시
+                    getPatternIcon()
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(.white) // 흰색으로 고정
+                        .shadow(color: .black.opacity(0.9), radius: 4, x: 0, y: 1) // 더 강한 검은 그림자
+                        .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 0) // 추가 검은 그림자로 윤곽 강화
+                        .scaleEffect(animationScale * 0.1 + 0.95) // 애니메이션과 연동
+                        .animation(.easeInOut(duration: 0.8), value: animationScale)
+                        .zIndex(10) // 더 높은 zIndex
+                }
+                
+                // 패턴 제목 추가
+                Text(getPatternTitle())
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.6), radius: 2, x: 1, y: 1)
-                    .scaleEffect(animationScale * 0.1 + 0.95) // 애니메이션과 연동
-                    .animation(.easeInOut(duration: 0.8), value: animationScale)
+                    .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
+                    .opacity(animationOpacity)
+                    .animation(.easeInOut(duration: 1.0), value: animationOpacity)
                 
                 // 간결한 패턴 메시지
                 if !appState.hapticFeedbackMessage.isEmpty {
                     Text(appState.hapticFeedbackMessage)
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .shadow(color: .black.opacity(0.7), radius: 1, x: 0, y: 1)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
                         .background(
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: 6)
                                 .fill(Color.black.opacity(0.4))
                                 .blur(radius: 0.5)
                         )
-                        .opacity(animationOpacity * 0.9 + 0.1) // 애니메이션과 연동
+                        .opacity(animationOpacity)
                         .animation(.easeInOut(duration: 1.0), value: animationOpacity)
                 }
+                
+                Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .allowsHitTesting(false) // 터치 차단하여 애니메이션 방해 방지
@@ -129,15 +147,15 @@ struct WatchVisualFeedbackView: View {
     @ViewBuilder
     private func getPatternIcon() -> some View {
         switch appState.currentVisualPattern {
-        // ✅ 활성화된 4개 핵심 패턴 - 더 직관적인 아이콘
-        case "S1": // 속도 조절
+        // ✅ 활성화된 4개 핵심 패턴 - 더 직관적인 아이콘 (대조적 디자인)
+        case "D1": // 전달력: 말이 빠르다 💨
             Image(systemName: "speedometer")
-        case "R1": // 자신감 상승 (하트 → 상승 화살표)
-            Image(systemName: "arrow.up.circle.fill")
-        case "R2": // 자신감 하락
-            Image(systemName: "arrow.down.circle.fill")
-        case "S2": // 음량 조절
-            Image(systemName: "speaker.wave.3.fill")
+        case "C1": // 자신감: 확신도 상승 - 상승 트렌드 아이콘
+            Image(systemName: "chart.line.uptrend.xyaxis")
+        case "C2": // 자신감: 안정감 강화 - 하락 트렌드 아이콘 (C1과 대조)
+            Image(systemName: "chart.line.downtrend.xyaxis")
+        case "F1": // 필러워드: 감지
+            Image(systemName: "exclamationmark.bubble")
             
         // 🔒 비활성화된 패턴들 (주석 처리)
         /*
@@ -163,41 +181,19 @@ struct WatchVisualFeedbackView: View {
         let titleMapping: [String: [String: String]] = [
             // 🎤 발표 모드 제목
             "발표": [
-                "S1": "속도 조절",
-                "L1": "청중 소통 강화", 
-                "F1": "관심도 하락",
-                "R1": "자신감 상승",
-                "F2": "휴지 관리",
-                "S2": "음량 조절",
-                "R2": "자신감 하락",
-                "L3": "설득력 강화"
+                "D1": "말하기 속도 조절",
+                "C1": "자신감 상승", 
+                "C2": "안정감 강화",
+                "F1": "필러워드 감지"
             ],
             
             // 👔 면접 모드 제목  
             "면접": [
-                "S1": "답변 속도 조절",
-                "L1": "면접관 경청",
-                "F1": "면접 관심도 하락", 
-                "R1": "면접 자신감 우수",
-                "F2": "면접 침묵 관리",
-                "S2": "답변 음량 조절",
-                "R2": "면접 자신감 하락", // 🔥 자신감 하락
-                "L3": "면접 질문 제안"
-            ],
-            
-            // 💕 소개팅 모드 제목 (사용 안함 - 발표/면접 위주로 변경)
-            /*
-            "소개팅": [
-                "S1": "대화 속도 조절",
-                "L1": "상대방 경청",
-                "F1": "대화 관심도 하락",
-                "R1": "호감도 상승",
-                "F2": "대화 침묵 관리", 
-                "S2": "대화 음량 조절",
-                "R2": "호감도 부족", // 🔥 호감도 부족
-                "L3": "대화 흥미도 강화"
+                "D1": "답변이 빠르다",
+                "C1": "면접 자신감 상승",
+                "C2": "면접 안정감 강화",
+                "F1": "필러워드 감지"
             ]
-            */
         ]
         
         // 세션 타입에 맞는 제목 찾기
@@ -206,267 +202,151 @@ struct WatchVisualFeedbackView: View {
             return specificTitle
         }
         
-        // 폴백: 4개 핵심 패턴만
+        // 폴백: 새로운 4개 핵심 패턴만
         switch appState.currentVisualPattern {
-        // ✅ 활성화된 4개 핵심 패턴
-        case "S1": return "속도 조절"
-        case "R1": return "자신감 상승"
-        case "R2": return "자신감 하락"
-        case "S2": return "음량 조절"
-            
-        // 🔒 비활성화된 패턴들 (주석 처리)
-        /*
-        case "L1": return "경청 강화"
-        case "F1": return "주제 전환"
-        case "F2": return "침묵 관리"
-        case "L3": return "질문 제안"
-        */
+        // ✅ 새로운 4개 핵심 패턴
+        case "D1": return "말하기 속도 조절"
+        case "C1": return "자신감 상승"
+        case "C2": return "자신감 하락"
+        case "F1": return "필러워드 감지"
         default: return "피드백"
         }
     }
     
-    // 🎨 패턴별 시각적 효과 빌더 (4개 핵심 패턴만)
+    // 🎨 새로운 4개 패턴별 시각적 효과 빌더
     @ViewBuilder
     private func buildPatternVisualEffect() -> some View {
         switch appState.currentVisualPattern {
-        // ✅ 활성화된 4개 핵심 패턴 - 개선된 애니메이션
-        case "S1": // 속도 조절 - 리듬감 있는 펄스
-            buildSpeedControlEffect()
+        // ✅ 새로운 4개 핵심 패턴 - 개선된 애니메이션
+        case "D1": // 전달력: 말이 빠르다 - 빠름 경고 효과
+            buildSpeechTooFastEffect()
             
-        case "R1": // 자신감 상승 - 우아한 상승 효과
+        case "C1": // 자신감: 확신도 상승 - 우아한 상승 효과
             buildConfidenceUpEffect()
             
-        case "R2": // 자신감 하락 - 부드러운 하락 효과
-            buildConfidenceDownEffect()
+        case "C2": // 자신감: 안정감 강화 - 부드러운 안정화 효과
+            buildStabilityEffect()
             
-        case "S2": // 음량 조절 - 음파 파동 효과
-            buildVolumeControlEffect()
-            
-        // 🔒 비활성화된 패턴들 (주석 처리)
-        /*
-        case "L1": // 경청 강화 - 점진적 증가 (화면 가득)
-            buildListeningEffect()
-            
-        case "F1": // 주제 전환 - 긴 페이드 (화면 가득)
-            buildTopicChangeEffect()
-            
-        case "F2": // 침묵 관리 - 부드러운 펄스 (화면 가득)
-            buildSilenceEffect()
-            
-        case "L3": // 질문 제안 - 물음표 형태 (화면 가득)
-            buildQuestionEffect()
-        */
+        case "F1": // 필러워드: 감지 - 가벼운 지적 효과
+            buildFillerWordEffect()
             
         default:
             EmptyView()
         }
     }
     
-    // S1: 속도 조절 효과 - 리듬감 있는 펄스
+    // D1: 말이 빠르다 효과 - 큰 속도계 디자인 - zIndex 설정
     @ViewBuilder
-    private func buildSpeedControlEffect() -> some View {
+    private func buildSpeechTooFastEffect() -> some View {
         ZStack {
-            // 외부 링
-            Circle()
-                .stroke(Color.orange.opacity(0.4), lineWidth: 3)
-                .frame(width: 140, height: 140)
-                .scaleEffect(animationPulse)
-                .animation(
-                    Animation.easeInOut(duration: 0.8)
-                        .repeatForever(autoreverses: true),
-                    value: animationPulse
-                )
-            
-            // 중간 펄스 링들
-            ForEach(0..<3) { index in
-                Circle()
-                    .fill(Color.orange.opacity(0.3 - Double(index) * 0.08))
-                    .frame(
-                        width: 80 + CGFloat(index) * 25, 
-                        height: 80 + CGFloat(index) * 25
-                    )
-                    .scaleEffect(0.8 + (animationScale + CGFloat(index) * 0.1) * 0.4)
-                    .animation(
-                        Animation.easeInOut(duration: 0.6)
-                            .repeatForever(autoreverses: true)
-                            .delay(Double(index) * 0.1),
-                        value: animationScale
-                    )
-            }
-            
-            // 중심 속도계 시각 요소 (애니메이션과 조화)
-            ZStack {
-                // 속도계 배경
-                Circle()
-                    .stroke(Color.orange.opacity(0.6), lineWidth: 3)
-                    .frame(width: 20, height: 20)
-                    .scaleEffect(animationPulse * 0.3 + 0.9)
+            // 속도계 눈금들 (회전하는 대시보드 느낌) - 크기 조정
+            ForEach(0..<8, id: \.self) { index in
+                let angle = Double(index) * 45.0
+                let rotationValue = appState.visualAnimationIntensity * 360.0
                 
-                // 내부 펄스
-                Circle()
-                    .fill(Color.orange)
-                    .frame(width: 8, height: 8)
-                    .scaleEffect(animationScale * 0.4 + 0.8)
-                    .opacity(0.9)
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.orange.opacity(0.7))
+                    .frame(width: 4, height: 25)
+                    .offset(y: -50) 
+                    .rotationEffect(.degrees(angle + rotationValue))
+                    .scaleEffect(1.0 + (0.3 * appState.visualAnimationIntensity))
+                    .zIndex(1) // 아이콘보다 아래
             }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    // L1: 경청 강화 효과 (점진적 증가) - 🔧 position 제거
-    @ViewBuilder
-    private func buildListeningEffect() -> some View {
-        ZStack {
+            
+            // 중앙 빠른 펄스 (심장박동 같은 빠른 리듬) - 크기 조정 - 더 자연스럽게 - 아이콘 가리지 않게
             Circle()
-                .stroke(appState.visualPatternColor, lineWidth: 6 + animationScale * 10)
-                .frame(
-                    width: 80 + animationScale * 120, 
-                    height: 80 + animationScale * 120
-                )
-                .opacity(1.0 - animationScale * 0.3)
+                .fill(Color.orange.opacity(0.4)) // opacity 줄임
+                .frame(width: 30, height: 30)
+                .scaleEffect(1.0 + (1.8 * appState.visualAnimationIntensity))
+                .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: appState.visualAnimationIntensity)
+                .zIndex(2) // 아이콘보다 아래
+                
+            // 속도 표시 바늘 (빠르게 움직임) - 크기 조정 - 자연스러운 움직임 - 아이콘 가리지 않게
+            let needleAngle = -45 + (90 * appState.visualAnimationIntensity)
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color.red.opacity(0.6)) // opacity 줄임
+                .frame(width: 5, height: 35)
+                .offset(y: -18)
+                .rotationEffect(.degrees(needleAngle))
                 .animation(
-                    Animation.easeInOut(duration: 2.0)
-                        .repeatForever(autoreverses: false),
-                    value: animationScale
+                    .easeInOut(duration: 0.8)
+                        .repeatForever(autoreverses: true),
+                    value: needleAngle
                 )
+                .zIndex(3) // 아이콘보다 아래
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    // F1: 주제 전환 효과 (긴 페이드) - 🔧 position 제거
-    @ViewBuilder
-    private func buildTopicChangeEffect() -> some View {
-        ZStack {
-            VStack(spacing: 10) {
-                ForEach(0..<3) { index in
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(appState.visualPatternColor.opacity(animationOpacity * 0.7))
-                        .frame(width: screenSize.width * 0.9, height: 30)
-                        .animation(
-                            Animation.easeInOut(duration: 0.8)
-                                .repeatCount(2, autoreverses: true)
-                                .delay(Double(index) * 0.2),
-                            value: animationOpacity
-                        )
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    // R1: 자신감 상승 효과 - 우아한 상승 애니메이션
+    // C1: 자신감 상승 효과 - 폭발적인 에너지 상승 (덜 화려하게 조정) - zIndex 설정
     @ViewBuilder
     private func buildConfidenceUpEffect() -> some View {
         ZStack {
-            // 배경 원형 파동
-            ForEach(0..<3) { index in
+            // 바깥쪽 원형 에너지 파동 - 수량 줄임 (4개 → 2개)
+            ForEach(0..<2, id: \.self) { wave in
                 Circle()
-                    .stroke(Color.green.opacity(0.3), lineWidth: 2)
-                    .frame(width: 80 + CGFloat(index) * 40, height: 80 + CGFloat(index) * 40)
-                    .scaleEffect(animationPulse + CGFloat(index) * 0.2)
-                    .opacity(1.0 - CGFloat(index) * 0.3)
+                    .stroke(Color.green.opacity(0.5), lineWidth: 2) // opacity 줄임
+                    .frame(width: 60 + CGFloat(wave) * 25, height: 60 + CGFloat(wave) * 25)
+                    .scaleEffect(1.0 + (appState.visualAnimationIntensity * 0.6)) // 강도 줄임
+                    .opacity(1.0 - appState.visualAnimationIntensity * 0.7)
                     .animation(
-                        Animation.easeOut(duration: 1.5)
-                            .repeatForever(autoreverses: false)
-                            .delay(Double(index) * 0.3),
-                        value: animationPulse
+                        .easeOut(duration: 1.0).delay(Double(wave) * 0.3),
+                        value: appState.visualAnimationIntensity
                     )
+                    .zIndex(1) // 아이콘보다 아래
             }
             
-            // 상승하는 화살표 파티클들
-            ForEach(0..<6) { index in
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.green)
+            // 중앙에서 폭발하는 별들 - 5개로 조정 - 크기 역방향
+            ForEach(0..<5, id: \.self) { index in
+                let angle = Double(index) * 72.0 // 72도씩 5개
+                let explosionValue = appState.visualAnimationIntensity
+                let distance = 45.0 * explosionValue // 거리 줄임
+                
+                Image(systemName: "star.fill")
+                    .font(.callout) // 크기 줄임
+                    .foregroundColor(.yellow.opacity(0.7 - explosionValue * 0.3)) // opacity 줄임
                     .offset(
-                        x: cos(Double(index) * .pi / 3) * 35,
-                        y: sin(Double(index) * .pi / 3) * 35 + animationOffset
+                        x: cos(angle * .pi / 180) * distance,
+                        y: sin(angle * .pi / 180) * distance
                     )
-                    .opacity(animationOpacity * (1.0 - Double(index) * 0.1))
-                    .animation(
-                        Animation.easeOut(duration: 2.0)
-                            .repeatCount(2, autoreverses: false)
-                            .delay(Double(index) * 0.1),
-                        value: animationOffset
-                    )
+                    .scaleEffect(0.5 + (1.0 * explosionValue)) // 작게 시작해서 크게 끝남 (역방향)
+                    .rotationEffect(.degrees(explosionValue * 90)) // 회전량 줄임
+                    .zIndex(2) // 아이콘보다 아래
             }
             
-            // 중앙 상승 시각 요소 (애니메이션과 조화)
-            ZStack {
-                // 상승 링
+            // 상승하는 에너지 바들 - 수량 줄임 (5개 → 3개)
+            ForEach(0..<3, id: \.self) { index in
+                let waveDelay = Double(index) * 0.25
+                let waveValue = (appState.visualAnimationIntensity + waveDelay).truncatingRemainder(dividingBy: 1.0)
+                
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(LinearGradient(
+                        gradient: Gradient(colors: [.green.opacity(0.7), .yellow.opacity(0.6)]), // opacity 줄임
+                        startPoint: .bottom,
+                        endPoint: .top
+                    ))
+                    .frame(width: 4, height: 35 * (1.0 - waveValue)) // 크기 줄임
+                    .offset(y: -25 * waveValue) // 높이 줄임
+                    .opacity(1.0 - waveValue)
+                    .offset(x: Double(index - 1) * 20) // 간격 조정
+                    .zIndex(3) // 아이콘보다 아래
+            }
+            
+            // 바깥쪽 성취 반짝임들 - 수량 대폭 줄임 (12개 → 6개)
+            ForEach(0..<6, id: \.self) { spark in
+                let sparkAngle = Double(spark) * 60.0 // 60도씩 6개
+                let sparkValue = appState.visualAnimationIntensity
+                let sparkDistance = 35.0 + (10.0 * sparkValue) // 거리와 크기 줄임
+                
                 Circle()
-                    .stroke(Color.green.opacity(0.7), lineWidth: 2)
-                    .frame(width: 25, height: 25)
-                    .scaleEffect(animationScale)
-                    .animation(
-                        Animation.easeInOut(duration: 0.8)
-                            .repeatCount(3, autoreverses: true),
-                        value: animationScale
-                    )
-                
-                // 상승 화살표 시각화
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.green)
-                    .frame(width: 3, height: 12)
-                    .offset(y: -2)
-                    .scaleEffect(animationPulse * 0.2 + 0.9)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    // R2: 자신감 하락 효과 - 부드러운 하락 애니메이션
-    @ViewBuilder
-    private func buildConfidenceDownEffect() -> some View {
-        ZStack {
-            // 경고 배경 펄스
-            Circle()
-                .fill(Color.red.opacity(0.2))
-                .frame(width: 120, height: 120)
-                .scaleEffect(animationPulse)
-                .animation(
-                    Animation.easeInOut(duration: 1.0)
-                        .repeatForever(autoreverses: true),
-                    value: animationPulse
-                )
-            
-            // 하락하는 화살표 파티클들
-            ForEach(0..<4) { index in
-                Image(systemName: "arrow.down.circle")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.red)
+                    .fill(Color.yellow.opacity(0.6 - sparkValue * 0.3)) // opacity 줄임
+                    .frame(width: 3, height: 3) // 크기 줄임
                     .offset(
-                        x: cos(Double(index) * .pi / 2) * 30,
-                        y: sin(Double(index) * .pi / 2) * 30 + animationOffset
+                        x: cos(sparkAngle * .pi / 180) * sparkDistance,
+                        y: sin(sparkAngle * .pi / 180) * sparkDistance
                     )
-                    .opacity(animationOpacity * 0.7)
-                    .animation(
-                        Animation.easeIn(duration: 1.5)
-                            .repeatCount(2, autoreverses: false)
-                            .delay(Double(index) * 0.2),
-                        value: animationOffset
-                    )
-            }
-            
-            // 중앙 경고 시각 요소 (애니메이션과 조화)
-            ZStack {
-                // 경고 삼각형 배경
-                Triangle()
-                    .stroke(Color.red.opacity(0.8), lineWidth: 2)
-                    .frame(width: 20, height: 20)
-                    .scaleEffect(animationScale)
-                    .animation(
-                        Animation.easeInOut(duration: 0.6)
-                            .repeatCount(3, autoreverses: true),
-                        value: animationScale
-                    )
-                
-                // 하락 표시
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.red)
-                    .frame(width: 3, height: 10)
-                    .offset(y: 2)
-                    .scaleEffect(animationPulse * 0.3 + 0.8)
+                    .scaleEffect(1.5 * (1.0 - sparkValue * 0.5)) // 스케일 줄임
+                    .zIndex(4) // 아이콘보다 아래
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -673,7 +553,7 @@ struct WatchVisualFeedbackView: View {
                     startRadius: 5,
                     endRadius: 80
                 ))
-                .frame(width: 120, height: 120)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .scaleEffect(animationPulse)
                 .opacity(animationOpacity)
                 .animation(
@@ -688,7 +568,7 @@ struct WatchVisualFeedbackView: View {
                     .fill(index % 4 == 0 ? .yellow : 
                           index % 4 == 1 ? .orange :
                           index % 4 == 2 ? .red : .pink)
-                    .frame(width: 6, height: 6)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .offset(
                         x: cos(Double(index) * .pi / 8) * animationOffset,
                         y: sin(Double(index) * .pi / 8) * animationOffset
@@ -711,7 +591,7 @@ struct WatchVisualFeedbackView: View {
         ZStack {
             Circle()
                 .fill(appState.visualPatternColor.opacity(0.4))
-                .frame(width: 140, height: 140)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .scaleEffect(animationPulse)
                 .animation(
                     Animation.easeInOut(duration: 1.2).repeatCount(2, autoreverses: true),
@@ -729,7 +609,7 @@ struct WatchVisualFeedbackView: View {
             ForEach(0..<4) { index in
                 Circle()
                     .stroke(Color.blue.opacity(0.4), lineWidth: 2)
-                    .frame(width: 60 + CGFloat(index) * 30, height: 60 + CGFloat(index) * 30)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .scaleEffect(animationPulse + CGFloat(index) * 0.3)
                     .opacity(1.0 - animationPulse * 0.5 - CGFloat(index) * 0.2)
                     .animation(
@@ -785,131 +665,42 @@ struct WatchVisualFeedbackView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    // R2: 관심도 하락 효과 (강한 경고) - 🔧 position 제거
-    @ViewBuilder
-    private func buildInterestDownEffect() -> some View {
-        ZStack {
-            Triangle()
-                .fill(Color.red.opacity(0.8))
-                .frame(width: 60, height: 60)
-                .rotationEffect(.degrees(animationRotation))
-                .scaleEffect(animationScale)
-                .animation(
-                    Animation.easeInOut(duration: 0.3)
-                        .repeatForever(autoreverses: true),
-                    value: animationRotation
-                )
-                .animation(
-                    Animation.easeInOut(duration: 0.5)
-                        .repeatForever(autoreverses: true),
-                    value: animationScale
-                )
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    // L3: 질문 제안 효과 (물음표 형태) - 🔧 position 제거
-    @ViewBuilder
-    private func buildQuestionEffect() -> some View {
-        ZStack {
-            Text("?")
-                .font(.system(size: 80, weight: .bold))
-                .foregroundColor(appState.visualPatternColor)
-                .opacity(animationOpacity)
-                .scaleEffect(animationScale)
-                .animation(
-                    Animation.easeInOut(duration: 1.0)
-                        .repeatForever(autoreverses: true),
-                    value: animationOpacity
-                )
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
     // 🎨 애니메이션 시작 (4개 핵심 패턴만)
     private func startPatternAnimation() {
         switch appState.currentVisualPattern {
-        // ✅ 활성화된 4개 핵심 패턴
-        case "S1": // 속도 조절
-            animationPulse = 1.2
-            animationScale = 1.0
-            animationOpacity = 1.0
+        // ✅ 새로운 4개 핵심 패턴
+        case "D1": // 전달력: 말이 빠르다
+            // 빠른 속도 경고 애니메이션 설정
+            appState.visualAnimationIntensity = 1.0
             
             withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
-                animationPulse = 1.4
-            }
-            withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
-                animationScale = 1.3
+                appState.visualAnimationIntensity = 0.8
             }
             
-        case "R1": // 자신감 상승
-            animationPulse = 0.8
-            animationScale = 1.0
-            animationOpacity = 1.0
-            animationOffset = 30
+        case "C1": // 자신감: 확신도 상승
+            // 폭발적인 에너지 상승 애니메이션 설정
+            appState.visualAnimationIntensity = 0.0
             
-            withAnimation(.easeOut(duration: 1.5).repeatForever(autoreverses: false)) {
-                animationPulse = 1.5
-            }
-            withAnimation(.easeInOut(duration: 0.8).repeatCount(3, autoreverses: true)) {
-                animationScale = 1.3
-            }
-            withAnimation(.easeOut(duration: 2.0).repeatCount(2, autoreverses: false)) {
-                animationOffset = -40
-                animationOpacity = 0.8
+            withAnimation(.easeOut(duration: 1.5).repeatCount(2, autoreverses: false)) {
+                appState.visualAnimationIntensity = 1.0
             }
             
-        case "R2": // 자신감 하락
-            animationPulse = 0.9
-            animationScale = 1.0
-            animationOpacity = 1.0
-            animationOffset = -20
+        case "C2": // 자신감: 안정감 강화
+            // 호흡하는 평온함 애니메이션 설정
+            appState.visualAnimationIntensity = 0.5
             
-            withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-                animationPulse = 1.3
-            }
-            withAnimation(.easeInOut(duration: 0.6).repeatCount(3, autoreverses: true)) {
-                animationScale = 1.2
-            }
-            withAnimation(.easeIn(duration: 1.5).repeatCount(2, autoreverses: false)) {
-                animationOffset = 25
-                animationOpacity = 0.7
+            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                appState.visualAnimationIntensity = 1.0
             }
             
-        case "S2": // 음량 조절
-            animationPulse = 0.5
-            animationScale = 0.5
-            animationOpacity = 1.0
+        case "F1": // 필러워드: 감지
+            // 톡톡 경고 애니메이션 설정
+            appState.visualAnimationIntensity = 0.0
             
-            withAnimation(.easeOut(duration: 1.5).repeatForever(autoreverses: false)) {
-                animationPulse = 2.0
-            }
-            withAnimation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) {
-                animationScale = 1.5
+            withAnimation(.easeOut(duration: 1.2).repeatCount(2, autoreverses: false)) {
+                appState.visualAnimationIntensity = 1.0
             }
             
-        // 🔒 비활성화된 패턴들 (주석 처리)
-        /*
-        case "L1":
-            animationScale = 1.0
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: false)) {
-                animationScale = 0.3
-            }
-        case "F1":
-            animationOpacity = 1.0
-            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                animationOpacity = 0.3
-            }
-        case "F2":
-            animationPulse = 1.3
-        case "L3":
-            animationOpacity = 1.0
-            animationScale = 1.0
-            withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-                animationOpacity = 0.4
-                animationScale = 1.2
-            }
-        */
         default:
             break
         }
@@ -994,6 +785,200 @@ struct WatchVisualFeedbackView: View {
             }
         }
     }
+
+        // C2: 자신감 하락 효과 - 하락 화살표들이 랜덤 위치에서 생성되어 서서히 사라지는 애니메이션 - zIndex 설정
+    @ViewBuilder
+    private func buildStabilityEffect() -> some View {
+        ZStack {
+            // 하락 화살표들 (중앙 기준 랜덤 위치) - 순차적으로 나타났다가 사라짐 - 8개
+            ForEach(0..<8, id: \.self) { index in
+                // 고정된 랜덤 위치들 (중앙 기준 전체 영역)
+                let randomPositions: [(x: Double, y: Double)] = [
+                    (x: -30, y: -35),   // 왼쪽 위
+                    (x: 35, y: -25),    // 오른쪽 위
+                    (x: -20, y: 20),    // 왼쪽 아래
+                    (x: 25, y: 30),     // 오른쪽 아래
+                    (x: -45, y: 5),     // 왼쪽 중간
+                    (x: 40, y: -40),    // 오른쪽 위 끝
+                    (x: 0, y: -45),     // 위쪽 중앙
+                    (x: -10, y: 35)     // 아래쪽 중앙
+                ]
+                
+                let dropValue = appState.visualAnimationIntensity
+                let arrowDelay = Double(index) * 0.15 // 순차적 지연
+                let adjustedValue = max(0, min(1.0, dropValue - arrowDelay)) // 각각 다른 타이밍
+                let appearPhase = adjustedValue < 0.3 ? adjustedValue / 0.3 : 1.0 // 나타나는 단계
+                let fadePhase = adjustedValue > 0.3 ? max(0, 1.0 - (adjustedValue - 0.3) / 0.6) : 1.0 // 사라지는 단계 (천천히)
+                let overallOpacity = appearPhase * fadePhase
+                
+                Image(systemName: "chevron.down")
+                    .font(.body) // 큰 폰트
+                    .foregroundColor(.blue.opacity(overallOpacity * 0.9))
+                    .offset(
+                        x: randomPositions[index].x,
+                        y: randomPositions[index].y
+                    )
+                    .scaleEffect(0.4 + (overallOpacity * 1.0)) // 작게 시작해서 커짐: 0.4~1.4 범위
+                    .opacity(overallOpacity)
+                    .animation(.easeInOut(duration: 1.2), value: adjustedValue) // 부드럽게
+                    .zIndex(1) // 아이콘보다 아래
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    // 개별 호흡 원 뷰 (복잡한 표현식 분리) - 프레임에 맞게 조정
+    @ViewBuilder
+    private func breathingCircleView(for index: Int) -> some View {
+        let indexAngle = Double(index) * .pi / 2
+        let animatedValue = appState.visualAnimationIntensity * 2.0 * .pi
+        let breathingValue = sin(animatedValue + indexAngle)
+        let scale = 0.8 + (0.4 * breathingValue) // 더 크게
+        let opacity = 0.3 + (0.2 * breathingValue)
+        
+        Circle()
+            .stroke(
+                Color.purple.opacity(opacity),
+                lineWidth: 2.5
+            )
+            .frame(width: 80 + CGFloat(index) * 15, height: 80 + CGFloat(index) * 15) // 더 크고 계층적으로
+            .scaleEffect(scale)
+            .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: appState.visualAnimationIntensity)
+    }
+    
+    // 개별 명상 파동 뷰 (복잡한 표현식 분리) - 프레임에 맞게 조정
+    @ViewBuilder
+    private func meditationWaveView(for index: Int) -> some View {
+        let waveDelay = Double(index) * 0.4
+        let waveValue = (appState.visualAnimationIntensity + waveDelay).truncatingRemainder(dividingBy: 1.0)
+        let waveScale = 0.4 + (0.8 * waveValue) // 더 큰 파동
+        let waveOpacity = 0.5 * (1 - waveValue)
+        
+        Circle()
+            .fill(RadialGradient(
+                gradient: Gradient(colors: [
+                    .purple.opacity(waveOpacity),
+                    .clear
+                ]),
+                center: .center,
+                startRadius: 0,
+                endRadius: 50 // 더 넓은 반지름
+            ))
+            .frame(width: 100, height: 100) // 더 큰 프레임
+            .scaleEffect(waveScale)
+            .opacity(1.0 - waveValue * 0.6)
+    }
+    
+    // 중앙 광채 뷰 (복잡한 표현식 분리) - 프레임에 맞게 조정 - 아이콘 가리지 않게
+    @ViewBuilder
+    private var centralGlowView: some View {
+        let animatedScale = 1.0 + (0.3 * sin(appState.visualAnimationIntensity * 3.0 * .pi))
+        
+        // 바깥쪽 부드러운 후광 - 크기 조정 - 아이콘 가리지 않게
+        Circle()
+            .fill(RadialGradient(
+                gradient: Gradient(colors: [
+                    .clear,
+                    .purple.opacity(0.05), // opacity 줄임
+                    .purple.opacity(0.15), // opacity 줄임
+                    .clear
+                ]),
+                center: .center,
+                startRadius: 15,
+                endRadius: 40
+            ))
+            .frame(width: 80, height: 80)
+            .scaleEffect(animatedScale * 0.8)
+            .animation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true), value: appState.visualAnimationIntensity)
+            
+        // 내부 평온한 빛 - 크기 조정 - 아이콘 가리지 않게
+        Circle()
+            .fill(RadialGradient(
+                gradient: Gradient(colors: [
+                    .white.opacity(0.2), // opacity 줄임
+                    .purple.opacity(0.1), // opacity 줄임
+                    .clear
+                ]),
+                center: .center,
+                startRadius: 0,
+                endRadius: 20
+            ))
+            .frame(width: 35, height: 35)
+            .scaleEffect(animatedScale)
+            .animation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true), value: appState.visualAnimationIntensity)
+    }
+    
+    // F1: 필러워드 감지 효과 - 톡톡 경고 신호 (아이콘 주변으로 확장) - zIndex 설정
+    @ViewBuilder
+    private func buildFillerWordEffect() -> some View {
+        ZStack {
+            // 바깥쪽 경고 링들 (더 큰 범위)
+            ForEach(0..<4, id: \.self) { ring in
+                Circle()
+                    .stroke(
+                        Color.red.opacity(0.7),
+                        lineWidth: 3
+                    )
+                    .frame(width: 50 + CGFloat(ring) * 20, height: 50 + CGFloat(ring) * 20)
+                    .scaleEffect(1.0 + (appState.visualAnimationIntensity * 0.3))
+                    .opacity(appState.visualAnimationIntensity < 0.5 ? 0.8 : 0.3)
+                    .animation(
+                        .easeInOut(duration: 0.3).delay(Double(ring) * 0.1),
+                        value: appState.visualAnimationIntensity
+                    )
+                    .zIndex(1) // 아이콘보다 아래
+            }
+            
+            // 중앙 이중 펄스 (더 큰 톡톡 효과) - 아이콘 가리지 않게
+            ForEach(0..<2, id: \.self) { pulse in
+                Circle()
+                    .fill(Color.blue.opacity(0.3)) // opacity 줄임
+                    .frame(width: 20 + CGFloat(pulse) * 10, height: 20 + CGFloat(pulse) * 10)
+                    .scaleEffect(
+                        appState.visualAnimationIntensity < 0.2 ? 2.0 :
+                        (appState.visualAnimationIntensity > 0.3 && appState.visualAnimationIntensity < 0.5) ? 2.0 : 1.0
+                    )
+                    .opacity(appState.visualAnimationIntensity < 0.5 ? 0.4 : 0.15) // opacity 줄임
+                    .animation(
+                        .easeInOut(duration: 0.15).delay(Double(pulse) * 0.1),
+                        value: appState.visualAnimationIntensity
+                    )
+                    .zIndex(3) // 아이콘보다 아래
+            }
+            
+            // 경고 삼각형들 (중앙 기준 랜덤 위치) - 순차적으로 나타났다가 사라짐
+            ForEach(0..<5, id: \.self) { index in
+                // 고정된 랜덤 위치들 (중앙 기준)
+                let randomPositions: [(x: Double, y: Double)] = [
+                    (x: -25, y: -32),  // 왼쪽 위
+                    (x: 38, y: -18),   // 오른쪽 위
+                    (x: -42, y: 15),   // 왼쪽 아래
+                    (x: 28, y: 35),    // 오른쪽 아래
+                    (x: 8, y: -40)     // 위쪽 중앙
+                ]
+                
+                let warningValue = appState.visualAnimationIntensity
+                let triangleDelay = Double(index) * 0.15 // 순차적 지연
+                let adjustedValue = max(0, min(1.0, warningValue - triangleDelay)) // 각각 다른 타이밍
+                let appearPhase = adjustedValue < 0.2 ? adjustedValue / 0.2 : 1.0 // 나타나는 단계 (더 빠르게)
+                let fadePhase = adjustedValue > 0.2 ? max(0, 1.0 - (adjustedValue - 0.2) / 0.7) : 1.0 // 사라지는 단계 (더 천천히)
+                let overallOpacity = appearPhase * fadePhase
+                
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.body) // 더 큰 폰트
+                    .foregroundColor(.red.opacity(overallOpacity * 0.9))
+                    .offset(
+                        x: randomPositions[index].x,
+                        y: randomPositions[index].y
+                    )
+                    .scaleEffect(0.5 + (overallOpacity * 1.0)) // 더 크게: 0.5~1.5 범위
+                    .opacity(overallOpacity)
+                    .animation(.easeInOut(duration: 0.6), value: adjustedValue) // 더 부드럽게
+                    .zIndex(5) // 아이콘보다 아래
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 }
 
 // 🎨 커스텀 Heart 모양
@@ -1033,16 +1018,7 @@ struct Heart: Shape {
 }
 
 // 🎨 커스텀 Triangle 모양
-struct Triangle: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.midX, y: rect.minY))
-        return path
-    }
-}
+
 
 // 🎨 개발자 테스트용 유틸리티
 extension WatchVisualFeedbackView {
