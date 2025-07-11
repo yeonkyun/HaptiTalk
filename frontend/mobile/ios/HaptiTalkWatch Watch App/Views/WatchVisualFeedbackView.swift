@@ -183,7 +183,7 @@ struct WatchVisualFeedbackView: View {
             "발표": [
                 "D1": "말하기 속도 조절",
                 "C1": "자신감 상승", 
-                "C2": "안정감 강화",
+                "C2": "자신감 하락",
                 "F1": "필러워드 감지"
             ],
             
@@ -191,7 +191,7 @@ struct WatchVisualFeedbackView: View {
             "면접": [
                 "D1": "답변이 빠르다",
                 "C1": "면접 자신감 상승",
-                "C2": "면접 안정감 강화",
+                "C2": "면접 자신감 하락",
                 "F1": "필러워드 감지"
             ]
         ]
@@ -685,11 +685,16 @@ struct WatchVisualFeedbackView: View {
                 appState.visualAnimationIntensity = 1.0
             }
             
-        case "C2": // 자신감: 안정감 강화
-            // 호흡하는 평온함 애니메이션 설정
-            appState.visualAnimationIntensity = 0.5
+        case "C2": // 자신감: 하락
+            // 한번만 실행되는 하락 애니메이션 설정
+            appState.visualAnimationIntensity = 0.0
             
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+            withAnimation(.easeInOut(duration: 2.5)) {
+                appState.visualAnimationIntensity = 1.0
+            }
+            
+            // 애니메이션 완료 후에도 값 유지
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                 appState.visualAnimationIntensity = 1.0
             }
             
@@ -786,42 +791,17 @@ struct WatchVisualFeedbackView: View {
         }
     }
 
-        // C2: 자신감 하락 효과 - 하락 화살표들이 랜덤 위치에서 생성되어 서서히 사라지는 애니메이션 - zIndex 설정
+        // C2: 자신감 하락 효과 - 랜덤 위치에서 떨어지는 화살표들
     @ViewBuilder
     private func buildStabilityEffect() -> some View {
         ZStack {
-            // 하락 화살표들 (중앙 기준 랜덤 위치) - 순차적으로 나타났다가 사라짐 - 8개
+            // 랜덤 위치에서 떨어지는 하락 화살표들 (더 많이)
             ForEach(0..<8, id: \.self) { index in
-                // 고정된 랜덤 위치들 (중앙 기준 전체 영역)
-                let randomPositions: [(x: Double, y: Double)] = [
-                    (x: -30, y: -35),   // 왼쪽 위
-                    (x: 35, y: -25),    // 오른쪽 위
-                    (x: -20, y: 20),    // 왼쪽 아래
-                    (x: 25, y: 30),     // 오른쪽 아래
-                    (x: -45, y: 5),     // 왼쪽 중간
-                    (x: 40, y: -40),    // 오른쪽 위 끝
-                    (x: 0, y: -45),     // 위쪽 중앙
-                    (x: -10, y: 35)     // 아래쪽 중앙
-                ]
-                
-                let dropValue = appState.visualAnimationIntensity
-                let arrowDelay = Double(index) * 0.15 // 순차적 지연
-                let adjustedValue = max(0, min(1.0, dropValue - arrowDelay)) // 각각 다른 타이밍
-                let appearPhase = adjustedValue < 0.3 ? adjustedValue / 0.3 : 1.0 // 나타나는 단계
-                let fadePhase = adjustedValue > 0.3 ? max(0, 1.0 - (adjustedValue - 0.3) / 0.6) : 1.0 // 사라지는 단계 (천천히)
-                let overallOpacity = appearPhase * fadePhase
-                
-                Image(systemName: "chevron.down")
-                    .font(.body) // 큰 폰트
-                    .foregroundColor(.blue.opacity(overallOpacity * 0.9))
-                    .offset(
-                        x: randomPositions[index].x,
-                        y: randomPositions[index].y
-                    )
-                    .scaleEffect(0.4 + (overallOpacity * 1.0)) // 작게 시작해서 커짐: 0.4~1.4 범위
-                    .opacity(overallOpacity)
-                    .animation(.easeInOut(duration: 1.2), value: adjustedValue) // 부드럽게
-                    .zIndex(1) // 아이콘보다 아래
+                ConfidenceDropArrow(
+                    index: index,
+                    animationIntensity: appState.visualAnimationIntensity
+                )
+                .zIndex(1)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -978,6 +958,70 @@ struct WatchVisualFeedbackView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// 🎨 자신감 하락 화살표 컴포넌트 (한번만 떨어짐)
+struct ConfidenceDropArrow: View {
+    let index: Int
+    let animationIntensity: Double
+    
+    @State private var hasStarted = false
+    @State private var finalPosition: CGFloat = 0
+    @State private var finalOpacity: Double = 0
+    @State private var finalScale: CGFloat = 0.6
+    
+    private let arrowPositions: [(x: Double, y: Double)] = [
+        (x: -42, y: -48),    // 왼쪽 끝 위
+        (x: 15, y: -52),     // 오른쪽 중간 위
+        (x: -8, y: -45),     // 중앙 약간 왼쪽
+        (x: 38, y: -39),     // 오른쪽 위
+        (x: -25, y: -33),    // 왼쪽 중간
+        (x: 48, y: -46),     // 오른쪽 끝 위
+        (x: 3, y: -38),      // 중앙 약간 오른쪽
+        (x: -35, y: -42)     // 왼쪽 중상단
+    ]
+    
+    var body: some View {
+        let arrowDelay = Double(index) * 0.15
+        let adjustedValue = max(0, min(1.0, animationIntensity - arrowDelay))
+        
+        if adjustedValue > 0 || hasStarted {
+            Image(systemName: "arrow.down.circle.fill")
+                .font(.title2)
+                .foregroundColor(.gray) // 회색으로 변경
+                .offset(
+                    x: arrowPositions[index].x,
+                    y: arrowPositions[index].y + finalPosition
+                )
+                .scaleEffect(finalScale)
+                .opacity(finalOpacity)
+                .onChange(of: adjustedValue) { newValue in
+                    if newValue > 0 && !hasStarted {
+                        hasStarted = true
+                        animateArrow()
+                    }
+                }
+        }
+    }
+    
+    private func animateArrow() {
+        // 나타나는 애니메이션 (더 빨리 선명하게)
+        withAnimation(.easeOut(duration: 0.3).delay(Double(index) * 0.15)) {
+            finalOpacity = 1.0    // 빠르게 나타남
+            finalScale = 1.2      // 중간 크기
+        }
+        
+        // 떨어지는 애니메이션 (더 오래)
+        withAnimation(.easeIn(duration: 2.0).delay(Double(index) * 0.15)) {
+            finalPosition = 85.0  // 천천히 떨어짐
+            finalScale = 1.6      // 최종 크기
+        }
+        
+        // 사라지는 애니메이션 (더 늦게, 더 천천히)
+        withAnimation(.easeOut(duration: 1.0).delay(Double(index) * 0.15 + 1.5)) {
+            finalOpacity = 0.0    // 천천히 사라짐
+        }
     }
 }
 

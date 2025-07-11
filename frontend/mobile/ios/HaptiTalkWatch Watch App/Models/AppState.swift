@@ -639,23 +639,23 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
         switch patternId {
         case "D1": // 전달력: 말이 빠르다
             return currentSession == "발표" ? 
-                "💨 말이 빠르네요!" : 
-                "💨 답변이 빠르네요!"
+                "천천히 말해보세요" : 
+                "천천히 답변해보세요"
                 
         case "C1": // 자신감: 상승
             return currentSession == "발표" ? 
-                "🚀 훌륭한 발표 자신감이에요!" : 
-                "💼 확신감 있는 답변이에요!"
+                "훌륭한 발표 자신감이에요!" : 
+                "확신감 있는 답변이에요!"
                 
-        case "C2": // 자신감: 안정감 강화
+        case "C2": // 자신감: 하락
             return currentSession == "발표" ? 
-                "🧘‍♂️ 침착하게 발표하세요" : 
-                "🧘‍♂️ 차분하게 답변하세요"
+                "더 자신감 있게 발표하세요!" :
+                "더 자신감 있게 답변하세요!"
                 
         case "F1": // 필러워드 감지
             return currentSession == "발표" ? 
-                "🎯 불필요한 감탄사를 줄여보세요" : 
-                "🎯 \"음\", \"어\" 등을 줄여보세요"
+                "\"음\", \"어\" 등을 줄여보세요" : 
+                "\"음\", \"어\" 등을 줄여보세요"
         
         default:
             return "📱 피드백이 도착했습니다"
