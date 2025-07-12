@@ -44,7 +44,7 @@ const authService = {
 
             // User Service에 프로필 생성 요청
             try {
-                await createUserProfile(user.id, userData.email);
+                await createUserProfile(user.id, userData.email, userData.username);
                 logger.info(`프로필 생성 성공: ${userData.email} (ID: ${user.id})`);
             } catch (profileError) {
                 logger.error(`프로필 생성 실패: ${userData.email} (ID: ${user.id})`, {
@@ -325,11 +325,12 @@ const authService = {
  * @param {string} userId - 사용자 ID
  * @param {string} email - 사용자 이메일
  */
-const createUserProfile = async (userId, email) => {
+const createUserProfile = async (userId, email, username) => {
     try {
         const response = await axios.post(`${USER_SERVICE_URL}/api/v1/users/profile/create`, {
             userId: userId,
-            email: email
+            email: email,
+            username: username
         }, {
             timeout: 5000, // 5초 타임아웃
             headers: {

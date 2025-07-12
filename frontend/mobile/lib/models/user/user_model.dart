@@ -12,16 +12,17 @@ class UserModel {
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
-    // first_name과 last_name을 조합하여 name 생성
+    // 한국식 이름 우선: name 필드를 최우선으로 사용
     String name = '';
-    if (json['first_name'] != null && json['last_name'] != null) {
+    if (json['name'] != null && json['name'].toString().trim().isNotEmpty) {
+      name = json['name'].toString().trim();
+    } else if (json['first_name'] != null && json['last_name'] != null) {
+      // 서구식 이름: first_name과 last_name을 조합
       name = '${json['first_name']} ${json['last_name']}'.trim();
     } else if (json['first_name'] != null) {
       name = json['first_name'];
     } else if (json['last_name'] != null) {
       name = json['last_name'];
-    } else if (json['name'] != null && json['name'].toString().isNotEmpty) {
-      name = json['name'];
     } else if (json['username'] != null && json['username'].toString().isNotEmpty) {
       name = json['username'];
     } else if (json['email'] != null && json['email'].toString().isNotEmpty) {

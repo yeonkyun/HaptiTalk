@@ -24,20 +24,23 @@ const createProfile = async (req, res, next) => {
             });
         }
 
-        const { userId, email } = req.body;
+        const { userId, email, username } = req.body;
 
-        // 이미 프로필이 존재하는지 확인
-        const existingProfile = await profileService.getProfile(userId);
-        if (existingProfile && existingProfile.id) {
+        // 프로필 직접 조회 (자동 생성 방지)
+        const Profile = require('../models/profile.model');
+        let existingProfile = await Profile.findByPk(userId);
+        
+        if (existingProfile) {
+            // 프로필이 이미 존재하면 JSON 형태로 반환
             return res.status(200).json({
                 success: true,
-                data: existingProfile,
+                data: existingProfile.toJSON(),
                 message: '프로필이 이미 존재합니다.'
             });
         }
 
         // 새 프로필 생성
-        const newProfile = await profileService.createDefaultProfile(userId);
+        const newProfile = await profileService.createDefaultProfile(userId, username);
 
         logger.info(`서비스 간 프로필 생성 성공: ${userId} (${email})`);
 

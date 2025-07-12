@@ -14,7 +14,11 @@ router.post(
             .withMessage('유효한 사용자 ID가 필요합니다.'),
         body('email')
             .isEmail()
-            .withMessage('유효한 이메일이 필요합니다.')
+            .withMessage('유효한 이메일이 필요합니다.'),
+        body('username')
+            .optional()
+            .isLength({ min: 2, max: 50 })
+            .withMessage('사용자명은 2-50자 사이여야 합니다.')
     ],
     profileController.createProfile
 );
@@ -31,6 +35,10 @@ router.patch(
             .optional()
             .isLength({ min: 3, max: 50 })
             .withMessage('사용자명은 3-50자 사이여야 합니다.'),
+        body('name')
+            .optional()
+            .isLength({ min: 1, max: 100 })
+            .withMessage('이름은 1-100자 사이여야 합니다.'),
         body('first_name')
             .optional()
             .isLength({ max: 100 })
