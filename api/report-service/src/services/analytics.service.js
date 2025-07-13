@@ -15,6 +15,9 @@ const sanitizeData = (obj) => {
     if (typeof obj === 'number') {
         return sanitizeValue(obj);
     }
+    if (obj instanceof Date) {
+        return obj;
+    }
     if (Array.isArray(obj)) {
         return obj.map(sanitizeData);
     }
