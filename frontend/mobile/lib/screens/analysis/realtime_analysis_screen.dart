@@ -55,7 +55,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
   int _speakingSpeed = 0;
   int _likability = 0;
   int _interest = 0;
-  String _currentScenario = 'dating'; // 기본 시나리오
+  String _currentScenario = 'presentation'; // 기본 시나리오를 발표로 변경
 
   String _lastHapticMessage = '';  // 🚫 중복 햅틱 방지
   DateTime? _lastHapticTime;  // ⏰ 마지막 햅틱 시간
@@ -103,8 +103,8 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     } else if (widget.sessionType == '면접' || widget.sessionType == '면접(인터뷰)') {
       _suggestedTopics = ['경력 소개', '성장 경험', '회사 지원 동기', '미래 계획', '강점과 약점'];
     } else {
-      // 소개팅 모드 (기본)
-    _suggestedTopics = ['여행 경험', '좋아하는 여행지', '사진 취미', '역사적 장소', '제주도 명소'];
+      // 기본값도 발표 관련으로 변경
+      _suggestedTopics = ['핵심 포인트 강조', '청중과의 소통', '시각적 자료 활용', '명확한 결론', '질의응답 준비'];
     }
     
     // STT 스트림 구독 상태 주기적 확인
@@ -1639,8 +1639,8 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     switch (sessionType) {
       case '발표':
         return 'presentation'; // presentation 시나리오 사용
-      case '소개팅':
-        return 'dating'; // dating 시나리오 사용
+      // case '소개팅':
+      //   return 'dating'; // dating 시나리오 사용 - 소개팅 기능 비활성화
       case '면접':
         return 'interview'; // interview 시나리오 사용
       case '코칭':
@@ -1648,7 +1648,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       case '회의':  // 혹시 모를 레거시 케이스
         return 'business';
       default:
-        return 'general';  // 기본값을 general로 변경
+        return 'presentation';  // 기본값을 presentation으로 변경
     }
   }
 

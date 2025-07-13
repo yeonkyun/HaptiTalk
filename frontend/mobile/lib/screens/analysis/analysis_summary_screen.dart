@@ -143,21 +143,23 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         print('⚠️ 세션 정보 조회 실패, 기본값 사용: $error');
         
         // 세션 타입 추론 (분석 결과에서 유추)
-        SessionMode inferredMode = SessionMode.dating; // 기본값
+        SessionMode inferredMode = SessionMode.business; // 기본값을 비즈니스(발표)로 변경
         if (widget.sessionType != null) {
           switch (widget.sessionType!.toLowerCase()) {
             case 'presentation':
             case '발표':
-              inferredMode = SessionMode.dating; // presentation이 없으면 기본값 사용
+              inferredMode = SessionMode.business; // 발표는 비즈니스 모드로 매핑
               break;
             case 'interview':
             case '면접':
               inferredMode = SessionMode.interview;
               break;
-            case 'dating':
-            case '소개팅':
+            // case 'dating':
+            // case '소개팅':
+            //   inferredMode = SessionMode.dating; // 소개팅 기능 비활성화
+            //   break;
             default:
-              inferredMode = SessionMode.dating;
+              inferredMode = SessionMode.business; // 기본값을 비즈니스(발표)로 변경
               break;
           }
         }
