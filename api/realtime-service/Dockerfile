@@ -9,11 +9,11 @@ COPY api/realtime-service/package*.json ./
 # 의존성 설치
 RUN npm install
 
-# 공유 모듈 복사 (먼저)
-COPY api/shared ../../shared
+# 공유 모듈 복사 (auth-service 방식으로 통일)
+COPY api/shared /app/api/shared
 
 # 공유 모듈의 의존성 설치
-WORKDIR ../../shared/kafka-client
+WORKDIR /app/api/shared/kafka-client
 RUN npm install
 WORKDIR /app
 

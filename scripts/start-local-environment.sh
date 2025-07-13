@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-echo "HaptiTalk 로컬 환경 시작 스크립트"
-echo "=================================="
+echo "HaptiTalk 로컬 개발 환경 시작 스크립트"
+echo "===================================="
 
 # 색상 정의
 RED='\033[0;31m'
@@ -36,7 +36,7 @@ wait_for_service() {
     log_info "서비스 대기 중: $service (최대 ${timeout}초)"
     
     while [ $count -lt $timeout ]; do
-        if docker-compose -f docker-compose.prod.yml ps $service | grep -q "healthy\|Up"; then
+        if docker-compose ps $service | grep -q "healthy\|Up"; then
             log_success "$service 준비 완료"
             return 0
         fi
@@ -68,7 +68,7 @@ log_success "기존 환경 정리 완료"
 
 # 2단계: 핵심 데이터베이스 서비스
 log_info "2단계: 데이터베이스 서비스 시작"
-docker-compose -f docker-compose.prod.yml up -d postgres mongodb redis
+docker-compose up -d postgres mongodb redis
 log_info "데이터베이스 준비 대기 중... (30초)"
 sleep 30
 
@@ -78,22 +78,22 @@ wait_for_service "redis" 60
 
 # 3단계: 메시징 시스템
 log_info "3단계: 메시징 시스템 시작"
-docker-compose -f docker-compose.prod.yml up -d zookeeper
+docker-compose up -d zookeeper
 sleep 10
 
-docker-compose -f docker-compose.prod.yml up -d kafka
+docker-compose up -d kafka
 sleep 15
 
-docker-compose -f docker-compose.prod.yml up -d kafka-ui
+docker-compose up -d kafka-ui
 
 wait_for_service "kafka" 90
 
 # 4단계: API 게이트웨이
 log_info "4단계: API 게이트웨이 시작"
-docker-compose -f docker-compose.prod.yml up -d kong-init
+docker-compose up -d kong-init
 sleep 10
 
-docker-compose -f docker-compose.prod.yml up -d kong static-web
+docker-compose up -d kong static-web
 
 wait_for_service "kong" 60
 
@@ -104,7 +104,7 @@ services=("auth-service" "session-service" "user-service" "feedback-service" "re
 
 for service in "${services[@]}"; do
     log_info "시작: $service"
-    docker-compose -f docker-compose.prod.yml up -d $service
+    docker-compose up -d $service
     sleep 5
     wait_for_service $service 60
 done
@@ -113,7 +113,7 @@ done
 log_info "6단계: 최종 상태 확인"
 echo ""
 echo "=== 애플리케이션 서비스 상태 ==="
-docker-compose -f docker-compose.prod.yml ps auth-service session-service user-service feedback-service report-service realtime-service
+docker-compose ps auth-service session-service user-service feedback-service report-service realtime-service
 
 echo ""
 echo "=== Health Check ==="
@@ -135,7 +135,7 @@ check_health 3002 "Session Service"
 check_health 3004 "User Service"
 
 echo ""
-log_success "🎉 로컬 환경 시작 완료!"
+log_success "🎉 로컬 개발 환경 시작 완료!"
 echo ""
 echo "=== 접속 정보 ==="
 echo "• Auth Service: http://localhost:3000"
@@ -148,4 +148,6 @@ echo "• Kong API Gateway: http://localhost:8000"
 echo "• Kong Admin: http://localhost:8001"
 echo "• Kafka UI: http://localhost:8080"
 echo ""
-echo "전체 상태 확인: docker-compose -f docker-compose.prod.yml ps" 
+echo "전체 상태 확인: docker-compose ps"
+echo "로그 확인: docker-compose logs -f [서비스명]"
+echo "개발 모드로 실행 중 - 코드 변경사항이 실시간 반영됩니다." 

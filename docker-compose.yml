@@ -571,8 +571,8 @@ services:
   # 실시간 서비스
   realtime-service:
     build:
-      context: ./api/realtime-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./api/realtime-service/Dockerfile
     container_name: haptitalk-realtime-service
     restart: unless-stopped
     volumes:
@@ -615,8 +615,8 @@ services:
   # 세션 서비스
   session-service:
     build:
-      context: ./api/session-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./api/session-service/Dockerfile
     container_name: haptitalk-session-service
     restart: unless-stopped
     environment:

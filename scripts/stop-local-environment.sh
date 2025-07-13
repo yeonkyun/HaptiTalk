@@ -1,7 +1,7 @@
 #!/bin/bash
 
-echo "🛑 HaptiTalk 로컬 환경 종료 스크립트"
-echo "=================================="
+echo "🛑 HaptiTalk 로컬 개발 환경 종료 스크립트"
+echo "======================================="
 
 # 색상 정의
 RED='\033[0;31m'
@@ -24,7 +24,7 @@ log_warning() {
 
 # 모든 서비스 종료
 log_info "모든 컨테이너 종료 중..."
-docker-compose -f docker-compose.prod.yml down --remove-orphans
+docker-compose down --remove-orphans
 
 # 네트워크 정리
 log_info "네트워크 정리 중..."
@@ -39,5 +39,5 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     log_success "시스템 정리 완료"
 fi
 
-log_success "🎉 로컬 환경 종료 완료!"
+log_success "🎉 로컬 개발 환경 종료 완료!"
 echo "다시 시작하려면: ./scripts/start-local-environment.sh" 

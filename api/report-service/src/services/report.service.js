@@ -5,7 +5,7 @@ const PDFDocument = require('pdfkit');
 const mongodbService = require('./mongodb.service');
 const logger = require('../utils/logger');
 const chartsUtils = require('../utils/charts');
-const AnalyticsCore = require('../../../shared/analytics-core');
+const AnalyticsCore = require('../../api/shared/analytics-core');
 
 const reportService = {
     /**
