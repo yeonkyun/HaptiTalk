@@ -541,6 +541,7 @@ services:
       - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN}
       - JWT_SESSION_EXPIRES_IN=${JWT_SESSION_EXPIRES_IN}
       - JWT_APP_KEY_ID=${JWT_APP_KEY_ID}
+      - INTER_SERVICE_TOKEN=${INTER_SERVICE_TOKEN}
       - EMAIL_FROM=${EMAIL_FROM}
       - FRONTEND_URL=${FRONTEND_URL}
       - LOG_LEVEL=${LOG_LEVEL}
@@ -589,7 +590,7 @@ services:
       - JWT_SESSION_SECRET=${JWT_SESSION_SECRET}
       - SESSION_SERVICE_URL=http://session-service:${SESSION_SERVICE_PORT}
       - FEEDBACK_SERVICE_URL=http://feedback-service:${FEEDBACK_SERVICE_PORT}
-      - INTER_SERVICE_TOKEN=${JWT_SERVICE_SECRET:-service-token-for-inter-service-communication}
+      - INTER_SERVICE_TOKEN=${INTER_SERVICE_TOKEN}
       - LOG_LEVEL=${LOG_LEVEL}
       # Kafka 설정
       - KAFKA_BROKERS=kafka:9092
@@ -729,6 +730,7 @@ services:
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - INTER_SERVICE_TOKEN=${INTER_SERVICE_TOKEN}
       - LOG_LEVEL=${LOG_LEVEL}
       # Kafka 설정
       - KAFKA_BROKERS=kafka:9092
@@ -778,6 +780,7 @@ services:
       - MONGO_HOST=mongodb
       - MONGO_PORT=27017
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - INTER_SERVICE_TOKEN=${INTER_SERVICE_TOKEN}
       - LOG_LEVEL=${LOG_LEVEL}
       # Kafka 설정
       - KAFKA_BROKERS=kafka:9092
