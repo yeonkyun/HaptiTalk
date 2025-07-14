@@ -579,7 +579,7 @@ class SessionDetailTabSpeaking extends StatelessWidget {
                       margin: EdgeInsets.symmetric(horizontal: 1),
                       height: height,
                       decoration: BoxDecoration(
-                        color: Color(0xFF2196F3), // 파란색
+                        color: Color(0xFF3F51B5), // 진한 남색 (테마 색상)
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -648,11 +648,11 @@ class SessionDetailTabSpeaking extends StatelessWidget {
 
   String _getEngagementAssessment(int engagementLevel) {
     if (engagementLevel < 30) {
-      return '발표 주도도가 낮습니다. 더 많은 연습을 통해 발표 주도도를 높이세요.';
-    } else if (engagementLevel > 50) {
-      return '발표 주도도가 높습니다. 현재 발표 주도도 수준을 유지하세요.';
+      return '자신감이 낮습니다. 더 많은 연습을 통해 자신감을 높이세요.';
+    } else if (engagementLevel > 70) {
+      return '자신감이 높습니다. 현재 자신감 수준을 유지하세요.';
     } else {
-      return '발표 주도도가 적절합니다. 현재 발표 주도도 수준을 유지하세요.';
+      return '자신감이 적절합니다. 현재 자신감 수준을 유지하세요.';
     }
   }
 }
