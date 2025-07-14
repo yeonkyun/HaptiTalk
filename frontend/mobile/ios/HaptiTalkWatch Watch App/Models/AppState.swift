@@ -577,13 +577,30 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
         let device = WKInterfaceDevice.current()
         
         print("🎯 Watch: MVP 햅틱 패턴 실행 시작 - ID: \(patternId), 패턴: \(pattern)")
+        print("🎯 Watch: 햅틱 실행 전 디바이스 상태 확인 완료")
         
         switch patternId {
-        case "D1": playSpeedControlPattern(device: device)      // 전달력: 속도 조절
-        case "C1": playConfidenceBoostPattern(device: device)   // 자신감: 상승
-        case "C2": playConfidenceAlertPattern(device: device)   // 자신감: 하락 (안정화)
-        case "F1": playFillerWordAlertPattern(device: device)   // 필러워드 감지
-        default: playDefaultHaptic(device: device)
+        case "D1": 
+            print("🎯 Watch: D1 패턴 실행 중...")
+            playSpeedControlPattern(device: device)      // 전달력: 속도 조절
+            print("🎯 Watch: D1 패턴 실행 완료")
+        case "C1": 
+            print("🎯 Watch: C1 패턴 실행 중...")
+            playConfidenceBoostPattern(device: device)   // 자신감: 상승
+            print("🎯 Watch: C1 패턴 실행 완료")
+        case "C2": 
+            print("🎯 Watch: C2 패턴 실행 중...")
+            playConfidenceAlertPattern(device: device)   // 자신감: 하락 (안정화)
+            print("🎯 Watch: C2 패턴 실행 완료")
+        case "F1": 
+            print("🎯 Watch: F1 패턴 실행 중...")
+            playFillerWordAlertPattern(device: device)   // 필러워드 감지
+            print("🎯 Watch: F1 패턴 실행 완료")
+        // R1 패턴 제거됨 - 새로운 4개 핵심 패턴 설계(D1, C1, C2, F1)에 포함되지 않음
+        default: 
+            print("🎯 Watch: 기본 햅틱 패턴 실행 중...")
+            playDefaultHaptic(device: device)
+            print("🎯 Watch: 기본 햅틱 패턴 실행 완료")
         }
         
         print("🎯 Watch: MVP 햅틱 패턴 실행 완료 - ID: \(patternId)")
@@ -592,41 +609,53 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
     
     // 📊 D1: 속도 조절 패턴 (급한 리듬 - 3연타)
     private func playSpeedControlPattern(device: WKInterfaceDevice) {
+        print("🎯 Watch: D1 햅틱 실행 - 첫 번째 진동")
         device.play(.notification)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            print("🎯 Watch: D1 햅틱 실행 - 두 번째 진동")
             device.play(.notification)
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            print("🎯 Watch: D1 햅틱 실행 - 세 번째 진동")
             device.play(.notification)
         }
     }
     
     // 💪 C1: 자신감 상승 패턴 (상승 웨이브)
     private func playConfidenceBoostPattern(device: WKInterfaceDevice) {
+        print("🎯 Watch: C1 햅틱 실행 - 첫 번째 진동 (click)")
         device.play(.click)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            print("🎯 Watch: C1 햅틱 실행 - 두 번째 진동 (directionUp)")
             device.play(.directionUp)
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            print("🎯 Watch: C1 햅틱 실행 - 세 번째 진동 (success)")
             device.play(.success)
         }
     }
     
     // 🧘 C2: 자신감 하락 패턴 (부드러운 경고)
     private func playConfidenceAlertPattern(device: WKInterfaceDevice) {
+        print("🎯 Watch: C2 햅틱 실행 - 첫 번째 진동")
         device.play(.notification)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            print("🎯 Watch: C2 햅틱 실행 - 두 번째 진동")
             device.play(.notification)
         }
     }
     
     // 🗣️ F1: 필러워드 감지 패턴 (가벼운 지적)
     private func playFillerWordAlertPattern(device: WKInterfaceDevice) {
+        print("🎯 Watch: F1 햅틱 실행 - 첫 번째 진동")
         device.play(.click)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            print("🎯 Watch: F1 햅틱 실행 - 두 번째 진동")
             device.play(.click)
         }
     }
+    
+    // R1 패턴 제거됨 - 새로운 4개 핵심 패턴 설계에 포함되지 않음
 
     // 🎯 세션 모드별 동적 메시지 생성 (새로운 4개 패턴)
     private func generateSessionSpecificMessage(
@@ -665,28 +694,38 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
     // 🎨 패턴별 시각적 피드백 트리거 (세션 타입 포함)
     private func triggerVisualFeedback(patternId: String, category: String, sessionType: String? = nil) {
         print("🎨 Watch: 시각적 피드백 트리거 시작 - 패턴: \(patternId), 카테고리: \(category), 세션: \(sessionType ?? "기본")")
+        print("🎨 Watch: 현재 showVisualFeedback 상태: \(showVisualFeedback)")
         
         // 기존 애니메이션 타이머 정리
         stopAnimationTimer()
+        print("🎨 Watch: 기존 애니메이션 타이머 정리 완료")
         
         currentVisualPattern = patternId
+        print("🎨 Watch: currentVisualPattern 설정: \(patternId)")
         
-        // 새로운 카테고리별 기본 색상 설정
+        // 새로운 4개 핵심 패턴 카테고리별 색상 설정
         switch category {
         case "delivery":
             visualPatternColor = Color.orange
+            print("🎨 Watch: delivery 카테고리 - 오렌지 색상 설정")
         case "confidence":
             visualPatternColor = patternId == "C2" ? Color.purple : Color.green
+            print("🎨 Watch: confidence 카테고리 - \(patternId == "C2" ? "보라색" : "초록색") 색상 설정")
         case "filler":
             visualPatternColor = Color.blue
+            print("🎨 Watch: filler 카테고리 - 파란색 색상 설정")
         default:
             visualPatternColor = Color.gray
+            print("🎨 Watch: 알 수 없는 카테고리 - 회색 색상 설정")
         }
         
+        print("🎨 Watch: showVisualFeedback을 true로 설정하기 전...")
         showVisualFeedback = true
+        print("🎨 Watch: showVisualFeedback을 true로 설정 완료: \(showVisualFeedback)")
         
         // 🎨 애니메이션 타이머 시작
         startAnimationTimer()
+        print("🎨 Watch: 애니메이션 타이머 시작 완료")
         
         print("🎨 Watch: 시각적 피드백 표시 시작 - 색상: \(visualPatternColor)")
         
@@ -700,6 +739,7 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
         default: duration = 4.0
         }
         
+        print("🎨 Watch: \(duration)초 후 자동 종료 타이머 설정")
         DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
             print("🎨 Watch: 시각적 피드백 자동 종료 - 패턴: \(patternId), 지속시간: \(duration)초")
             self.stopVisualFeedback()

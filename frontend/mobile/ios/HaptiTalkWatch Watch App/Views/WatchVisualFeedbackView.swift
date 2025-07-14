@@ -120,6 +120,9 @@ struct WatchVisualFeedbackView: View {
         }
         .onAppear {
             print("🎨 Watch: WatchVisualFeedbackView appeared - 패턴: \(appState.currentVisualPattern)")
+            print("🎨 Watch: appState.showVisualFeedback: \(appState.showVisualFeedback)")
+            print("🎨 Watch: appState.visualPatternColor: \(appState.visualPatternColor)")
+            print("🎨 Watch: appState.hapticFeedbackMessage: \(appState.hapticFeedbackMessage)")
             startPatternAnimation()
         }
         .onDisappear {
@@ -667,25 +670,32 @@ struct WatchVisualFeedbackView: View {
     
     // 🎨 애니메이션 시작 (4개 핵심 패턴만)
     private func startPatternAnimation() {
+        print("🎨 Watch: startPatternAnimation 시작 - 패턴: \(appState.currentVisualPattern)")
+        
         switch appState.currentVisualPattern {
         // ✅ 새로운 4개 핵심 패턴
         case "D1": // 전달력: 말이 빠르다
+            print("🎨 Watch: D1 시각적 애니메이션 시작")
             // 빠른 속도 경고 애니메이션 설정
             appState.visualAnimationIntensity = 1.0
             
             withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
                 appState.visualAnimationIntensity = 0.8
             }
+            print("🎨 Watch: D1 애니메이션 설정 완료")
             
         case "C1": // 자신감: 확신도 상승
+            print("🎨 Watch: C1 시각적 애니메이션 시작")
             // 폭발적인 에너지 상승 애니메이션 설정
             appState.visualAnimationIntensity = 0.0
             
             withAnimation(.easeOut(duration: 1.5).repeatCount(2, autoreverses: false)) {
                 appState.visualAnimationIntensity = 1.0
             }
+            print("🎨 Watch: C1 애니메이션 설정 완료")
             
         case "C2": // 자신감: 하락
+            print("🎨 Watch: C2 시각적 애니메이션 시작")
             // 한번만 실행되는 하락 애니메이션 설정
             appState.visualAnimationIntensity = 0.0
             
@@ -697,16 +707,22 @@ struct WatchVisualFeedbackView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                 appState.visualAnimationIntensity = 1.0
             }
+            print("🎨 Watch: C2 애니메이션 설정 완료")
             
         case "F1": // 필러워드: 감지
+            print("🎨 Watch: F1 시각적 애니메이션 시작")
             // 톡톡 경고 애니메이션 설정
             appState.visualAnimationIntensity = 0.0
             
             withAnimation(.easeOut(duration: 1.2).repeatCount(2, autoreverses: false)) {
                 appState.visualAnimationIntensity = 1.0
             }
+            print("🎨 Watch: F1 애니메이션 설정 완료")
+            
+        // R1 패턴 제거됨 - 새로운 4개 핵심 패턴 설계에 포함되지 않음
             
         default:
+            print("🎨 Watch: 알 수 없는 패턴: \(appState.currentVisualPattern)")
             break
         }
     }
@@ -1073,8 +1089,8 @@ extension WatchVisualFeedbackView {
             .environmentObject({
                 let appState = AppState()
                 appState.showVisualFeedback = true
-                appState.currentVisualPattern = "R1"
-                appState.visualPatternColor = .pink
+                appState.currentVisualPattern = "C1"  // 새로운 4개 핵심 패턴 중 C1 사용
+                appState.visualPatternColor = .green
                 return appState
             }())
             .onAppear {
