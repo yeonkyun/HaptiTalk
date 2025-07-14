@@ -1579,52 +1579,63 @@ const generateSessionSpecificMetrics = (sessionType, statistics, emotionAnalysis
     
     switch (sessionType) {
         case 'presentation':
+            // 공통 분석 모듈 사용으로 피드백 서비스와 일관성 확보
+            const presentationSpeechData = {
+                speech_density: validSegments.length > 0 ? validSegments.length / 10 : 0.5, // 세그먼트 기반 발화 밀도
+                evaluation_wpm: statistics.averageSpeakingSpeed,
+                tonality: emotionAnalysis.overall_emotional_tone || 0.7,
+                clarity: statistics.pauseStability || 0.7,
+                speech_pattern: statistics.speechPatternScore > 0.8 ? 'normal' : 'variable'
+            };
+            
+            const presentationMetrics = require('../../shared/analytics-core').calculatePresentationMetrics(presentationSpeechData);
+            
             return {
-                발표자신감: sanitizeValue(statistics.confidenceScore, 0.6),
-                설득력: sanitizeValue(
-                    (statistics.speakingConsistency * 0.4 + 
-                     statistics.speechPatternScore * 0.3 + 
-                     emotionAnalysis.confidence * 0.3), 0.65
-                ),
-                명확성: sanitizeValue(
-                    (statistics.pauseStability * 0.5 + 
-                     statistics.speakingConsistency * 0.3 + 
-                     (statistics.averageSpeakingSpeed >= 100 && statistics.averageSpeakingSpeed <= 150 ? 1.0 : 0.7) * 0.2), 0.7
-                )
+                발표자신감: sanitizeValue(presentationMetrics.confidence / 100, 0.6),
+                설득력: sanitizeValue(presentationMetrics.persuasion / 100, 0.65),
+                명확성: sanitizeValue(presentationMetrics.clarity / 100, 0.7)
             };
             
         case 'interview':
+            // 공통 분석 모듈 사용으로 피드백 서비스와 일관성 확보
+            const interviewSpeechData = {
+                speech_density: validSegments.length > 0 ? validSegments.length / 10 : 0.5,
+                evaluation_wpm: statistics.averageSpeakingSpeed,
+                tonality: emotionAnalysis.overall_emotional_tone || 0.7,
+                clarity: statistics.pauseStability || 0.7,
+                speech_pattern: statistics.speechPatternScore > 0.8 ? 'normal' : 'variable',
+                emotion_score: emotionAnalysis.emotional_stability || 0.6
+            };
+            
+            const interviewMetrics = require('../../shared/analytics-core').calculateInterviewMetrics(interviewSpeechData);
+            
             return {
-                자신감: sanitizeValue(statistics.confidenceScore, 0.6),
-                명확성: sanitizeValue(
-                    (statistics.pauseStability * 0.4 + 
-                     statistics.speechPatternScore * 0.4 + 
-                     (statistics.averageSpeakingSpeed >= 90 && statistics.averageSpeakingSpeed <= 140 ? 1.0 : 0.6) * 0.2), 0.65
-                ),
-                안정감: sanitizeValue(
-                    (emotionAnalysis.emotional_stability * 0.4 + 
-                     statistics.speakingConsistency * 0.3 + 
-                     emotionAnalysis.calmness * 0.3), 0.7
-                )
+                자신감: sanitizeValue(interviewMetrics.confidence / 100, 0.6),
+                명확성: sanitizeValue(interviewMetrics.clarity / 100, 0.65),
+                안정감: sanitizeValue(interviewMetrics.stability / 100, 0.7)
             };
             
         case 'dating':
+            // 공통 분석 모듈 사용으로 피드백 서비스와 일관성 확보
+            const datingSpeechData = {
+                speech_density: validSegments.length > 0 ? validSegments.length / 10 : 0.5,
+                evaluation_wpm: statistics.averageSpeakingSpeed,
+                tonality: emotionAnalysis.overall_emotional_tone || 0.7,
+                clarity: statistics.pauseStability || 0.7,
+                speech_pattern: statistics.speechPatternScore > 0.8 ? 'normal' : 'variable',
+                emotion_score: emotionAnalysis.happiness || 0.6
+            };
+            
+            const datingMetrics = require('../../shared/analytics-core').calculateDatingMetrics(datingSpeechData);
+            
             return {
-                호감도: sanitizeValue(
-                    (emotionAnalysis.happiness * 0.4 + 
-                     emotionAnalysis.overall_emotional_tone * 0.3 + 
-                     statistics.confidenceScore * 0.3), 0.6
-                ),
+                호감도: sanitizeValue(datingMetrics.likeability / 100, 0.6),
                 경청지수: sanitizeValue(
                     (statistics.pauseStability * 0.4 + 
-                     (1 - statistics.speakingRatio) * 0.3 + // 말하기 비율이 낮을수록 경청 잘함
+                     (1 - statistics.speakingRatio) * 0.3 + 
                      statistics.questionAnswerRatio * 0.3), 0.65
                 ),
-                톤억양: sanitizeValue(
-                    (statistics.speechPatternScore * 0.5 + 
-                     emotionAnalysis.emotional_variability * 0.3 + 
-                     (1 - Math.abs(statistics.averageSpeakingSpeed - 120) / 120) * 0.2), 0.7
-                )
+                톤억양: sanitizeValue(datingMetrics.emotion || 0.7, 0.7)
             };
             
         default:
