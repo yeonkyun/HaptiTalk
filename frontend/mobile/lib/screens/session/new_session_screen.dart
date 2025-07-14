@@ -39,9 +39,30 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
   // 세션 이름 컨트롤러
   final TextEditingController _sessionNameController = TextEditingController();
 
-  // 스마트워치 연결 상태
-  bool _isWatchConnected = true;
+  // 스마트워치 연결 상태 - WatchService 사용으로 변경
+  final WatchService _watchService = WatchService();
+  bool _isWatchConnected = false;
   String _connectedWatchName = 'Apple Watch';
+
+  @override
+  void initState() {
+    super.initState();
+    _checkWatchConnection();
+  }
+
+  Future<void> _checkWatchConnection() async {
+    try {
+      final isConnected = await _watchService.isWatchConnected();
+      setState(() {
+        _isWatchConnected = isConnected;
+      });
+    } catch (e) {
+      print('Watch 연결 상태 확인 실패: $e');
+      setState(() {
+        _isWatchConnected = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -269,8 +290,26 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
                         ),
                       ),
                       OutlinedButton(
-                        onPressed: () {
-                          // 스마트워치 관리 화면으로 이동
+                        onPressed: () async {
+                          // 스마트워치 연결 상태 다시 확인
+                          await _checkWatchConnection();
+                          
+                          // 연결 상태에 따른 피드백 표시
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  _isWatchConnected 
+                                      ? '✅ Apple Watch 연결 확인됨' 
+                                      : '❌ Apple Watch 연결되지 않음',
+                                ),
+                                backgroundColor: _isWatchConnected 
+                                    ? Colors.green 
+                                    : Colors.red,
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
                         },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primaryColor,
@@ -293,12 +332,85 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
                   height: 55,
                   child: ElevatedButton(
                     onPressed: () async {
+                      // 세션 시작 전 워치 연결 상태 재확인
+                      await _checkWatchConnection();
+                      
+                      // 워치가 연결되지 않은 경우 확인 다이얼로그 표시
+                      if (!_isWatchConnected) {
+                        final shouldContinue = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            title: Row(
+                              children: [
+                                Icon(
+                                  Icons.warning_amber,
+                                  color: Colors.orange[600],
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Apple Watch 연결 안됨',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            content: const Text(
+                              'Apple Watch가 연결되지 않았습니다.\n햅틱 피드백을 받을 수 없지만 세션을 계속 진행하시겠습니까?',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFF757575),
+                                height: 1.4,
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(false),
+                                child: const Text(
+                                  '취소',
+                                  style: TextStyle(
+                                    color: Color(0xFF757575),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(true),
+                                child: const Text(
+                                  '계속 진행',
+                                  style: TextStyle(
+                                    color: AppColors.primaryColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ) ?? false;
+                        
+                        if (!shouldContinue) {
+                          return;
+                        }
+                      }
+
                       // UUID 생성
                       final uuid = Uuid();
                       final sessionId = uuid.v4();
 
-                      // Watch에 세션 시작 알림
-                      await WatchService().startSession(_selectedSessionMode);
+                      // Watch에 세션 시작 알림 (연결된 경우에만)
+                      if (_isWatchConnected) {
+                        try {
+                          await _watchService.startSession(_selectedSessionMode);
+                        } catch (e) {
+                          print('Watch 세션 시작 알림 실패: $e');
+                        }
+                      }
 
                       // 실시간 분석 화면으로 이동
                       NavigationService.navigateTo(
