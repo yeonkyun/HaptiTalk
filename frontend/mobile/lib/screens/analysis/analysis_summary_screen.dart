@@ -215,10 +215,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
             case '면접':
               inferredMode = SessionMode.interview;
               break;
-            // case 'dating':
-            // case '소개팅':
-            //   inferredMode = SessionMode.dating; // 소개팅 기능 비활성화
-            //   break;
+
             default:
               inferredMode = SessionMode.business; // 기본값을 비즈니스(발표)로 변경
               break;
@@ -605,16 +602,18 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     
     // 🔥 폴백: 시뮬레이션 데이터 (실제 데이터 없을 때만)
     print('⚠️ 감정 그래프: 시뮬레이션 데이터 사용 (실제 데이터 없음)');
-    // 소개팅 시나리오: 호감도 기반
-    final likeability = analysis.metrics.emotionMetrics.averageLikeability;
+    // 기본값으로 발표 데이터 사용
+    final confidence = _calculateSpeakingConfidence(analysis);
+    final persuasion = _calculatePersuasionLevel(analysis);
+    final average = (confidence + persuasion) / 2;
     
-    // 소개팅은 점진적으로 상승하는 패턴
+    // 발표는 보통 시작할 때 낮고 중간에 높아지는 패턴
     return [
-      likeability * 0.8,   // 시작
-      likeability * 0.9,   // 25%
-      likeability * 1.0,   // 50%
-      likeability * 1.1,   // 75%
-      likeability * 1.05,  // 완료
+      average * 0.7,   // 시작: 조금 낮음
+      average * 0.85,  // 25%: 점점 상승
+      average * 1.1,   // 50%: 최고점
+      average * 1.05,  // 75%: 약간 하락
+      average * 0.95,  // 완료: 마무리
     ];
   }
 
@@ -651,85 +650,200 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   List<Widget> _buildMetricCards(AnalysisResult analysis) {
     // 시나리오별 지표 설정
     if (analysis.category == '발표') {
+      print('�� 발표 지표 계산 시작...');
+      
+      // 🔥 백엔드에서 이미 계산된 값 우선 사용
+      final rawApiData = analysis.rawApiData;
+      if (rawApiData.isNotEmpty && rawApiData['keyMetrics'] != null) {
+        final keyMetrics = rawApiData['keyMetrics'] as Map<String, dynamic>;
+        final presentationMetrics = keyMetrics['presentation'] as Map<String, dynamic>?;
+        final speakingMetrics = keyMetrics['speaking'] as Map<String, dynamic>?;
+        
+        if (presentationMetrics != null && speakingMetrics != null) {
+          // ✅ 백엔드에서 계산된 정확한 값 사용
+          final confidence = (presentationMetrics['confidence'] ?? 60).toDouble();
+          final persuasion = (presentationMetrics['persuasion'] ?? 70).toDouble();
+          final clarity = (presentationMetrics['clarity'] ?? 70).toDouble();
+          final speechRate = (speakingMetrics['speed'] ?? 120).toDouble();
+          
+          print('📊 발표 지표 (백엔드 계산값): 자신감=${confidence.round()}%, 설득력=${persuasion.round()}%, 명확성=${clarity.round()}%, 속도=${speechRate.toInt()}WPM');
+          
+          return [
+            _buildMetricCard(
+              '자신감',
+              '${confidence.round()}%',
+              Icons.psychology,
+              _getConfidenceDescription(confidence),
+            ),
+            _buildMetricCard(
+              '말하기 속도',
+              '${speechRate.toInt()}WPM',
+              Icons.speed,
+              _getSpeedDescription(speechRate),
+            ),
+            _buildMetricCard(
+              '설득력',
+              '${persuasion.round()}%',
+              Icons.trending_up,
+              _getPersuasionDescription(persuasion),
+            ),
+            _buildMetricCard(
+              '명확성',
+              '${clarity.round()}%',
+              Icons.radio_button_checked,
+              _getClarityDescription(clarity),
+            ),
+          ];
+        }
+      }
+      
+      // 🔥 폴백: 기존 로직 (백엔드 데이터 없을 때만)
+      print('⚠️ 백엔드 keyMetrics 없음, 폴백 계산 사용');
+      final speechRate = _getSafeMetricValue(analysis.metrics.speakingMetrics.speechRate, 120.0);
+      final clarity = _getSafeMetricValue(analysis.metrics.speakingMetrics.clarity, 75.0);
+      final confidence = _calculateSpeakingConfidence(analysis);
+      final persuasion = _calculatePersuasionLevel(analysis);
+      
+      print('📊 발표 지표 최종값: 자신감=${confidence.round()}%, 속도=${speechRate.toInt()}WPM, 설득력=${persuasion.round()}%, 명확성=${clarity.toInt()}%');
+      
       return [
         _buildMetricCard(
           '자신감',
-          '${_calculateSpeakingConfidence(analysis).round()}%',
+          '${confidence.round()}%',
           Icons.psychology,
-          _getConfidenceDescription(_calculateSpeakingConfidence(analysis)),
+          _getConfidenceDescription(confidence),
         ),
         _buildMetricCard(
           '말하기 속도',
-          '${analysis.metrics.speakingMetrics.speechRate.toInt()}WPM',
+          '${speechRate.toInt()}WPM',
           Icons.speed,
-          _getSpeedDescription(analysis.metrics.speakingMetrics.speechRate),
+          _getSpeedDescription(speechRate),
         ),
         _buildMetricCard(
           '설득력',
-          '${_calculatePersuasionLevel(analysis).round()}%',
+          '${persuasion.round()}%',
           Icons.trending_up,
-          _getPersuasionDescription(_calculatePersuasionLevel(analysis)),
+          _getPersuasionDescription(persuasion),
         ),
         _buildMetricCard(
           '명확성',
-          '${analysis.metrics.speakingMetrics.clarity.toInt()}%',
+          '${clarity.toInt()}%',
           Icons.radio_button_checked,
-          _getClarityDescription(analysis.metrics.speakingMetrics.clarity),
+          _getClarityDescription(clarity),
         ),
       ];
     } else if (analysis.category == '면접') {
+      print('📊 면접 지표 계산 시작...');
+      
+      // 🔥 백엔드에서 이미 계산된 값 우선 사용 (면접용)
+      final rawApiData = analysis.rawApiData;
+      if (rawApiData.isNotEmpty && rawApiData['keyMetrics'] != null) {
+        final keyMetrics = rawApiData['keyMetrics'] as Map<String, dynamic>;
+        final interviewMetrics = keyMetrics['interview'] as Map<String, dynamic>?;
+        final speakingMetrics = keyMetrics['speaking'] as Map<String, dynamic>?;
+        
+        if (interviewMetrics != null && speakingMetrics != null) {
+          final confidence = (interviewMetrics['confidence'] ?? 60).toDouble();
+          final stability = (interviewMetrics['stability'] ?? 70).toDouble();
+          final clarity = (interviewMetrics['clarity'] ?? 70).toDouble();
+          final speechRate = (speakingMetrics['speed'] ?? 120).toDouble();
+          
+          print('📊 면접 지표 (백엔드 계산값): 자신감=${confidence.round()}%, 안정감=${stability.round()}%, 명확성=${clarity.round()}%, 속도=${speechRate.toInt()}WPM');
+          
+          return [
+            _buildMetricCard(
+              '자신감',
+              '${confidence.round()}%',
+              Icons.psychology,
+              _getConfidenceDescription(confidence),
+            ),
+            _buildMetricCard(
+              '말하기 속도',
+              '${speechRate.toInt()}WPM',
+              Icons.speed,
+              _getSpeedDescription(speechRate),
+            ),
+            _buildMetricCard(
+              '명확성',
+              '${clarity.round()}%',
+              Icons.radio_button_checked,
+              _getClarityDescription(clarity),
+            ),
+            _buildMetricCard(
+              '안정감',
+              '${stability.round()}%',
+              Icons.sentiment_satisfied_alt,
+              _getStabilityDescription(stability),
+            ),
+          ];
+        }
+      }
+      
+      // 폴백: 기존 로직
+      final speechRate = _getSafeMetricValue(analysis.metrics.speakingMetrics.speechRate, 120.0);
+      final clarity = _getSafeMetricValue(analysis.metrics.speakingMetrics.clarity, 75.0);
+      final tonality = _getSafeMetricValue(analysis.metrics.speakingMetrics.tonality, 70.0);
+      final confidence = _calculateSpeakingConfidence(analysis);
+      
+      print('📊 면접 지표 최종값: 자신감=${confidence.round()}%, 속도=${speechRate.toInt()}WPM, 명확성=${clarity.toInt()}%, 안정감=${tonality.toInt()}%');
+      
       return [
         _buildMetricCard(
           '자신감',
-          '${_calculateSpeakingConfidence(analysis).round()}%',
+          '${confidence.round()}%',
           Icons.psychology,
-          _getConfidenceDescription(_calculateSpeakingConfidence(analysis)),
+          _getConfidenceDescription(confidence),
         ),
         _buildMetricCard(
           '말하기 속도',
-          '${analysis.metrics.speakingMetrics.speechRate.toInt()}WPM',
+          '${speechRate.toInt()}WPM',
           Icons.speed,
-          _getSpeedDescription(analysis.metrics.speakingMetrics.speechRate),
+          _getSpeedDescription(speechRate),
         ),
         _buildMetricCard(
           '명확성',
-          '${analysis.metrics.speakingMetrics.clarity.toInt()}%',
+          '${clarity.toInt()}%',
           Icons.radio_button_checked,
-          _getClarityDescription(analysis.metrics.speakingMetrics.clarity),
+          _getClarityDescription(clarity),
         ),
         _buildMetricCard(
           '안정감',
-          '${analysis.metrics.speakingMetrics.tonality.toInt()}%',
+          '${tonality.toInt()}%',
           Icons.sentiment_satisfied_alt,
-          _getStabilityDescription(analysis.metrics.speakingMetrics.tonality),
+          _getStabilityDescription(tonality),
         ),
       ];
     } else {
-      // 소개팅 시나리오는 감정적 호감도 사용 (적절함)
+      // 기본값으로 발표 지표 사용
+      final speechRate = _getSafeMetricValue(analysis.metrics.speakingMetrics.speechRate, 120.0);
+      final clarity = _getSafeMetricValue(analysis.metrics.speakingMetrics.clarity, 75.0);
+      final confidence = _calculateSpeakingConfidence(analysis);
+      final persuasion = _calculatePersuasionLevel(analysis);
+      
       return [
         _buildMetricCard(
-          '호감도',
-          '${analysis.metrics.emotionMetrics.averageLikeability.toInt()}%',
+          '자신감',
+          '${confidence.round()}%',
           Icons.psychology,
-          _getConfidenceDescription(analysis.metrics.emotionMetrics.averageLikeability),
+          _getConfidenceDescription(confidence),
         ),
         _buildMetricCard(
           '말하기 속도',
-          '${analysis.metrics.speakingMetrics.speechRate.toInt()}WPM',
+          '${speechRate.toInt()}WPM',
           Icons.speed,
-          _getSpeedDescription(analysis.metrics.speakingMetrics.speechRate),
+          _getSpeedDescription(speechRate),
+        ),
+        _buildMetricCard(
+          '설득력',
+          '${persuasion.round()}%',
+          Icons.trending_up,
+          _getPersuasionDescription(persuasion),
         ),
         _buildMetricCard(
           '명확성',
-          '${analysis.metrics.speakingMetrics.clarity.toInt()}%',
+          '${clarity.toInt()}%',
           Icons.radio_button_checked,
-          _getClarityDescription(analysis.metrics.speakingMetrics.clarity),
-        ),
-        _buildMetricCard(
-          '안정감',
-          '${analysis.metrics.speakingMetrics.tonality.toInt()}%',
-          Icons.sentiment_satisfied_alt,
-          _getStabilityDescription(analysis.metrics.speakingMetrics.tonality),
+          _getClarityDescription(clarity),
         ),
       ];
     }
@@ -935,7 +1049,95 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     List<String> insights = [];
     
     if (analysis.category == '발표') {
-      // 발표 시나리오 인사이트 - 말하기 자신감 사용
+      // 발표 시나리오 인사이트 - 백엔드 계산값 우선 사용
+      double confidence, persuasion, speechRate;
+      
+      // 🔥 백엔드 계산값 우선 사용
+      final rawApiData = analysis.rawApiData;
+      if (rawApiData.isNotEmpty && rawApiData['keyMetrics'] != null) {
+        final keyMetrics = rawApiData['keyMetrics'] as Map<String, dynamic>;
+        final presentationMetrics = keyMetrics['presentation'] as Map<String, dynamic>?;
+        final speakingMetrics = keyMetrics['speaking'] as Map<String, dynamic>?;
+        
+        if (presentationMetrics != null && speakingMetrics != null) {
+          confidence = (presentationMetrics['confidence'] ?? 60).toDouble();
+          persuasion = (presentationMetrics['persuasion'] ?? 70).toDouble();
+          speechRate = (speakingMetrics['speed'] ?? 120).toDouble();
+          print('📊 인사이트: 백엔드 계산값 사용 - confidence=${confidence}, persuasion=${persuasion}, speed=${speechRate}');
+        } else {
+          // 폴백
+          confidence = _calculateSpeakingConfidence(analysis);
+          persuasion = _calculatePersuasionLevel(analysis);
+          speechRate = analysis.metrics.speakingMetrics.speechRate;
+          print('📊 인사이트: 폴백 계산값 사용');
+        }
+      } else {
+        // 폴백
+        confidence = _calculateSpeakingConfidence(analysis);
+        persuasion = _calculatePersuasionLevel(analysis);
+        speechRate = analysis.metrics.speakingMetrics.speechRate;
+        print('📊 인사이트: 폴백 계산값 사용');
+      }
+      
+      if (confidence >= 70) {
+        insights.add('발표 중 자신감이 높아 청중들의 주의를 잘 끌었습니다.');
+      } else {
+        insights.add('발표 중 자신감을 더 보여주면 더 설득력 있는 발표가 될 것입니다.');
+      }
+      
+      if (persuasion >= 70) {
+        insights.add('논리적이고 설득력 있는 내용 구성으로 메시지가 잘 전달되었습니다.');
+      } else {
+        insights.add('핵심 메시지를 더 명확하게 강조하면 설득력을 높일 수 있습니다.');
+      }
+      
+      if (speechRate >= 120 && speechRate <= 150) {
+        insights.add('적절한 말하기 속도로 청중이 이해하기 쉬웠을 것입니다.');
+      } else if (speechRate > 150) {
+        insights.add('말하기 속도가 빨라 중요한 내용을 놓칠 가능성이 있습니다.');
+      } else {
+        insights.add('말하기 속도를 조금 빠르게 하면 더 역동적인 발표가 될 것입니다.');
+      }
+      
+    } else if (analysis.category == '면접') {
+      // 면접 시나리오 인사이트 - 백엔드 계산값 우선 사용
+      double confidence, clarity, speechRate;
+      
+      final rawApiData = analysis.rawApiData;
+      if (rawApiData.isNotEmpty && rawApiData['keyMetrics'] != null) {
+        final keyMetrics = rawApiData['keyMetrics'] as Map<String, dynamic>;
+        final interviewMetrics = keyMetrics['interview'] as Map<String, dynamic>?;
+        final speakingMetrics = keyMetrics['speaking'] as Map<String, dynamic>?;
+        
+        if (interviewMetrics != null && speakingMetrics != null) {
+          confidence = (interviewMetrics['confidence'] ?? 60).toDouble();
+          clarity = (interviewMetrics['clarity'] ?? 70).toDouble();
+          speechRate = (speakingMetrics['speed'] ?? 120).toDouble();
+        } else {
+          confidence = _calculateSpeakingConfidence(analysis);
+          clarity = analysis.metrics.speakingMetrics.clarity;
+          speechRate = analysis.metrics.speakingMetrics.speechRate;
+        }
+      } else {
+        confidence = _calculateSpeakingConfidence(analysis);
+        clarity = analysis.metrics.speakingMetrics.clarity;
+        speechRate = analysis.metrics.speakingMetrics.speechRate;
+      }
+      
+      if (confidence >= 70) {
+        insights.add('면접에서 자신감 있는 답변으로 좋은 인상을 남겼습니다.');
+      } else {
+        insights.add('면접 답변에서 좀 더 확신을 가지고 말하면 더 좋은 평가를 받을 수 있습니다.');
+      }
+      
+      if (clarity >= 70) {
+        insights.add('명확하고 체계적인 답변으로 의사소통 능력을 잘 보여주었습니다.');
+      } else {
+        insights.add('답변을 더 구조적으로 정리해서 전달하면 명확성을 높일 수 있습니다.');
+      }
+      
+    } else {
+      // 기본값으로 발표 인사이트 사용
       final confidence = _calculateSpeakingConfidence(analysis);
       final persuasion = _calculatePersuasionLevel(analysis);
       final speed = analysis.metrics.speakingMetrics.speechRate;
@@ -959,57 +1161,123 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       } else {
         insights.add('말하기 속도를 조금 빠르게 하면 더 역동적인 발표가 될 것입니다.');
       }
-      
-    } else if (analysis.category == '면접') {
-      // 면접 시나리오 인사이트 - 말하기 자신감 사용
-      final confidence = _calculateSpeakingConfidence(analysis);
-      final clarity = analysis.metrics.speakingMetrics.clarity;
-      final stability = analysis.metrics.speakingMetrics.tonality;
-      
-      if (confidence >= 70) {
-        insights.add('면접관에게 자신감 있는 모습을 잘 보여주었습니다.');
-      } else {
-        insights.add('답변 시 더 확신을 가지고 말하면 좋은 인상을 줄 수 있습니다.');
-      }
-      
-      if (clarity >= 70) {
-        insights.add('질문에 대한 답변이 명확하고 체계적이었습니다.');
-      } else {
-        insights.add('답변을 더 구체적이고 명확하게 하면 더 좋을 것 같습니다.');
-      }
-      
-      if (stability >= 70) {
-        insights.add('안정적인 태도로 면접에 임했습니다.');
-      } else {
-        insights.add('긴장을 줄이고 더 자연스럽게 대화하는 연습이 필요합니다.');
-      }
-      
-    } else {
-      // 소개팅 시나리오 인사이트 - 감정적 호감도 사용 (적절함)
-      final likeability = analysis.metrics.emotionMetrics.averageLikeability;
-      final interest = analysis.metrics.emotionMetrics.averageInterest;
-      final listening = analysis.metrics.conversationMetrics.listeningScore;
-      
-      if (likeability >= 70) {
-        insights.add('상대방에게 긍정적인 인상을 주는 대화를 나눴습니다.');
-      } else {
-        insights.add('더 친근하고 편안한 분위기로 대화하면 좋을 것 같습니다.');
-      }
-      
-      if (interest >= 70) {
-        insights.add('흥미로운 주제들로 활발한 대화를 이어갔습니다.');
-      } else {
-        insights.add('공통 관심사를 찾아 더 깊이 있는 대화를 나누어보세요.');
-      }
-      
-      if (listening >= 70) {
-        insights.add('상대방의 말을 잘 들어주는 좋은 경청자였습니다.');
-      } else {
-        insights.add('상대방의 이야기에 더 관심을 보이고 반응해주세요.');
-      }
     }
     
     return insights;
+  }
+
+  List<Map<String, String>> _generateSuggestions(AnalysisResult analysis) {
+    List<Map<String, String>> suggestions = [];
+    
+    if (analysis.category == '발표') {
+      // 발표 시나리오 제안 - 백엔드 계산값 우선 사용
+      double confidence, persuasion;
+      
+      final rawApiData = analysis.rawApiData;
+      if (rawApiData.isNotEmpty && rawApiData['keyMetrics'] != null) {
+        final keyMetrics = rawApiData['keyMetrics'] as Map<String, dynamic>;
+        final presentationMetrics = keyMetrics['presentation'] as Map<String, dynamic>?;
+        
+        if (presentationMetrics != null) {
+          confidence = (presentationMetrics['confidence'] ?? 60).toDouble();
+          persuasion = (presentationMetrics['persuasion'] ?? 70).toDouble();
+          print('📊 제안: 백엔드 계산값 사용 - confidence=${confidence}, persuasion=${persuasion}');
+        } else {
+          confidence = _calculateSpeakingConfidence(analysis);
+          persuasion = _calculatePersuasionLevel(analysis);
+          print('📊 제안: 폴백 계산값 사용');
+        }
+      } else {
+        confidence = _calculateSpeakingConfidence(analysis);
+        persuasion = _calculatePersuasionLevel(analysis);
+        print('📊 제안: 폴백 계산값 사용');
+      }
+      
+      if (confidence < 60) {
+        suggestions.add({
+          'title': '자신감 있는 발표',
+          'content': '더 확신 있는 어조로 말하고, 중요한 포인트에서는 목소리 톤을 강조해보세요. 충분한 준비와 연습이 자신감의 기초입니다.'
+        });
+      }
+      
+      if (persuasion < 60) {
+        suggestions.add({
+          'title': '설득력 향상',
+          'content': '데이터와 구체적인 사례를 활용하여 논리적으로 설명하고, 핵심 메시지를 명확하게 전달해보세요.'
+        });
+      }
+      
+    } else if (analysis.category == '면접') {
+      // 면접 시나리오 제안 - 백엔드 계산값 우선 사용
+      double confidence, clarity;
+      
+      final rawApiData = analysis.rawApiData;
+      if (rawApiData.isNotEmpty && rawApiData['keyMetrics'] != null) {
+        final keyMetrics = rawApiData['keyMetrics'] as Map<String, dynamic>;
+        final interviewMetrics = keyMetrics['interview'] as Map<String, dynamic>?;
+        
+        if (interviewMetrics != null) {
+          confidence = (interviewMetrics['confidence'] ?? 60).toDouble();
+          clarity = (interviewMetrics['clarity'] ?? 70).toDouble();
+        } else {
+          confidence = _calculateSpeakingConfidence(analysis);
+          clarity = analysis.metrics.speakingMetrics.clarity;
+        }
+      } else {
+        confidence = _calculateSpeakingConfidence(analysis);
+        clarity = analysis.metrics.speakingMetrics.clarity;
+      }
+      
+      if (confidence < 60) {
+        suggestions.add({
+          'title': '자신감 있는 답변',
+          'content': '답변 시 "아마도", "일 것 같다" 보다는 확신있는 표현을 사용해보세요. 구체적인 경험을 들어 답변하면 더 좋습니다.'
+        });
+      }
+      
+      if (clarity < 60) {
+        suggestions.add({
+          'title': '구조적 답변',
+          'content': '답변을 할 때는 "첫째, 둘째" 같은 구조를 활용하거나 STAR 기법(상황-과제-행동-결과)을 사용해보세요.'
+        });
+      }
+      
+    } else {
+      // 기본값으로 발표 제안 사용
+      final confidence = _calculateSpeakingConfidence(analysis);
+      final persuasion = _calculatePersuasionLevel(analysis);
+      
+      if (confidence < 60) {
+        suggestions.add({
+          'title': '자신감 있는 발표',
+          'content': '더 확신 있는 어조로 말하고, 중요한 포인트에서는 목소리 톤을 강조해보세요. 충분한 준비와 연습이 자신감의 기초입니다.'
+        });
+      }
+      
+      if (persuasion < 60) {
+        suggestions.add({
+          'title': '설득력 향상',
+          'content': '데이터와 구체적인 사례를 활용하여 논리적으로 설명하고, 핵심 메시지를 명확하게 전달해보세요.'
+        });
+      }
+    }
+    
+    // 일반적인 제안들도 추가
+    if (suggestions.length < 3) {
+      suggestions.add({
+        'title': '효과적인 소통',
+        'content': '상대방의 반응을 살피며 말하고, 중요한 내용은 반복해서 강조하는 것이 좋습니다.'
+      });
+    }
+    
+    if (suggestions.length < 3) {
+      suggestions.add({
+        'title': '지속적인 연습',
+        'content': '꾸준한 발표 연습과 피드백을 통해 더 나은 커뮤니케이션 스킬을 기를 수 있습니다.'
+      });
+    }
+    
+    return suggestions;
   }
 
   Widget _buildInsightItem(int number, String text) {
@@ -1093,78 +1361,6 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         ],
       ),
     );
-  }
-
-  List<Map<String, String>> _generateSuggestions(AnalysisResult analysis) {
-    List<Map<String, String>> suggestions = [];
-    
-    if (analysis.category == '발표') {
-      // 발표 시나리오 제안 - 말하기 자신감 사용
-      final confidence = _calculateSpeakingConfidence(analysis);
-      final persuasion = _calculatePersuasionLevel(analysis);
-      
-      if (confidence < 60) {
-        suggestions.add({
-          'title': '자신감 있는 발표',
-          'content': '더 확신 있는 어조로 말하고, 중요한 포인트에서는 목소리 톤을 강조해보세요. 충분한 준비와 연습이 자신감의 기초입니다.'
-        });
-      }
-      
-      if (persuasion < 60) {
-        suggestions.add({
-          'title': '설득력 향상',
-          'content': '데이터와 구체적인 사례를 활용하여 논리적으로 설명하고, 핵심 메시지를 명확하게 전달해보세요.'
-        });
-      }
-      
-    } else if (analysis.category == '면접') {
-      // 면접 시나리오 제안 - 말하기 자신감 사용
-      final confidence = _calculateSpeakingConfidence(analysis);
-      final clarity = analysis.metrics.speakingMetrics.clarity;
-      
-      if (confidence < 60) {
-        suggestions.add({
-          'title': '자신감 있는 답변',
-          'content': '답변 시 "아마도", "일 것 같다" 보다는 확신있는 표현을 사용해보세요. 구체적인 경험을 들어 답변하면 더 좋습니다.'
-        });
-      }
-      
-      if (clarity < 60) {
-        suggestions.add({
-          'title': '구조적 답변',
-          'content': '답변을 할 때는 "첫째, 둘째" 같은 구조를 활용하거나 STAR 기법(상황-과제-행동-결과)을 사용해보세요.'
-        });
-      }
-      
-    } else {
-      // 소개팅 시나리오 제안 - 감정적 호감도 사용 (적절함)
-      final likeability = analysis.metrics.emotionMetrics.averageLikeability;
-      final listening = analysis.metrics.conversationMetrics.listeningScore;
-      
-      if (likeability < 60) {
-        suggestions.add({
-          'title': '공감 표현 늘리기',
-          'content': '"정말요?", "그렇군요", "재밌네요" 같은 공감 표현을 더 자주 사용하면 상대방이 더 편안하게 대화할 수 있습니다.'
-        });
-      }
-      
-      if (listening < 60) {
-        suggestions.add({
-          'title': '적극적 경청',
-          'content': '상대방의 말이 끝날 때까지 기다린 후 관련된 질문을 이어가면 더 깊이 있는 대화를 나눌 수 있습니다.'
-        });
-      }
-    }
-    
-    // 기본 제안 (모든 시나리오 공통)
-    if (suggestions.isEmpty) {
-      suggestions.add({
-        'title': '자연스러운 대화',
-        'content': '현재 수준을 잘 유지하면서 더 자연스럽고 편안한 대화를 이어가세요.'
-      });
-    }
-    
-    return suggestions;
   }
 
   Widget _buildSuggestionCard(String title, String content) {
@@ -1329,8 +1525,6 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
 
   String _getSessionModeText(SessionMode mode) {
     switch (mode) {
-      case SessionMode.dating:
-        return '소개팅';
       case SessionMode.interview:
         return '면접';
       case SessionMode.business:
@@ -1348,8 +1542,6 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
 
   IconData _getSessionIcon(SessionMode mode) {
     switch (mode) {
-      case SessionMode.dating:
-        return Icons.favorite;
       case SessionMode.interview:
         return Icons.headset;
       case SessionMode.business:
@@ -1357,7 +1549,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       case SessionMode.coaching:
         return Icons.school;
       default:
-        return Icons.help;
+        return Icons.business;
     }
   }
 
@@ -1434,12 +1626,24 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     return persuasionScore;
   }
 
+  // 안전한 메트릭 값 추출 헬퍼 함수
+  double _getSafeMetricValue(double value, double defaultValue) {
+    if (value.isNaN || value.isInfinite || value <= 0) {
+      print('📊 메트릭 값 보정: ${value} → ${defaultValue} (기본값 적용)');
+      return defaultValue;
+    }
+    return value;
+  }
+
   double _calculateSpeakingConfidence(AnalysisResult analysis) {
-    // 🔥 발표/면접에서 자신감 = 실제 timeline의 confidence 평균 (말하기 기반)
+    print('🔍 자신감 계산 시작...');
+    print('🔍 rawApiData 존재: ${analysis.rawApiData.isNotEmpty}');
+    print('🔍 emotionData 개수: ${analysis.emotionData.length}');
+    print('🔍 metrics 데이터: tonality=${analysis.metrics.speakingMetrics.tonality}, clarity=${analysis.metrics.speakingMetrics.clarity}');
     
-    // 실제 API 데이터에서 confidence 추출 시도
+    // 1. 실제 API 데이터에서 confidence 추출 시도
     final rawApiData = analysis.rawApiData;
-    if (rawApiData != null && rawApiData['detailedTimeline'] != null) {
+    if (rawApiData.isNotEmpty && rawApiData['detailedTimeline'] != null) {
       final detailedTimeline = rawApiData['detailedTimeline'] as List;
       if (detailedTimeline.isNotEmpty) {
         final confidenceValues = detailedTimeline
@@ -1450,22 +1654,37 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         if (confidenceValues.isNotEmpty) {
           final averageConfidence = confidenceValues.reduce((a, b) => a + b) / confidenceValues.length;
           final result = (averageConfidence * 100).clamp(20.0, 95.0);
-          print('📊 분석결과 탭 말하기 자신감: timeline confidence 평균 (${result.toStringAsFixed(1)}%) - ${confidenceValues.length}개 포인트');
+          print('📊 자신감: timeline confidence 평균 (${result.toStringAsFixed(1)}%) - ${confidenceValues.length}개 포인트');
           return result;
         }
       }
     }
     
-    // 백업: emotionData의 평균값 사용
+    // 2. emotionData의 평균값 사용
     if (analysis.emotionData.isNotEmpty) {
       final average = analysis.emotionData.map((e) => e.value).reduce((a, b) => a + b) / analysis.emotionData.length;
-      print('📊 분석결과 탭 말하기 자신감: emotionData 평균 (${average.toStringAsFixed(1)}%) - ${analysis.emotionData.length}개 포인트');
+      print('📊 자신감: emotionData 평균 (${average.toStringAsFixed(1)}%) - ${analysis.emotionData.length}개 포인트');
       return average;
     }
     
-    // 최종 백업: 기본값
-    print('📊 분석결과 탭 말하기 자신감: 기본값 사용 (60.0%)');
-    return 60.0;
+    // 3. 말하기 메트릭을 기반으로 자신감 계산
+    final tonality = analysis.metrics.speakingMetrics.tonality;
+    final clarity = analysis.metrics.speakingMetrics.clarity;
+    
+    // 값이 0-1 범위인지 0-100 범위인지 확인하여 정규화
+    final normalizedTonality = tonality > 1 ? tonality : tonality * 100;
+    final normalizedClarity = clarity > 1 ? clarity : clarity * 100;
+    
+    if (normalizedTonality > 0 || normalizedClarity > 0) {
+      // 톤과 명확성을 기반으로 자신감 계산
+      final confidenceScore = (normalizedTonality * 0.6 + normalizedClarity * 0.4).clamp(20.0, 95.0);
+      print('📊 자신감: 말하기 메트릭 기반 (${confidenceScore.toStringAsFixed(1)}%) - tonality=$normalizedTonality, clarity=$normalizedClarity');
+      return confidenceScore;
+    }
+    
+    // 4. 최종 백업: 기본값
+    print('📊 자신감: 기본값 사용 (65.0%) - 모든 데이터 소스 실패');
+    return 65.0;
   }
 }
 
