@@ -48,6 +48,7 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
     // 세션 상태
     @Published var isSessionActive: Bool = false
     @Published var shouldNavigateToSession: Bool = false
+    @Published var shouldCloseSession: Bool = false
     
     // 🎨 시각적 피드백 상태 변수들
     @Published var showVisualFeedback: Bool = false
@@ -265,8 +266,9 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
         case "stopSession":
             self.isSessionActive = false
             self.shouldNavigateToSession = false  // 🔄 세션 화면 전환 플래그 리셋
+            self.shouldCloseSession = true  // 🔄 세션 화면 자동 종료 트리거
             self.showHapticNotification(message: "세션이 종료되었습니다")
-            print("🔄 Watch: 세션 종료됨, 화면 전환 플래그 리셋")
+            print("🔄 Watch: 세션 종료됨, 화면 자동 종료 및 플래그 리셋")
         case "hapticFeedback":
             if let feedbackMessage = message["message"] as? String {
                 self.showHapticNotification(message: feedbackMessage)
