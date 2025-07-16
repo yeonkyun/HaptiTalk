@@ -4,6 +4,8 @@
 > **세계 최초** 실시간 대화 분석과 햅틱 피드백을 결합한 AI 서비스 기반 커뮤니케이션 코칭 시스템
 <img width="171" alt="image" src="https://github.com/user-attachments/assets/cc098176-34d0-4bc3-8f8c-00d0a1bfd8d1" />
 
+[시연 영상](https://www.youtube.com/watch?v=nllbIaujAKU)
+
 ---
 
 ## 프로젝트 개요
