@@ -650,7 +650,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   List<Widget> _buildMetricCards(AnalysisResult analysis) {
     // 시나리오별 지표 설정
     if (analysis.category == '발표') {
-      print('�� 발표 지표 계산 시작...');
+      print('📊 발표 지표 계산 시작...');
       
       // 🔥 백엔드에서 이미 계산된 값 우선 사용
       final rawApiData = analysis.rawApiData;
@@ -661,12 +661,17 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         
         if (presentationMetrics != null && speakingMetrics != null) {
           // ✅ 백엔드에서 계산된 정확한 값 사용
-          final confidence = (presentationMetrics['confidence'] ?? 60).toDouble();
-          final persuasion = (presentationMetrics['persuasion'] ?? 70).toDouble();
-          final clarity = (presentationMetrics['clarity'] ?? 70).toDouble();
+          final confidence = (presentationMetrics['confidence'] ?? 50).toDouble(); // 하드코딩 기본값 낮춤
+          final persuasion = (presentationMetrics['persuasion'] ?? 55).toDouble(); // 하드코딩 기본값 낮춤
+          final clarity = (presentationMetrics['clarity'] ?? 55).toDouble(); // 하드코딩 기본값 낮춤
           final speechRate = (speakingMetrics['speed'] ?? 120).toDouble();
           
-          print('📊 발표 지표 (백엔드 계산값): 자신감=${confidence.round()}%, 설득력=${persuasion.round()}%, 명확성=${clarity.round()}%, 속도=${speechRate.toInt()}WPM');
+          // 🔥 실제 계산값 vs 기본값 구분 로깅
+          final isConfidenceCalculated = presentationMetrics['confidence'] != null;
+          final isPersuasionCalculated = presentationMetrics['persuasion'] != null;
+          final isClarityCalculated = presentationMetrics['clarity'] != null;
+          
+          print('📊 발표 지표 (백엔드 계산값): 자신감=${confidence.round()}%${isConfidenceCalculated ? "(계산됨)" : "(기본값)"}, 설득력=${persuasion.round()}%${isPersuasionCalculated ? "(계산됨)" : "(기본값)"}, 명확성=${clarity.round()}%${isClarityCalculated ? "(계산됨)" : "(기본값)"}, 속도=${speechRate.toInt()}WPM');
           
           return [
             _buildMetricCard(
@@ -700,11 +705,11 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       // 🔥 폴백: 기존 로직 (백엔드 데이터 없을 때만)
       print('⚠️ 백엔드 keyMetrics 없음, 폴백 계산 사용');
       final speechRate = _getSafeMetricValue(analysis.metrics.speakingMetrics.speechRate, 120.0);
-      final clarity = _getSafeMetricValue(analysis.metrics.speakingMetrics.clarity, 75.0);
+      final clarity = _getSafeMetricValue(analysis.metrics.speakingMetrics.clarity, 60.0); // 75→60 조정
       final confidence = _calculateSpeakingConfidence(analysis);
       final persuasion = _calculatePersuasionLevel(analysis);
       
-      print('📊 발표 지표 최종값: 자신감=${confidence.round()}%, 속도=${speechRate.toInt()}WPM, 설득력=${persuasion.round()}%, 명확성=${clarity.toInt()}%');
+      print('📊 발표 지표 최종값(폴백): 자신감=${confidence.round()}%(계산), 속도=${speechRate.toInt()}WPM, 설득력=${persuasion.round()}%(계산), 명확성=${clarity.toInt()}%(폴백)');
       
       return [
         _buildMetricCard(
@@ -743,12 +748,17 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         final speakingMetrics = keyMetrics['speaking'] as Map<String, dynamic>?;
         
         if (interviewMetrics != null && speakingMetrics != null) {
-          final confidence = (interviewMetrics['confidence'] ?? 60).toDouble();
-          final stability = (interviewMetrics['stability'] ?? 70).toDouble();
-          final clarity = (interviewMetrics['clarity'] ?? 70).toDouble();
+          final confidence = (interviewMetrics['confidence'] ?? 50).toDouble(); // 60→50 조정
+          final stability = (interviewMetrics['stability'] ?? 55).toDouble(); // 하드코딩 기본값 낮춤
+          final clarity = (interviewMetrics['clarity'] ?? 55).toDouble(); // 60→55 조정
           final speechRate = (speakingMetrics['speed'] ?? 120).toDouble();
           
-          print('📊 면접 지표 (백엔드 계산값): 자신감=${confidence.round()}%, 안정감=${stability.round()}%, 명확성=${clarity.round()}%, 속도=${speechRate.toInt()}WPM');
+          // 🔥 실제 계산값 vs 기본값 구분 로깅
+          final isConfidenceCalculated = interviewMetrics['confidence'] != null;
+          final isStabilityCalculated = interviewMetrics['stability'] != null;
+          final isClarityCalculated = interviewMetrics['clarity'] != null;
+          
+          print('📊 면접 지표 (백엔드 계산값): 자신감=${confidence.round()}%${isConfidenceCalculated ? "(계산됨)" : "(기본값)"}, 안정감=${stability.round()}%${isStabilityCalculated ? "(계산됨)" : "(기본값)"}, 명확성=${clarity.round()}%${isClarityCalculated ? "(계산됨)" : "(기본값)"}, 속도=${speechRate.toInt()}WPM');
           
           return [
             _buildMetricCard(
@@ -781,11 +791,11 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       
       // 폴백: 기존 로직
       final speechRate = _getSafeMetricValue(analysis.metrics.speakingMetrics.speechRate, 120.0);
-      final clarity = _getSafeMetricValue(analysis.metrics.speakingMetrics.clarity, 75.0);
-      final tonality = _getSafeMetricValue(analysis.metrics.speakingMetrics.tonality, 70.0);
+      final clarity = _getSafeMetricValue(analysis.metrics.speakingMetrics.clarity, 60.0); // 75→60 조정
+      final tonality = _getSafeMetricValue(analysis.metrics.speakingMetrics.tonality, 65.0); // 70→65 조정
       final confidence = _calculateSpeakingConfidence(analysis);
       
-      print('📊 면접 지표 최종값: 자신감=${confidence.round()}%, 속도=${speechRate.toInt()}WPM, 명확성=${clarity.toInt()}%, 안정감=${tonality.toInt()}%');
+      print('📊 면접 지표 최종값(폴백): 자신감=${confidence.round()}%(계산), 속도=${speechRate.toInt()}WPM, 명확성=${clarity.toInt()}%(폴백), 안정감=${tonality.toInt()}%(폴백)');
       
       return [
         _buildMetricCard(
@@ -1060,8 +1070,8 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         final speakingMetrics = keyMetrics['speaking'] as Map<String, dynamic>?;
         
         if (presentationMetrics != null && speakingMetrics != null) {
-          confidence = (presentationMetrics['confidence'] ?? 60).toDouble();
-          persuasion = (presentationMetrics['persuasion'] ?? 70).toDouble();
+          confidence = (presentationMetrics['confidence'] ?? 50).toDouble(); // 60→50 조정
+          persuasion = (presentationMetrics['persuasion'] ?? 55).toDouble(); // 70→55 조정
           speechRate = (speakingMetrics['speed'] ?? 120).toDouble();
           print('📊 인사이트: 백엔드 계산값 사용 - confidence=${confidence}, persuasion=${persuasion}, speed=${speechRate}');
         } else {
@@ -1110,9 +1120,10 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         final speakingMetrics = keyMetrics['speaking'] as Map<String, dynamic>?;
         
         if (interviewMetrics != null && speakingMetrics != null) {
-          confidence = (interviewMetrics['confidence'] ?? 60).toDouble();
-          clarity = (interviewMetrics['clarity'] ?? 70).toDouble();
+          confidence = (interviewMetrics['confidence'] ?? 50).toDouble(); // 60→50 조정
+          clarity = (interviewMetrics['clarity'] ?? 55).toDouble(); // 60→55 조정
           speechRate = (speakingMetrics['speed'] ?? 120).toDouble();
+          print('📊 인사이트: 백엔드 계산값 사용 - confidence=${confidence}, clarity=${clarity}');
         } else {
           confidence = _calculateSpeakingConfidence(analysis);
           clarity = analysis.metrics.speakingMetrics.clarity;
@@ -1179,8 +1190,8 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         final presentationMetrics = keyMetrics['presentation'] as Map<String, dynamic>?;
         
         if (presentationMetrics != null) {
-          confidence = (presentationMetrics['confidence'] ?? 60).toDouble();
-          persuasion = (presentationMetrics['persuasion'] ?? 70).toDouble();
+          confidence = (presentationMetrics['confidence'] ?? 50).toDouble(); // 60→50 조정
+          persuasion = (presentationMetrics['persuasion'] ?? 55).toDouble(); // 70→55 조정
           print('📊 제안: 백엔드 계산값 사용 - confidence=${confidence}, persuasion=${persuasion}');
         } else {
           confidence = _calculateSpeakingConfidence(analysis);
@@ -1217,8 +1228,8 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         final interviewMetrics = keyMetrics['interview'] as Map<String, dynamic>?;
         
         if (interviewMetrics != null) {
-          confidence = (interviewMetrics['confidence'] ?? 60).toDouble();
-          clarity = (interviewMetrics['clarity'] ?? 70).toDouble();
+          confidence = (interviewMetrics['confidence'] ?? 50).toDouble(); // 60→50 조정
+          clarity = (interviewMetrics['clarity'] ?? 55).toDouble(); // 60→55 조정
         } else {
           confidence = _calculateSpeakingConfidence(analysis);
           clarity = analysis.metrics.speakingMetrics.clarity;
@@ -1683,8 +1694,8 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     }
     
     // 4. 최종 백업: 기본값
-    print('📊 자신감: 기본값 사용 (65.0%) - 모든 데이터 소스 실패');
-    return 65.0;
+    print('📊 자신감: 기본값 사용 (55.0%) - 모든 데이터 소스 실패');
+    return 55.0; // 65.0→55.0 조정
   }
 }
 

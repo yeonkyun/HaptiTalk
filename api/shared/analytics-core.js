@@ -147,7 +147,7 @@ class AnalyticsCore {
     totalScore += clarity * 0.05;
     factorCount += 0.05;
     
-    const persuasionScore = factorCount > 0 ? (totalScore / factorCount) * 100 : 65;
+    const persuasionScore = factorCount > 0 ? (totalScore / factorCount) * 100 : 60; // 65→60 조정
     return Math.max(25, Math.min(95, persuasionScore));
   }
 
@@ -155,10 +155,10 @@ class AnalyticsCore {
    * 명확성 계산 - 피드백 서비스와 통합된 계산법
    */
   static calculateClarity(speechData) {
-    const clarity = speechData.clarity || 0.7;
+    const clarity = speechData.clarity || 0.65; // 0.7→0.65 조정
     const speechRate = speechData.evaluation_wpm || 120;
     const speechPattern = speechData.speech_pattern || 'normal';
-    const tonality = speechData.tonality || 0.7;
+    const tonality = speechData.tonality || 0.65; // 0.7→0.65 조정
     
     let totalScore = 0;
     let factorCount = 0;
@@ -184,7 +184,7 @@ class AnalyticsCore {
     totalScore += tonality * 0.15;
     factorCount += 0.15;
     
-    const clarityScore = factorCount > 0 ? (totalScore / factorCount) * 100 : 70;
+    const clarityScore = factorCount > 0 ? (totalScore / factorCount) * 100 : 65;
     return Math.max(25, Math.min(95, clarityScore));
   }
 
