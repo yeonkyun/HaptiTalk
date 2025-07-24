@@ -1,7 +1,7 @@
 # HaptiTalk
 ### 실시간 대화 분석 및 햅틱 피드백 커뮤니케이션 코칭 시스템
 
-> **세계 최초** 실시간 대화 분석과 햅틱 피드백을 결합한 AI 서비스 기반 커뮤니케이션 코칭 시스템
+> 실시간 대화 분석과 햅틱 피드백을 결합한 AI 서비스 기반 커뮤니케이션 코칭 시스템
 <img width="171" alt="image" src="https://github.com/user-attachments/assets/cc098176-34d0-4bc3-8f8c-00d0a1bfd8d1" />
 
 [시연 영상](https://www.youtube.com/watch?v=nllbIaujAKU)
@@ -16,7 +16,7 @@ HaptiTalk은 발표, 면접, 소개팅 등 실제 대면 상황에서 **스마�
 - **실시간 대화 분석**: WhisperX 기반 고성능 STT 및 AI 감정 인식
 - **혁신적 햅틱 피드백**: 상대방 모르게 받는 자연스러운 실시간 코칭
 - **세그먼트 기반 분석**: 기존 방식 대비 85% 향상된 말하기 속도 측정 정확도
-- **시나리오별 맞춤화**: 면접/소개팅/발표 상황별 특화된 분석 및 피드백
+- **시나리오별 맞춤화**: 발표/면접/소개팅 상황별 특화된 분석 및 피드백
 
 ---
 
@@ -71,7 +71,7 @@ HaptiTalk은 발표, 면접, 소개팅 등 실제 대면 상황에서 **스마�
 #### Apple Watch 연동
 | Watch 메인 | 세션 화면 | 햅틱 피드백 | 설정 |
 |:---:|:---:|:---:|:---:|
-| <img width="250" alt="image" src="https://github.com/user-attachments/assets/65b160ae-808c-489b-a841-a0e74ce698a8" /> | <img width="250" alt="image" src="https://github.com/user-attachments/assets/d8b20da1-2844-4d32-a220-0866f14f0d26" /> | <img width="250" alt="image" src="https://github.com/user-attachments/assets/be3cf485-0133-4ff6-9bdf-27ecf906420a" /> | <img width="250" alt="image" src="https://github.com/user-attachments/assets/758a8791-9115-42a1-a370-f605313b1d1a" /> |
+| <img width="250" alt="image" src="https://github.com/user-attachments/assets/a3bb6b90-742f-45d2-a56f-1dad53ed9098" /> | <img width="250" alt="image" src="https://github.com/user-attachments/assets/142af5a2-82b7-4cbc-aa14-50b40774eb06" /> | <img width="250" alt="image" src="https://github.com/user-attachments/assets/aeec22f4-ea41-4763-a3f2-e9d252268b61" /> | <img width="250" alt="image" src="https://github.com/user-attachments/assets/3e612959-fa26-4eb1-995a-f65071d19f7c" /> |
 
 ---
 
@@ -221,7 +221,8 @@ average_wpm = sum(segment_wpms) / len(segments)  # 순수 발화 시간만 계�
 ### 수상 및 특허
 - **선문대학교 SW중심대학 창업 아이디어 경진대회 최우수상** (2025)
 - **선문대학교 SW중심대학 기업연계 프로젝트 우수팀 경진대회 대상** (2025)
-- **특허 출원 준비중**
+- **한국디지털콘텐츠학회 하계종합학술대회 대학생 논문경진대회 대상**
+- **특허 출원 진행중**
 
 ---
 
