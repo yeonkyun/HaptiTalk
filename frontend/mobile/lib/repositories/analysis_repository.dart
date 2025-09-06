@@ -17,54 +17,24 @@ class AnalysisRepository {
 
   AnalysisRepository(this._apiService, this._storageService);
 
-  // 분석 결과 조회
+  // 세션 ID로 분석 결과 조회 (리포트 기반)
   Future<AnalysisResult> getAnalysisResult(String sessionId) async {
     try {
-      print('📊 세션 분석 결과 조회: $sessionId');
+      print('🔍 분석 결과 조회 시작: $sessionId');
       
-      // 🔥 1단계: 먼저 사용자의 리포트 목록을 조회해서 해당 세션의 리포트가 있는지 확인
+      // 🔥 1단계: 세션 ID로 직접 기존 리포트 조회
       try {
-        final reportsResponse = await _apiService.get('/reports');
+        final sessionReportResponse = await _apiService.get('/reports/session/$sessionId');
         
-        if (reportsResponse['success'] == true && reportsResponse['data'] != null) {
-          final reportsData = reportsResponse['data']['reports'] as List<dynamic>;
-          print('✅ 리포트 목록 조회 성공: ${reportsData.length}개');
-          
-          // 해당 세션 ID의 리포트 찾기
-          final sessionReport = reportsData.firstWhere(
-            (report) => report['sessionId'] == sessionId,
-            orElse: () => null,
-          );
-          
-          if (sessionReport != null) {
-            // 🔥 2단계: 기존 리포트가 있으면 리포트 ID로 조회
-            final reportId = sessionReport['id'] ?? sessionReport['_id'];
-            
-            // reportId가 null이 아닌 경우에만 조회 시도
-            if (reportId != null && reportId.toString().isNotEmpty && reportId.toString() != 'null') {
-              print('✅ 기존 리포트 발견: $reportId');
-              
-              try {
-                final reportResponse = await _apiService.get('/reports/$reportId');
-                if (reportResponse['success'] == true && reportResponse['data'] != null) {
-                  print('✅ 기존 분석 결과 조회 성공');
-                  return AnalysisResult.fromApiResponse(reportResponse['data']);
-                }
-              } catch (e) {
-                print('⚠️ 기존 리포트 조회 실패: $e, 새로 생성 시도');
-              }
-            } else {
-              print('⚠️ 리포트 ID가 null이거나 비어있음: $reportId, 새로 생성 시도');
-            }
-          } else {
-            print('⚠️ 해당 세션의 기존 리포트 없음, 새로 생성 시도');
-          }
+        if (sessionReportResponse['success'] == true && sessionReportResponse['data'] != null) {
+          print('✅ 기존 리포트 조회 성공: $sessionId');
+          return AnalysisResult.fromApiResponse(sessionReportResponse['data']);
         }
       } catch (e) {
-        print('⚠️ 기존 리포트 조회 실패: $e, 새로 생성 시도');
+        print('⚠️ 기존 리포트 없음, 새로 생성: $e');
       }
       
-      // 🔥 3단계: 기존 리포트가 없으면 새로 생성
+      // 🔥 2단계: 기존 리포트가 없으면 새로 생성
       print('🔄 새 리포트 생성 시작: $sessionId');
       final generateResponse = await _apiService.post('/reports/generate/$sessionId', body: {
         'format': 'json',
@@ -77,12 +47,10 @@ class AnalysisRepository {
         return AnalysisResult.fromApiResponse(generateResponse['data']);
       } else {
         print('⚠️ API 응답 오류, 데모 데이터 사용: ${generateResponse['success']}');
-        // API 오류 시 데모 데이터 폴백
         return await _loadDemoAnalysisResult(sessionId);
       }
     } catch (e) {
       print('❌ 분석 결과 API 호출 실패: $e');
-      // API 연결 실패 시 데모 데이터 반환
       return await _loadDemoAnalysisResult(sessionId);
     }
   }
@@ -371,6 +339,7 @@ class AnalysisRepository {
         category: '소개팅',
         emotionData: emotionData.cast<EmotionData>(),
         emotionChangePoints: emotionChangePoints,
+        rawApiData: {}, // 🔥 빈 맵으로 초기화 (데모 데이터용)
         metrics: SessionMetrics(
           totalDuration: 1800, // 30분
           audioRecorded: true,

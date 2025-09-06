@@ -237,63 +237,63 @@ class SessionDetailTabTimeline extends StatelessWidget {
 
         // 대화 키워드 섹션
         if (analysisResult.metrics.topicMetrics.topics.isNotEmpty)
-          Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+        Padding(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
                   '${_getSessionTypeName()} 키워드',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF212121),
-                  ),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF212121),
                 ),
-                SizedBox(height: 15),
+              ),
+              SizedBox(height: 15),
 
-                // 키워드 컨테이너
-                Container(
-                  padding: EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Color(0xFFF5F5F5),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.tag,
-                            size: 20,
+              // 키워드 컨테이너
+              Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Color(0xFFF5F5F5),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.tag,
+                          size: 20,
+                          color: Color(0xFF212121),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          '자주 언급된 단어',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                             color: Color(0xFF212121),
                           ),
-                          SizedBox(width: 8),
-                          Text(
-                            '자주 언급된 단어',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF212121),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 15),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 15),
 
                       // 키워드 태그 클라우드 (실제 데이터 기반)
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
                         children: _buildKeywordTags(),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+        ),
 
         // 개선 포인트 섹션
         Padding(
@@ -436,9 +436,53 @@ class SessionDetailTabTimeline extends StatelessWidget {
     
     final duration = (metrics.totalDuration / 60).round();
     final speechRate = metrics.speakingMetrics.speechRate.toInt();
-    final avgEmotion = emotionData.isNotEmpty 
-        ? emotionData.map((e) => e.value).reduce((a, b) => a + b) / emotionData.length
-        : metrics.emotionMetrics.averageLikeability;
+    
+    // 🔥 백엔드에서 이미 계산된 값 우선 사용
+    double avgEmotion = 0;
+    final rawApiData = analysisResult.rawApiData;
+    
+    if (rawApiData.isNotEmpty && rawApiData['keyMetrics'] != null) {
+      final keyMetrics = rawApiData['keyMetrics'] as Map<String, dynamic>;
+      
+      switch (sessionType) {
+        case 'presentation':
+          final presentationMetrics = keyMetrics['presentation'] as Map<String, dynamic>?;
+          if (presentationMetrics != null && presentationMetrics['confidence'] != null) {
+            avgEmotion = (presentationMetrics['confidence'] as num).toDouble();
+            print('📊 타임라인 요약: 백엔드 발표 자신감 사용 ($avgEmotion%) - keyMetrics.presentation.confidence');
+          } else {
+            avgEmotion = emotionData.isNotEmpty 
+                ? emotionData.map((e) => e.value).reduce((a, b) => a + b) / emotionData.length
+                : metrics.emotionMetrics.averageLikeability;
+            print('📊 타임라인 요약: 폴백 발표 자신감 사용 ($avgEmotion%)');
+          }
+          break;
+        case 'interview':
+          final interviewMetrics = keyMetrics['interview'] as Map<String, dynamic>?;
+          if (interviewMetrics != null && interviewMetrics['confidence'] != null) {
+            avgEmotion = (interviewMetrics['confidence'] as num).toDouble();
+            print('📊 타임라인 요약: 백엔드 면접 자신감 사용 ($avgEmotion%) - keyMetrics.interview.confidence');
+          } else {
+            avgEmotion = emotionData.isNotEmpty 
+                ? emotionData.map((e) => e.value).reduce((a, b) => a + b) / emotionData.length
+                : metrics.emotionMetrics.averageLikeability;
+            print('📊 타임라인 요약: 폴백 면접 자신감 사용 ($avgEmotion%)');
+          }
+          break;
+        default:
+          // 폴백 로직
+          avgEmotion = emotionData.isNotEmpty 
+              ? emotionData.map((e) => e.value).reduce((a, b) => a + b) / emotionData.length
+              : metrics.emotionMetrics.averageLikeability;
+          print('📊 타임라인 요약: 기본 감정 데이터 사용 ($avgEmotion%)');
+      }
+    } else {
+      // 폴백 로직
+      avgEmotion = emotionData.isNotEmpty 
+          ? emotionData.map((e) => e.value).reduce((a, b) => a + b) / emotionData.length
+          : metrics.emotionMetrics.averageLikeability;
+      print('📊 타임라인 요약: 폴백 감정 데이터 사용 ($avgEmotion%)');
+    }
 
     switch (sessionType) {
       case 'presentation':
@@ -451,15 +495,15 @@ class SessionDetailTabTimeline extends StatelessWidget {
           speedComment = '말하기 속도는 ${speechRate}WPM으로 적절했으며,';
         }
         
-        return '${duration}분간의 발표 세션에서 평균 ${avgEmotion.toInt()}%의 발표 자신감을 보였습니다. '
+        return '${duration}분간의 발표 세션에서 평균 ${avgEmotion.round()}%의 발표 자신감을 보였습니다. '
                '$speedComment 전반적으로 안정적인 발표가 이루어졌습니다. '
                '핵심 메시지 전달과 구조적 설명이 효과적이었습니다.';
       case 'interview':
-        return '${duration}분간의 면접 세션에서 평균 ${avgEmotion.toInt()}%의 면접관 평가를 받았습니다. '
+        return '${duration}분간의 면접 세션에서 평균 ${avgEmotion.round()}%의 면접관 평가를 받았습니다. '
                '말하기 속도도 ${speechRate}WPM으로 적절했습니다. '
                '체계적인 답변과 전문성 어필이 돋보였습니다.';
       case 'dating':
-        return '${duration}분간의 소개팅에서 평균 ${avgEmotion.toInt()}%의 호감도를 유지했습니다. '
+        return '${duration}분간의 소개팅에서 평균 ${avgEmotion.round()}%의 호감도를 유지했습니다. '
                '자연스러운 대화 흐름과 적절한 상호작용으로 좋은 분위기를 만들었습니다.';
       default:
         return '${duration}분간의 세션이 성공적으로 완료되었습니다.';
@@ -517,7 +561,11 @@ class SessionDetailTabTimeline extends StatelessWidget {
     final emotionData = analysisResult.emotionData;
     final changePoints = <Widget>[];
     
+    print('🎯 === 변화포인트 생성 시작 ===');
+    print('🔍 emotionData 길이: ${emotionData.length}');
+    
     if (emotionData.isEmpty) {
+      print('⚠️ emotionData 없음 - 기본 변화포인트 생성');
       changePoints.add(_buildChangePointItem(
         '세션 전체',
         '안정적인 진행',
@@ -527,160 +575,120 @@ class SessionDetailTabTimeline extends StatelessWidget {
       return changePoints;
     }
 
-    // 시간대별 변화 포인트 분석 (더 정교한 알고리즘)
+    // 🔧 30초 단위 세그먼트 기반 변화 포인트 분석
     final totalDuration = analysisResult.metrics.totalDuration;
-    final segmentDuration = totalDuration / emotionData.length;
+    const segmentInterval = 30; // 30초 간격
+    final totalSegments = (totalDuration / segmentInterval).ceil();
     
-    // 1. 급격한 상승/하락 구간 찾기 (연속된 3개 포인트 비교)
-    for (int i = 1; i < emotionData.length - 1; i++) {
-      final prev = emotionData[i - 1].value;
-      final current = emotionData[i].value;
-      final next = emotionData[i + 1].value;
+    print('🔍 변화포인트 분석: totalDuration=${totalDuration}s, totalSegments=${totalSegments}');
+    
+    // 🔥 30초부터 시작 (0초는 세션 준비 시간이므로 제외)
+    for (int segmentIndex = 1; segmentIndex < totalSegments && segmentIndex < emotionData.length; segmentIndex++) {
+      final timeInSeconds = segmentIndex * segmentInterval;
+      final time = _formatTimeFromDuration(timeInSeconds);
+      final currentValue = emotionData[segmentIndex].value;
+      final prevValue = emotionData[segmentIndex - 1].value;
+      final valueDiff = currentValue - prevValue;
       
-      // 급격한 상승 (15% 이상)
-      if (current - prev > 15 && next - current > 5) {
-        String time = _formatTimeFromDuration((i * segmentDuration).round());
+      print('🔢 세그먼트 ${segmentIndex}: ${prevValue} → ${currentValue} (변화: ${valueDiff})');
+      
+      // 변화 유형 결정
+      if (valueDiff.abs() >= 10) {
+        // 큰 변화가 있는 경우
+        final isPositive = valueDiff > 0;
+        if (isPositive) {
+          changePoints.add(_buildChangePointItem(
+            time,
+            '${_getPrimaryMetricName()} 상승',
+            '${currentValue.toInt()}%로 상승했습니다. ${_getSegmentContext(segmentIndex)}',
+            true,
+          ));
+        } else {
+          changePoints.add(_buildChangePointItem(
+            time,
+            '${_getPrimaryMetricName()} 하락',
+            '${currentValue.toInt()}%로 하락했습니다. 집중도를 높여보세요.',
+            false,
+          ));
+        }
+      } else if (valueDiff.abs() >= 5) {
+        // 소폭 변화가 있는 경우
+        final isPositive = valueDiff > 0;
         changePoints.add(_buildChangePointItem(
           time,
-          '${_getPrimaryMetricName()} 급상승',
-          _getPositiveChangeDescription(current),
+          isPositive ? '소폭 상승' : '소폭 하락',
+          '${currentValue.toInt()}%로 ${isPositive ? '소폭 개선' : '소폭 하락'}했습니다.',
+          isPositive,
+        ));
+      } else {
+        // 변화가 거의 없는 경우
+        changePoints.add(_buildChangePointItem(
+          time,
+          '안정적 유지',
+          '${currentValue.toInt()}%로 안정적인 ${_getPrimaryMetricName()}을 유지했습니다.',
           true,
         ));
-        changePoints.add(SizedBox(height: 15));
       }
       
-      // 급격한 하락 (10% 이상)
-      else if (prev - current > 10 && current - next > 5) {
-        String time = _formatTimeFromDuration((i * segmentDuration).round());
-        changePoints.add(_buildChangePointItem(
-          time,
-          '주의 필요 구간',
-          _getNegativeChangeDescription(current),
-          false,
-        ));
+      // 마지막이 아니면 간격 추가
+      if (segmentIndex < totalSegments - 1 && segmentIndex < emotionData.length - 1) {
         changePoints.add(SizedBox(height: 15));
       }
     }
     
-    // 2. 세션 초반/중반/후반 특징 분석
-    final firstThird = emotionData.sublist(0, (emotionData.length / 3).ceil());
-    final middleThird = emotionData.sublist(
-      (emotionData.length / 3).ceil(), 
-      (emotionData.length * 2 / 3).ceil()
-    );
-    final lastThird = emotionData.sublist((emotionData.length * 2 / 3).ceil());
-    
-    final firstAvg = firstThird.map((e) => e.value).reduce((a, b) => a + b) / firstThird.length;
-    final middleAvg = middleThird.map((e) => e.value).reduce((a, b) => a + b) / middleThird.length;
-    final lastAvg = lastThird.map((e) => e.value).reduce((a, b) => a + b) / lastThird.length;
-    
-    // 초반 vs 중반 비교
-    if (middleAvg - firstAvg > 10) {
-      changePoints.add(_buildChangePointItem(
-        _formatTimeFromDuration((totalDuration / 3).round()),
-        '적응 완료',
-        '세션 중반부터 ${_getPrimaryMetricName()}이 크게 향상되었습니다.',
-        true,
-      ));
-      changePoints.add(SizedBox(height: 15));
-    }
-    
-    // 중반 vs 후반 비교
-    if (lastAvg - middleAvg > 8) {
-      changePoints.add(_buildChangePointItem(
-        _formatTimeFromDuration((totalDuration * 2 / 3).round()),
-        '피니시 강화',
-        '세션 후반부에 ${_getPrimaryMetricName()}이 더욱 향상되어 강력한 마무리를 보였습니다.',
-        true,
-      ));
-      changePoints.add(SizedBox(height: 15));
-    } else if (middleAvg - lastAvg > 8) {
-      changePoints.add(_buildChangePointItem(
-        _formatTimeFromDuration((totalDuration * 2 / 3).round()),
-        '마무리 아쉬움',
-        '세션 후반부에 약간의 피로감이나 집중력 저하가 있었을 수 있습니다.',
-        false,
-      ));
-      changePoints.add(SizedBox(height: 15));
-    }
-    
-    // 3. 최고점과 최저점 (기존 로직 유지하되 더 정교하게)
-    double maxValue = emotionData.map((e) => e.value).reduce((a, b) => a > b ? a : b);
-    double minValue = emotionData.map((e) => e.value).reduce((a, b) => a < b ? a : b);
-    
-    int maxIndex = emotionData.indexWhere((e) => e.value == maxValue);
-    int minIndex = emotionData.indexWhere((e) => e.value == minValue);
-    
-    // 최고점 (75% 이상인 경우만)
-    if (maxIndex >= 0 && maxValue >= 75) {
-      String time = _formatTimeFromDuration((maxIndex * segmentDuration).round());
-      changePoints.add(_buildChangePointItem(
-        time,
-        '${_getPrimaryMetricName()} 최고점',
-        _getPositiveChangeDescription(maxValue),
-        true,
-      ));
-      changePoints.add(SizedBox(height: 15));
-    }
-    
-    // 최저점 (50% 이하이고 최고점과 다른 경우만)
-    if (minIndex >= 0 && minValue <= 50 && minIndex != maxIndex) {
-      String time = _formatTimeFromDuration((minIndex * segmentDuration).round());
-      changePoints.add(_buildChangePointItem(
-        time,
-        '개선 필요 구간',
-        _getNegativeChangeDescription(minValue),
-        false,
-      ));
-      changePoints.add(SizedBox(height: 15));
-    }
-    
-    // 4. 변화 포인트가 없으면 전체적인 패턴 설명
+    // 🔥 변화 포인트가 없으면 (데이터가 2개 미만인 경우) 기본 분석 추가
     if (changePoints.isEmpty) {
-      final overallAvg = emotionData.map((e) => e.value).reduce((a, b) => a + b) / emotionData.length;
-      changePoints.add(_buildChangePointItem(
-        '세션 전체',
-        '안정적인 진행',
-        '전체 세션에서 평균 ${overallAvg.toInt()}%의 ${_getPrimaryMetricName()}을 유지하며 안정적으로 진행되었습니다.',
-        true,
-      ));
+      print('⚠️ 변화포인트 없음 - 기본 분석 추가');
+      if (emotionData.length >= 1) {
+        final finalValue = emotionData.last.value;
+        changePoints.add(_buildChangePointItem(
+          '전체 진행',
+          '${_getPrimaryMetricName()} 유지',
+          '${finalValue.toInt()}% 수준으로 세션을 완료했습니다.',
+          true,
+        ));
+      } else {
+        changePoints.add(_buildChangePointItem(
+          '전체 진행',
+          '안정적인 ${_getPrimaryMetricName()}',
+          '30초 단위 분석 결과 일관된 수준을 유지했습니다.',
+          true,
+        ));
+      }
     }
     
+    print('✅ 변화포인트 생성 완료: ${changePoints.length}개 (30초부터 시작)');
     return changePoints;
+  }
+  
+  // 🔧 세그먼트 맥락 정보 제공
+  String _getSegmentContext(int segmentIndex) {
+    final sessionType = _getSessionTypeKey();
+    final timePosition = segmentIndex <= 2 ? '초반' : 
+                        segmentIndex <= 6 ? '중반' : '후반';
+    
+    switch (sessionType) {
+      case 'presentation':
+        if (timePosition == '초반') return '발표 도입부에서의 변화입니다.';
+        if (timePosition == '중반') return '핵심 내용 전달 중 변화입니다.';
+        return '발표 마무리 단계에서의 변화입니다.';
+      case 'interview':
+        if (timePosition == '초반') return '면접 시작 단계에서의 변화입니다.';
+        if (timePosition == '중반') return '본격적인 질의응답 중 변화입니다.';
+        return '면접 마무리 단계에서의 변화입니다.';
+      case 'dating':
+        if (timePosition == '초반') return '첫 만남 단계에서의 변화입니다.';
+        if (timePosition == '중반') return '대화가 깊어지는 중 변화입니다.';
+        return '대화 마무리 단계에서의 변화입니다.';
+      default:
+        return '이 구간에서의 변화입니다.';
+    }
   }
 
   String _formatTimeFromDuration(int seconds) {
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
-  }
-
-  String _getPositiveChangeDescription(double value) {
-    final sessionType = _getSessionTypeKey();
-    switch (sessionType) {
-      case 'presentation':
-        return '발표 자신감이 최고조에 달했습니다. 안정적인 말하기 속도와 확신 있는 톤으로 효과적인 메시지 전달이 이루어졌습니다.';
-      case 'interview':
-        return '면접관의 평가가 가장 높았던 순간입니다. 체계적인 답변과 자신감 있는 태도가 좋은 인상을 남겼습니다.';
-      case 'dating':
-        return '상대방의 호감도가 가장 높았던 순간입니다. 공통 관심사 발견이나 자연스러운 유머가 효과적이었습니다.';
-      default:
-        return '가장 좋은 성과를 보인 구간입니다.';
-    }
-  }
-
-  String _getNegativeChangeDescription(double value) {
-    final sessionType = _getSessionTypeKey();
-    switch (sessionType) {
-      case 'presentation':
-        return '발표 자신감이 다소 떨어진 구간입니다. 말하기 속도가 불안정하거나 망설임이 있었을 가능성이 있습니다.';
-      case 'interview':
-        return '답변에 확신이 부족해 보인 구간입니다. 더 구체적인 경험이나 사례를 제시하면 좋겠습니다.';
-      case 'dating':
-        return '대화 흐름이 다소 어색했던 순간입니다. 상대방의 관심사에 더 집중하거나 주제 전환이 필요했습니다.';
-      default:
-        return '개선이 필요한 구간입니다.';
-    }
   }
 
   List<Widget> _buildKeywordTags() {
@@ -812,30 +820,75 @@ class EmotionGraphPainter extends CustomPainter {
     final width = size.width;
     final height = size.height;
 
+    print('🎨 === 감정 그래프 그리기 시작 ===');
+    print('🎨 Canvas 크기: ${width}x${height}');
+    print('🎨 감정 데이터 길이: ${emotionData.length}');
+
+    // 🔥 축 라벨을 위한 여백 설정
+    final leftMargin = 40.0; // y축 라벨 여백
+    final bottomMargin = 30.0; // x축 라벨 여백
+    final rightMargin = 10.0;
+    final topMargin = 10.0;
+    
+    final graphWidth = width - leftMargin - rightMargin;
+    final graphHeight = height - topMargin - bottomMargin;
+
     // 배경 그리드 그리기
     final gridPaint = Paint()
       ..color = Color(0xFFE0E0E0)
       ..strokeWidth = 1;
 
+    // 🔥 y축 라벨과 수평선 (0%, 25%, 50%, 75%, 100%)
+    final textStyle = TextStyle(
+      color: Color(0xFF888888),
+      fontSize: 12,
+    );
+    
+    for (int i = 0; i <= 4; i++) {
+      final y = topMargin + (graphHeight * i / 4);
+      final percentage = 100 - (i * 25); // 100%, 75%, 50%, 25%, 0%
+
     // 수평선
-    for (int i = 1; i < 4; i++) {
-      final y = height * i / 4;
-      canvas.drawLine(Offset(0, y), Offset(width, y), gridPaint);
+      canvas.drawLine(
+        Offset(leftMargin, y), 
+        Offset(leftMargin + graphWidth, y), 
+        gridPaint
+      );
+      
+      // y축 라벨 (%)
+      final textPainter = TextPainter(
+        text: TextSpan(text: '${percentage}%', style: textStyle),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas, 
+        Offset(leftMargin - textPainter.width - 5, y - textPainter.height / 2)
+      );
     }
 
     // 실제 감정 데이터가 있는 경우만 그래프 그리기
     List<Offset> dataPoints = [];
     
     if (emotionData.isNotEmpty) {
-      // 실제 데이터 기반으로 포인트 생성
+      print('🎨 실제 감정 데이터로 그래프 그리기');
+
+      // 🔥 30초마다 포인트 생성 (모든 데이터, 그래프 영역 내에서)
       dataPoints = emotionData.asMap().entries.map((entry) {
         final index = entry.key;
         final data = entry.value;
-        final x = width * index / (emotionData.length - 1);
-        final y = height * (1 - data.value / 100); // value를 0-100으로 가정
+        final x = leftMargin + (emotionData.length == 1 ? graphWidth / 2 : graphWidth * index / (emotionData.length - 1));
+        final y = topMargin + graphHeight * (1 - data.value / 100); // value를 0-100으로 가정
         return Offset(x, y);
       }).toList();
+      
+      print('🎨 생성된 포인트: ${dataPoints.length}개');
+      for (int i = 0; i < dataPoints.length && i < 5; i++) {
+        print('🎨 포인트 $i: (${dataPoints[i].dx.toStringAsFixed(1)}, ${dataPoints[i].dy.toStringAsFixed(1)}) <- 값: ${emotionData[i].value}%');
+      }
     } else {
+      print('🎨 데이터 없음 - 안내 텍스트 표시');
+      
       // 데이터가 없으면 "데이터 없음" 텍스트 표시
       final textPainter = TextPainter(
         text: TextSpan(
@@ -851,82 +904,115 @@ class EmotionGraphPainter extends CustomPainter {
       textPainter.paint(
         canvas, 
         Offset(
-          (width - textPainter.width) / 2,
-          (height - textPainter.height) / 2,
+          leftMargin + (graphWidth - textPainter.width) / 2,
+          topMargin + (graphHeight - textPainter.height) / 2,
         ),
       );
       return;
     }
 
-    // 경로 그리기 (실제 데이터만)
+    // 🔥 곡선 경로 그리기 (2개 이상일 때)
     if (dataPoints.length > 1) {
+      print('🎨 곡선 경로 그리기 시작');
+      
       final path = Path();
-      path.moveTo(dataPoints[0].dx, dataPoints[0].dy);
+    path.moveTo(dataPoints[0].dx, dataPoints[0].dy);
       
-      for (int i = 1; i < dataPoints.length; i++) {
-        // 부드러운 곡선을 만들기 위해 quadraticBezierTo 사용
-        final ctrl = Offset(
-          (dataPoints[i - 1].dx + dataPoints[i].dx) / 2,
-          dataPoints[i - 1].dy,
+    for (int i = 1; i < dataPoints.length; i++) {
+      // 부드러운 곡선을 만들기 위해 quadraticBezierTo 사용
+      final ctrl = Offset(
+        (dataPoints[i - 1].dx + dataPoints[i].dx) / 2,
+        dataPoints[i - 1].dy,
+      );
+      path.quadraticBezierTo(
+        ctrl.dx,
+        ctrl.dy,
+        dataPoints[i].dx,
+        dataPoints[i].dy,
+      );
+    }
+
+    // 선 그리기
+    final linePaint = Paint()
+      ..color = AppColors.primary
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+
+    canvas.drawPath(path, linePaint);
+      print('🎨 곡선 경로 그리기 완료');
+    }
+
+    // 🔥 모든 30초 포인트에 작은 점 표시
+    final pointPaint = Paint()
+      ..color = AppColors.primary
+      ..style = PaintingStyle.fill;
+
+    final pointBorderPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    for (int i = 0; i < dataPoints.length; i++) {
+      // 흰색 테두리 (더 큰 원)
+      canvas.drawCircle(dataPoints[i], 4, pointBorderPaint);
+      // 파란색 중심 (작은 원)
+      canvas.drawCircle(dataPoints[i], 3, pointPaint);
+    }
+    
+    print('🎨 모든 30초 포인트 표시 완료: ${dataPoints.length}개');
+
+    // 🔥 첫 번째와 마지막 포인트 강조 (약간 더 크게)
+    if (dataPoints.isNotEmpty) {
+      final emphasizePaint = Paint()
+        ..color = AppColors.primary
+        ..style = PaintingStyle.fill;
+      
+      final emphasizeBorderPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill;
+
+      // 시작점 강조
+      canvas.drawCircle(dataPoints[0], 6, emphasizeBorderPaint);
+      canvas.drawCircle(dataPoints[0], 5, emphasizePaint);
+      
+      // 끝점 강조 (시작점과 다를 때만)
+      if (dataPoints.length > 1) {
+        canvas.drawCircle(dataPoints.last, 6, emphasizeBorderPaint);
+        canvas.drawCircle(dataPoints.last, 5, emphasizePaint);
+      }
+      
+      print('🎨 시작/끝점 강조 완료');
+    }
+
+    // 🔥 x축 시간 라벨 추가
+    if (emotionData.isNotEmpty) {
+      for (int i = 0; i < emotionData.length; i++) {
+        final x = leftMargin + (emotionData.length == 1 ? graphWidth / 2 : graphWidth * i / (emotionData.length - 1));
+        final timeInSeconds = i * 30; // 30초 간격
+        final timeLabel = _formatTimeFromSeconds(timeInSeconds);
+        
+        final textPainter = TextPainter(
+          text: TextSpan(text: timeLabel, style: textStyle),
+          textDirection: TextDirection.ltr,
         );
-        path.quadraticBezierTo(
-          ctrl.dx,
-          ctrl.dy,
-          dataPoints[i].dx,
-          dataPoints[i].dy,
+        textPainter.layout();
+        textPainter.paint(
+          canvas, 
+          Offset(x - textPainter.width / 2, topMargin + graphHeight + 5)
         );
       }
+    }
+    
+    print('🎨 === 감정 그래프 그리기 완료 ===');
+  }
 
-      // 선 그리기
-      final linePaint = Paint()
-        ..color = AppColors.primary
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3;
-
-      canvas.drawPath(path, linePaint);
-
-      // 주요 변화 포인트 강조 (실제 데이터 기반)
-      final pointPaint = Paint()
-        ..color = AppColors.primary
-        ..style = PaintingStyle.fill;
-
-      final negativePaint = Paint()
-        ..color = Color(0xFFE57373)
-        ..style = PaintingStyle.fill;
-
-      // 최고점과 최저점 찾기
-      double maxValue = 0;
-      double minValue = double.infinity;
-      int maxIndex = 0;
-      int minIndex = 0;
-      
-      for (int i = 0; i < dataPoints.length; i++) {
-        final value = height - dataPoints[i].dy; // y값을 실제 값으로 변환
-        if (value > maxValue) {
-          maxValue = value;
-          maxIndex = i;
-        }
-        if (value < minValue) {
-          minValue = value;
-          minIndex = i;
-        }
-      }
-      
-      // 최고점 강조
-      if (maxIndex < dataPoints.length) {
-        canvas.drawCircle(dataPoints[maxIndex], 5, pointPaint);
-      }
-      
-      // 최저점 강조 (너무 낮지 않은 경우만)
-      if (minIndex < dataPoints.length && minIndex != maxIndex && minValue < height * 0.7) {
-        canvas.drawCircle(dataPoints[minIndex], 5, negativePaint);
-      }
-    } else if (dataPoints.length == 1) {
-      // 단일 데이터 포인트인 경우
-      final pointPaint = Paint()
-        ..color = AppColors.primary
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(dataPoints[0], 5, pointPaint);
+  // 🔥 시간 포맷팅 헬퍼 메서드 추가
+  String _formatTimeFromSeconds(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    if (minutes == 0) {
+      return '${remainingSeconds}s';
+    } else {
+      return '${minutes}:${remainingSeconds.toString().padLeft(2, '0')}';
     }
   }
 

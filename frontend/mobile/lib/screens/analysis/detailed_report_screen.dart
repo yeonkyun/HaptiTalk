@@ -93,24 +93,60 @@ class _DetailedReportScreenState extends State<DetailedReportScreen> with Single
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('상세 분석 리포트'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        title: const Text(
+          '상세 분석 리포트',
+          style: TextStyle(
+            color: Color(0xFF212121),
+            fontSize: 18,
+            fontFamily: 'Roboto',
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        foregroundColor: Color(0xFF212121),
         elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Color(0xFF212121)),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(_analysisResult != null ? 49 : 1),
+          child: Column(
+            children: [
+              Container(
+                height: 1,
+                color: Color(0xFFF0F0F0),
+              ),
+              if (_analysisResult != null)
+                Container(
+                  color: Colors.white,
+                  child: TabBar(
+                    controller: _tabController,
+                    labelColor: Color(0xFF3F51B5),
+                    unselectedLabelColor: Color(0xFF757575),
+                    indicatorColor: Color(0xFF3F51B5),
+                    indicatorWeight: 2,
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    labelStyle: TextStyle(
+                      fontSize: 14,
+                      fontFamily: 'Roboto',
+                      fontWeight: FontWeight.w600,
+                    ),
+                    unselectedLabelStyle: TextStyle(
+                      fontSize: 14,
+                      fontFamily: 'Roboto',
+                      fontWeight: FontWeight.w500,
+                    ),
+                    tabs: _buildTabs(),
+                  ),
+                ),
+            ],
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: Color(0xFF212121)),
             onPressed: _loadAnalysisData,
           ),
         ],
-        bottom: _analysisResult != null ? TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          tabs: _buildTabs(),
-        ) : null,
       ),
       body: _buildBody(),
     );

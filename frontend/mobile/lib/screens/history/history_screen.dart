@@ -20,11 +20,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String _selectedSort = '최신순';
   final List<String> _categories = [
     '전체',
-    '소개팅',
-    '면접',
     '발표',
-    '비즈니스',
-    '코칭',
+    // '소개팅', // 소개팅 기능 비활성화
+    '면접',
     '최근 일주일',
     '최근 한달'
   ];
@@ -82,7 +80,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             '호감도': analysis.metrics.emotionMetrics.averageLikeability.round(),
             '경청 지수': analysis.metrics.conversationMetrics.listeningScore.round(),
           };
-          break;
+          break; // 소개팅 관련 메트릭 주석처리
         case '면접':
           metrics = {
             '자신감': analysis.metrics.emotionMetrics.averageLikeability.round(),

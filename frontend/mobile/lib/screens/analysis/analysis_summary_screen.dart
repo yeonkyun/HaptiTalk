@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'dart:math' as math;
 
 import '../../constants/colors.dart';
 import '../../models/analysis/analysis_result.dart';
@@ -38,68 +39,133 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('분석 결과'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: FutureBuilder<AnalysisResult?>(
-        future: _analysisFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                '오류가 발생했습니다: ${snapshot.error}',
-                style: const TextStyle(color: AppColors.error),
-              ),
-            );
-          } else if (!snapshot.hasData || snapshot.data == null) {
-            return const Center(
-              child: Text('분석 결과를 찾을 수 없습니다.'),
-            );
-          }
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // 분석 결과 헤더
+            _buildAnalysisHeader(),
+            
+            // 스크롤 가능한 콘텐츠
+            Expanded(
+              child: FutureBuilder<AnalysisResult?>(
+                future: _analysisFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (snapshot.hasError) {
+                    return Center(
+                      child: Text(
+                        '오류가 발생했습니다: ${snapshot.error}',
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    );
+                  } else if (!snapshot.hasData || snapshot.data == null) {
+                    return const Center(
+                      child: Text('분석 결과를 찾을 수 없습니다.'),
+                    );
+                  }
 
-          final analysis = snapshot.data!;
-          return _buildAnalysisContent(analysis);
-        },
+                  final analysis = snapshot.data!;
+                  return _buildAnalysisContent(analysis);
+                },
+              ),
+            ),
+          ],
+        ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1, // 분석 탭 선택
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: '홈',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assessment),
-            label: '분석',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: '기록',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: '프로필',
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+
+
+  Widget _buildAnalysisHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      child: Text(
+        '분석 결과',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Color(0xFF212121),
+          fontSize: 18,
+          fontFamily: 'Roboto',
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      height: 80,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x0C000000),
+            blurRadius: 10,
+            offset: Offset(0, -2),
           ),
         ],
-        onTap: (index) {
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildBottomNavItem(Icons.home, '홈', false),
+          _buildBottomNavItem(Icons.assessment, '분석', true),
+          _buildBottomNavItem(Icons.history, '기록', false),
+          _buildBottomNavItem(Icons.person, '프로필', false),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNavItem(IconData icon, String label, bool isSelected) {
+    return GestureDetector(
+      onTap: () {
+        if (!isSelected) {
           // 메인 탭 화면으로 돌아가고 해당 탭 선택
           Navigator.pushNamedAndRemoveUntil(
             context,
             '/main',
             (route) => false,
-            arguments: {'initialTabIndex': index},
+            arguments: {'initialTabIndex': _getTabIndex(label)},
           );
-        },
+        }
+      },
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            size: 24,
+            color: isSelected ? const Color(0xFF3F51B5) : const Color(0xFFBDBDBD),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? const Color(0xFF3F51B5) : const Color(0xFFBDBDBD),
+              fontSize: 12,
+              fontFamily: 'Roboto',
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  int _getTabIndex(String label) {
+    switch (label) {
+      case '홈': return 0;
+      case '분석': return 1;
+      case '기록': return 2;
+      case '프로필': return 3;
+      default: return 0;
+    }
   }
 
   Widget _buildAnalysisContent(AnalysisResult analysis) {
@@ -138,21 +204,20 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         print('⚠️ 세션 정보 조회 실패, 기본값 사용: $error');
         
         // 세션 타입 추론 (분석 결과에서 유추)
-        SessionMode inferredMode = SessionMode.dating; // 기본값
+        SessionMode inferredMode = SessionMode.business; // 기본값을 비즈니스(발표)로 변경
         if (widget.sessionType != null) {
           switch (widget.sessionType!.toLowerCase()) {
             case 'presentation':
             case '발표':
-              inferredMode = SessionMode.dating; // presentation이 없으면 기본값 사용
+              inferredMode = SessionMode.business; // 발표는 비즈니스 모드로 매핑
               break;
             case 'interview':
             case '면접':
               inferredMode = SessionMode.interview;
               break;
-            case 'dating':
-            case '소개팅':
+
             default:
-              inferredMode = SessionMode.dating;
+              inferredMode = SessionMode.business; // 기본값을 비즈니스(발표)로 변경
               break;
           }
         }
@@ -176,78 +241,112 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
             : (widget.sessionType != null ? '${widget.sessionType!} 세션' : '세션');
         final sessionMode = snapshot.hasData 
             ? snapshot.data!.mode 
-            : SessionMode.dating;
+            : SessionMode.business;
 
         // 실제 분석 결과에서 duration 가져오기
         final totalSeconds = analysis.metrics.totalDuration.toInt();
-        final minutes = totalSeconds ~/ 60;
+        final hours = totalSeconds ~/ 3600;
+        final minutes = (totalSeconds % 3600) ~/ 60;
         final seconds = totalSeconds % 60;
-        final sessionDuration = '${minutes}분 ${seconds}초';
+        final sessionDuration = hours > 0 
+            ? '${hours}시간 ${minutes}분 ${seconds}초' 
+            : '${minutes}분 ${seconds}초';
 
-        return Card(
-          elevation: 2,
-          margin: const EdgeInsets.all(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      _getSessionIcon(sessionMode),
-                      color: AppColors.primary,
-                      size: 24,
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          sessionName,
+                          style: const TextStyle(
+                            color: Color(0xFF212121),
+                            fontSize: 22,
+                            fontFamily: 'Roboto',
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _formatSessionDate(snapshot.hasData ? snapshot.data!.createdAt : DateTime.now()),
+                          style: const TextStyle(
+                            color: Color(0xFF757575),
+                            fontSize: 14,
+                            fontFamily: 'Roboto',
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            sessionName,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _getSessionModeText(sessionMode),
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: ShapeDecoration(
+                      color: const Color(0xFF3F51B5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(100),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      color: Colors.grey[600],
-                      size: 16,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _getSessionIcon(sessionMode),
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _getSessionModeText(sessionMode),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontFamily: 'Roboto',
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '세션 시간: $sessionDuration',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                      ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.access_time,
+                    size: 18,
+                    color: Color(0xFF757575),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '총 ${_getSessionModeText(sessionMode)} 시간: $sessionDuration',
+                    style: const TextStyle(
+                      color: Color(0xFF757575),
+                      fontSize: 14,
+                      fontFamily: 'Roboto',
+                      fontWeight: FontWeight.w400,
                     ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
+            ],
           ),
         );
       },
     );
+  }
+
+  String _formatSessionDate(DateTime date) {
+    return '${date.year}년 ${date.month}월 ${date.day}일 오후 ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _buildInfoItem(IconData icon, String text) {
@@ -267,39 +366,57 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   }
 
   Widget _buildTimelineChartSection(AnalysisResult analysis) {
-    return Card(
-      elevation: 0,
-      color: Colors.grey[100],
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.timeline, size: 18, color: AppColors.text),
-                const SizedBox(width: 8),
-                Text(
-                  _getChartTitle(analysis.category),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.text,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              height: 160,
-              padding: const EdgeInsets.only(right: 16),
-              child: _buildTimelineChart(analysis),
-            ),
-          ],
+    return Container(
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
+      decoration: ShapeDecoration(
+        color: const Color(0xFFF5F5F5),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.trending_up,
+                size: 18,
+                color: Color(0xFF3F51B5),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _getChartTitle(analysis.category),
+                style: const TextStyle(
+                  color: Color(0xFF212121),
+                  fontSize: 16,
+                  fontFamily: 'Roboto',
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Container(
+            height: 160,
+            child: _buildTimelineChart(analysis),
+          ),
+          const SizedBox(height: 10),
+          // 시간 라벨들
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: _generateTimeLabels(analysis).map((time) => Text(
+              time,
+              style: const TextStyle(
+                color: Color(0xFF9E9E9E),
+                fontSize: 11,
+                fontFamily: 'Roboto',
+                fontWeight: FontWeight.w400,
+              ),
+            )).toList(),
+          ),
+        ],
       ),
     );
   }
@@ -330,81 +447,106 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       values = _generateEmotionData(analysis);
     }
 
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: 100,
-        minY: 0,
-        barTouchData: BarTouchData(enabled: false),
-        titlesData: FlTitlesData(
-          show: true,
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) {
-                final totalMinutes = (analysis.metrics.totalDuration / 60).ceil();
-                final interval = (totalMinutes / 6).ceil();
-                const labels = ['시작', '25%', '50%', '75%', '완료'];
-                
-                if (value.toInt() < 0 || value.toInt() >= labels.length) {
-                  return const SizedBox.shrink();
-                }
-                return Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    labels[value.toInt()],
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 11,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          topTitles: AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          rightTitles: AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-        ),
+    // LineChart 데이터 포인트 생성
+    final spots = values.asMap().entries.map((entry) {
+      return FlSpot(entry.key.toDouble(), entry.value);
+    }).toList();
+
+    return LineChart(
+      LineChartData(
+        lineTouchData: LineTouchData(enabled: false),
         gridData: FlGridData(
           show: true,
           horizontalInterval: 25,
-          getDrawingHorizontalLine: (value) {
-            return FlLine(
-              color: Colors.grey.withOpacity(0.1),
-              strokeWidth: 1,
-            );
-          },
-          drawVerticalLine: false,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: Colors.black.withOpacity(0.1),
+            strokeWidth: 1,
+          ),
+          getDrawingVerticalLine: (value) => const FlLine(
+            color: Colors.transparent,
+          ),
         ),
+        titlesData: const FlTitlesData(show: false),
         borderData: FlBorderData(show: false),
-        barGroups: values.asMap().entries.map((entry) {
-          return BarChartGroupData(
-            x: entry.key,
-            barRods: [
-              BarChartRodData(
-                toY: entry.value,
-                color: AppColors.primary,
-                width: 8,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ],
-          );
-        }).toList(),
+        minX: 0,
+        maxX: (values.length - 1).toDouble(),
+        minY: 0,
+        maxY: 100,
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: const Color(0xFF3F51B5),
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) {
+                return FlDotCirclePainter(
+                  radius: 4,
+                  color: const Color(0xFF3F51B5),
+                  strokeWidth: 0,
+                );
+              },
+            ),
+            belowBarData: BarAreaData(show: false),
+          ),
+        ],
       ),
     );
   }
 
+  List<String> _generateTimeLabels(AnalysisResult analysis) {
+    List<String> labels = [];
+    
+    final totalSeconds = analysis.metrics.totalDuration.toInt();
+    
+    // 실제 데이터 포인트 수 확인
+    int dataPoints;
+    if (analysis.emotionData.isNotEmpty) {
+      // 실제 데이터가 있으면 그 수만큼
+      dataPoints = analysis.emotionData.length;
+    } else {
+      // 시뮬레이션 데이터인 경우 5개 포인트
+      dataPoints = 5;
+    }
+    
+    // 30초 간격으로 라벨 생성
+    for (int i = 0; i < dataPoints; i++) {
+      int timeInSeconds;
+      
+      if (i == dataPoints - 1) {
+        // 마지막 포인트는 실제 세션 종료 시간
+        timeInSeconds = totalSeconds;
+      } else {
+        // 나머지는 30초 간격
+        timeInSeconds = i * 30;
+      }
+      
+      final minutes = timeInSeconds ~/ 60;
+      final seconds = timeInSeconds % 60;
+      labels.add('${minutes}:${seconds.toString().padLeft(2, '0')}');
+    }
+    
+    return labels;
+  }
+
   List<double> _generatePresentationData(AnalysisResult analysis) {
-    // 발표 시나리오: 자신감과 설득력의 평균을 시간대별로 시뮬레이션
+    // 🔥 실제 detailedTimeline 데이터가 있으면 30초 간격 그대로 사용
+    if (analysis.emotionData.isNotEmpty) {
+      print('✅ 발표 그래프: 실제 30초 간격 데이터 사용 (${analysis.emotionData.length}개 포인트)');
+      
+      // 30초 간격 데이터를 그대로 사용 (압축하지 않음)
+      List<double> presentationValues = analysis.emotionData.map((e) => e.value).toList();
+      
+      print('📊 발표 그래프 30초 간격: ${presentationValues.take(5).map((v) => v.toStringAsFixed(1)).join(', ')}... (총 ${presentationValues.length}개)');
+      return presentationValues;
+    }
+    
+    // 🔥 폴백: 시뮬레이션 데이터 (실제 데이터 없을 때만)
+    print('⚠️ 발표 그래프: 시뮬레이션 데이터 사용 (실제 데이터 없음)');
     final confidence = analysis.metrics.emotionMetrics.averageLikeability;
-    final persuasion = analysis.metrics.emotionMetrics.averageInterest;
+    final persuasion = _calculatePersuasionLevel(analysis);
     final average = (confidence + persuasion) / 2;
     
     // 발표는 보통 시작할 때 낮고 중간에 높아지는 패턴
@@ -418,6 +560,19 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   }
 
   List<double> _generateInterviewData(AnalysisResult analysis) {
+    // 🔥 실제 detailedTimeline 데이터가 있으면 30초 간격 그대로 사용
+    if (analysis.emotionData.isNotEmpty) {
+      print('✅ 면접 그래프: 실제 30초 간격 데이터 사용 (${analysis.emotionData.length}개 포인트)');
+      
+      // 30초 간격 데이터를 그대로 사용 (압축하지 않음)
+      List<double> interviewValues = analysis.emotionData.map((e) => e.value).toList();
+      
+      print('📊 면접 그래프 30초 간격: ${interviewValues.take(5).map((v) => v.toStringAsFixed(1)).join(', ')}... (총 ${interviewValues.length}개)');
+      return interviewValues;
+    }
+    
+    // 🔥 폴백: 시뮬레이션 데이터 (실제 데이터 없을 때만)
+    print('⚠️ 면접 그래프: 시뮬레이션 데이터 사용 (실제 데이터 없음)');
     // 면접 시나리오: 안정감과 명확성 평균
     final stability = analysis.metrics.speakingMetrics.tonality;
     final clarity = analysis.metrics.speakingMetrics.clarity;
@@ -434,126 +589,271 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   }
 
   List<double> _generateEmotionData(AnalysisResult analysis) {
-    // 소개팅 시나리오: 호감도 기반
-    final likeability = analysis.metrics.emotionMetrics.averageLikeability;
+    // 🔥 실제 detailedTimeline 데이터가 있으면 30초 간격 그대로 사용
+    if (analysis.emotionData.isNotEmpty) {
+      print('✅ 감정 그래프: 실제 30초 간격 데이터 사용 (${analysis.emotionData.length}개 포인트)');
+      
+      // 30초 간격 데이터를 그대로 사용 (압축하지 않음)
+      List<double> emotionValues = analysis.emotionData.map((e) => e.value).toList();
+      
+      print('📊 감정 그래프 30초 간격: ${emotionValues.take(5).map((v) => v.toStringAsFixed(1)).join(', ')}... (총 ${emotionValues.length}개)');
+      return emotionValues;
+    }
     
-    // 소개팅은 점진적으로 상승하는 패턴
+    // 🔥 폴백: 시뮬레이션 데이터 (실제 데이터 없을 때만)
+    print('⚠️ 감정 그래프: 시뮬레이션 데이터 사용 (실제 데이터 없음)');
+    // 기본값으로 발표 데이터 사용
+    final confidence = _calculateSpeakingConfidence(analysis);
+    final persuasion = _calculatePersuasionLevel(analysis);
+    final average = (confidence + persuasion) / 2;
+    
+    // 발표는 보통 시작할 때 낮고 중간에 높아지는 패턴
     return [
-      likeability * 0.8,   // 시작
-      likeability * 0.9,   // 25%
-      likeability * 1.0,   // 50%
-      likeability * 1.1,   // 75%
-      likeability * 1.05,  // 완료
+      average * 0.7,   // 시작: 조금 낮음
+      average * 0.85,  // 25%: 점점 상승
+      average * 1.1,   // 50%: 최고점
+      average * 1.05,  // 75%: 약간 하락
+      average * 0.95,  // 완료: 마무리
     ];
   }
 
   Widget _buildMetricsSection(AnalysisResult analysis) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '주요 지표',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '주요 지표',
+            style: TextStyle(
+              color: Color(0xFF212121),
+              fontSize: 18,
+              fontFamily: 'Roboto',
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        GridView.count(
-          crossAxisCount: 2,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 1.2,
-          children: _buildMetricCards(analysis),
-        ),
-      ],
+          const SizedBox(height: 20),
+          GridView.count(
+            crossAxisCount: 2,
+            crossAxisSpacing: 15,
+            mainAxisSpacing: 15,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            childAspectRatio: 1.23,
+            children: _buildMetricCards(analysis),
+          ),
+        ],
+      ),
     );
   }
 
   List<Widget> _buildMetricCards(AnalysisResult analysis) {
     // 시나리오별 지표 설정
     if (analysis.category == '발표') {
+      print('📊 발표 지표 계산 시작...');
+      
+      // 🔥 백엔드에서 이미 계산된 값 우선 사용
+      final rawApiData = analysis.rawApiData;
+      if (rawApiData.isNotEmpty && rawApiData['keyMetrics'] != null) {
+        final keyMetrics = rawApiData['keyMetrics'] as Map<String, dynamic>;
+        final presentationMetrics = keyMetrics['presentation'] as Map<String, dynamic>?;
+        final speakingMetrics = keyMetrics['speaking'] as Map<String, dynamic>?;
+        
+        if (presentationMetrics != null && speakingMetrics != null) {
+          // ✅ 백엔드에서 계산된 정확한 값 사용
+          final confidence = (presentationMetrics['confidence'] ?? 50).toDouble(); // 하드코딩 기본값 낮춤
+          final persuasion = (presentationMetrics['persuasion'] ?? 55).toDouble(); // 하드코딩 기본값 낮춤
+          final clarity = (presentationMetrics['clarity'] ?? 55).toDouble(); // 하드코딩 기본값 낮춤
+          final speechRate = (speakingMetrics['speed'] ?? 120).toDouble();
+          
+          // 🔥 실제 계산값 vs 기본값 구분 로깅
+          final isConfidenceCalculated = presentationMetrics['confidence'] != null;
+          final isPersuasionCalculated = presentationMetrics['persuasion'] != null;
+          final isClarityCalculated = presentationMetrics['clarity'] != null;
+          
+          print('📊 발표 지표 (백엔드 계산값): 자신감=${confidence.round()}%${isConfidenceCalculated ? "(계산됨)" : "(기본값)"}, 설득력=${persuasion.round()}%${isPersuasionCalculated ? "(계산됨)" : "(기본값)"}, 명확성=${clarity.round()}%${isClarityCalculated ? "(계산됨)" : "(기본값)"}, 속도=${speechRate.toInt()}WPM');
+          
+          return [
+            _buildMetricCard(
+              '자신감',
+              '${confidence.round()}%',
+              Icons.psychology,
+              _getConfidenceDescription(confidence),
+            ),
+            _buildMetricCard(
+              '말하기 속도',
+              '${speechRate.toInt()}WPM',
+              Icons.speed,
+              _getSpeedDescription(speechRate),
+            ),
+            _buildMetricCard(
+              '설득력',
+              '${persuasion.round()}%',
+              Icons.trending_up,
+              _getPersuasionDescription(persuasion),
+            ),
+            _buildMetricCard(
+              '명확성',
+              '${clarity.round()}%',
+              Icons.radio_button_checked,
+              _getClarityDescription(clarity),
+            ),
+          ];
+        }
+      }
+      
+      // 🔥 폴백: 기존 로직 (백엔드 데이터 없을 때만)
+      print('⚠️ 백엔드 keyMetrics 없음, 폴백 계산 사용');
+      final speechRate = _getSafeMetricValue(analysis.metrics.speakingMetrics.speechRate, 120.0);
+      final clarity = _getSafeMetricValue(analysis.metrics.speakingMetrics.clarity, 60.0); // 75→60 조정
+      final confidence = _calculateSpeakingConfidence(analysis);
+      final persuasion = _calculatePersuasionLevel(analysis);
+      
+      print('📊 발표 지표 최종값(폴백): 자신감=${confidence.round()}%(계산), 속도=${speechRate.toInt()}WPM, 설득력=${persuasion.round()}%(계산), 명확성=${clarity.toInt()}%(폴백)');
+      
       return [
         _buildMetricCard(
           '자신감',
-          '${analysis.metrics.emotionMetrics.averageLikeability.toInt()}%',
+          '${confidence.round()}%',
           Icons.psychology,
-          _getConfidenceDescription(analysis.metrics.emotionMetrics.averageLikeability),
+          _getConfidenceDescription(confidence),
         ),
         _buildMetricCard(
           '말하기 속도',
-          '${analysis.metrics.speakingMetrics.speechRate.toInt()}WPM',
+          '${speechRate.toInt()}WPM',
           Icons.speed,
-          _getSpeedDescription(analysis.metrics.speakingMetrics.speechRate),
+          _getSpeedDescription(speechRate),
         ),
         _buildMetricCard(
           '설득력',
-          '${analysis.metrics.emotionMetrics.averageInterest.toInt()}%',
+          '${persuasion.round()}%',
           Icons.trending_up,
-          _getPersuasionDescription(analysis.metrics.emotionMetrics.averageInterest),
+          _getPersuasionDescription(persuasion),
         ),
         _buildMetricCard(
           '명확성',
-          '${analysis.metrics.speakingMetrics.clarity.toInt()}%',
+          '${clarity.toInt()}%',
           Icons.radio_button_checked,
-          _getClarityDescription(analysis.metrics.speakingMetrics.clarity),
+          _getClarityDescription(clarity),
         ),
       ];
     } else if (analysis.category == '면접') {
+      print('📊 면접 지표 계산 시작...');
+      
+      // 🔥 백엔드에서 이미 계산된 값 우선 사용 (면접용)
+      final rawApiData = analysis.rawApiData;
+      if (rawApiData.isNotEmpty && rawApiData['keyMetrics'] != null) {
+        final keyMetrics = rawApiData['keyMetrics'] as Map<String, dynamic>;
+        final interviewMetrics = keyMetrics['interview'] as Map<String, dynamic>?;
+        final speakingMetrics = keyMetrics['speaking'] as Map<String, dynamic>?;
+        
+        if (interviewMetrics != null && speakingMetrics != null) {
+          final confidence = (interviewMetrics['confidence'] ?? 50).toDouble(); // 60→50 조정
+          final stability = (interviewMetrics['stability'] ?? 55).toDouble(); // 하드코딩 기본값 낮춤
+          final clarity = (interviewMetrics['clarity'] ?? 55).toDouble(); // 60→55 조정
+          final speechRate = (speakingMetrics['speed'] ?? 120).toDouble();
+          
+          // 🔥 실제 계산값 vs 기본값 구분 로깅
+          final isConfidenceCalculated = interviewMetrics['confidence'] != null;
+          final isStabilityCalculated = interviewMetrics['stability'] != null;
+          final isClarityCalculated = interviewMetrics['clarity'] != null;
+          
+          print('📊 면접 지표 (백엔드 계산값): 자신감=${confidence.round()}%${isConfidenceCalculated ? "(계산됨)" : "(기본값)"}, 안정감=${stability.round()}%${isStabilityCalculated ? "(계산됨)" : "(기본값)"}, 명확성=${clarity.round()}%${isClarityCalculated ? "(계산됨)" : "(기본값)"}, 속도=${speechRate.toInt()}WPM');
+          
+          return [
+            _buildMetricCard(
+              '자신감',
+              '${confidence.round()}%',
+              Icons.psychology,
+              _getConfidenceDescription(confidence),
+            ),
+            _buildMetricCard(
+              '말하기 속도',
+              '${speechRate.toInt()}WPM',
+              Icons.speed,
+              _getSpeedDescription(speechRate),
+            ),
+            _buildMetricCard(
+              '명확성',
+              '${clarity.round()}%',
+              Icons.radio_button_checked,
+              _getClarityDescription(clarity),
+            ),
+            _buildMetricCard(
+              '안정감',
+              '${stability.round()}%',
+              Icons.sentiment_satisfied_alt,
+              _getStabilityDescription(stability),
+            ),
+          ];
+        }
+      }
+      
+      // 폴백: 기존 로직
+      final speechRate = _getSafeMetricValue(analysis.metrics.speakingMetrics.speechRate, 120.0);
+      final clarity = _getSafeMetricValue(analysis.metrics.speakingMetrics.clarity, 60.0); // 75→60 조정
+      final tonality = _getSafeMetricValue(analysis.metrics.speakingMetrics.tonality, 65.0); // 70→65 조정
+      final confidence = _calculateSpeakingConfidence(analysis);
+      
+      print('📊 면접 지표 최종값(폴백): 자신감=${confidence.round()}%(계산), 속도=${speechRate.toInt()}WPM, 명확성=${clarity.toInt()}%(폴백), 안정감=${tonality.toInt()}%(폴백)');
+      
       return [
         _buildMetricCard(
           '자신감',
-          '${analysis.metrics.emotionMetrics.averageLikeability.toInt()}%',
+          '${confidence.round()}%',
           Icons.psychology,
-          _getConfidenceDescription(analysis.metrics.emotionMetrics.averageLikeability),
+          _getConfidenceDescription(confidence),
         ),
         _buildMetricCard(
           '말하기 속도',
-          '${analysis.metrics.speakingMetrics.speechRate.toInt()}WPM',
+          '${speechRate.toInt()}WPM',
           Icons.speed,
-          _getSpeedDescription(analysis.metrics.speakingMetrics.speechRate),
+          _getSpeedDescription(speechRate),
         ),
         _buildMetricCard(
           '명확성',
-          '${analysis.metrics.speakingMetrics.clarity.toInt()}%',
+          '${clarity.toInt()}%',
           Icons.radio_button_checked,
-          _getClarityDescription(analysis.metrics.speakingMetrics.clarity),
+          _getClarityDescription(clarity),
         ),
         _buildMetricCard(
           '안정감',
-          '${analysis.metrics.speakingMetrics.tonality.toInt()}%',
+          '${tonality.toInt()}%',
           Icons.sentiment_satisfied_alt,
-          _getStabilityDescription(analysis.metrics.speakingMetrics.tonality),
+          _getStabilityDescription(tonality),
         ),
       ];
     } else {
-      // 소개팅 모드 (기본)
+      // 기본값으로 발표 지표 사용
+      final speechRate = _getSafeMetricValue(analysis.metrics.speakingMetrics.speechRate, 120.0);
+      final clarity = _getSafeMetricValue(analysis.metrics.speakingMetrics.clarity, 75.0);
+      final confidence = _calculateSpeakingConfidence(analysis);
+      final persuasion = _calculatePersuasionLevel(analysis);
+      
       return [
         _buildMetricCard(
+          '자신감',
+          '${confidence.round()}%',
+          Icons.psychology,
+          _getConfidenceDescription(confidence),
+        ),
+        _buildMetricCard(
           '말하기 속도',
-          '${analysis.metrics.speakingMetrics.speechRate.toInt()}WPM',
+          '${speechRate.toInt()}WPM',
           Icons.speed,
-          _getSpeedDescription(analysis.metrics.speakingMetrics.speechRate),
+          _getSpeedDescription(speechRate),
         ),
         _buildMetricCard(
-          '톤 & 억양',
-          '${analysis.metrics.speakingMetrics.tonality.toInt()}%',
-          Icons.graphic_eq,
-          _getTonalityDescription(analysis.metrics.speakingMetrics.tonality),
+          '설득력',
+          '${persuasion.round()}%',
+          Icons.trending_up,
+          _getPersuasionDescription(persuasion),
         ),
         _buildMetricCard(
-          '호감도',
-          '${analysis.metrics.emotionMetrics.averageLikeability.toInt()}%',
-          Icons.favorite,
-          _getLikeabilityDescription(analysis.metrics.emotionMetrics.averageLikeability),
-        ),
-        _buildMetricCard(
-          '경청 지수',
-          '${analysis.metrics.conversationMetrics.listeningScore.toInt()}%',
-          Icons.headset,
-          _getListeningDescription(analysis.metrics.conversationMetrics.listeningScore),
+          '명확성',
+          '${clarity.toInt()}%',
+          Icons.radio_button_checked,
+          _getClarityDescription(clarity),
         ),
       ];
     }
@@ -561,50 +861,57 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
 
   Widget _buildMetricCard(
       String title, String value, IconData icon, String description) {
-    return Card(
-      elevation: 0,
-      color: Colors.grey[100],
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: Colors.grey[700],
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                  ),
-                ),
-                Icon(icon, size: 16, color: Colors.grey[700]),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.bold,
-                fontSize: 24,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              description,
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12,
-              ),
-            ),
-          ],
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: ShapeDecoration(
+        color: const Color(0xFFF5F5F5),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Color(0xFF424242),
+                  fontSize: 14,
+                  fontFamily: 'Roboto',
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Icon(
+                icon,
+                size: 16,
+                color: const Color(0xFF3F51B5),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Color(0xFF3F51B5),
+              fontSize: 24,
+              fontFamily: 'Roboto',
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            description,
+            style: const TextStyle(
+              color: Color(0xFF757575),
+              fontSize: 12,
+              fontFamily: 'Roboto',
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -614,106 +921,110 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     final myRatio = contributionRatio.toInt();
     final otherRatio = (100 - contributionRatio).toInt();
     
-    return Card(
-      elevation: 0,
-      color: Colors.grey[100],
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Row(
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-                border: Border.all(
-                  color: Colors.grey[300]!,
-                  width: 1,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  '$myRatio%',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        '나',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '$myRatio%',
-                        style: TextStyle(
-                          color: Colors.grey[800],
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        '상대방',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '$otherRatio%',
-                        style: TextStyle(
-                          color: Colors.grey[800],
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      padding: const EdgeInsets.all(20),
+      decoration: ShapeDecoration(
+        color: const Color(0xFFF5F5F5),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            padding: const EdgeInsets.all(20),
+            decoration: const ShapeDecoration(
+              color: Colors.white,
+              shape: CircleBorder(),
+            ),
+            child: Center(
+              child: Text(
+                '$myRatio%',
+                style: const TextStyle(
+                  color: Color(0xFF3F51B5),
+                  fontSize: 14,
+                  fontFamily: 'Roboto',
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: ShapeDecoration(
+                        color: const Color(0xFF3F51B5),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+                      ),
+                    ),
+                    const Text(
+                      '나',
+                      style: TextStyle(
+                        color: Color(0xFF757575),
+                        fontSize: 13,
+                        fontFamily: 'Roboto',
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '$myRatio%',
+                      style: const TextStyle(
+                        color: Color(0xFF424242),
+                        fontSize: 14,
+                        fontFamily: 'Roboto',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: ShapeDecoration(
+                        color: const Color(0xFFE0E0E0),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+                      ),
+                    ),
+                    const Text(
+                      '상대방',
+                      style: TextStyle(
+                        color: Color(0xFF757575),
+                        fontSize: 13,
+                        fontFamily: 'Roboto',
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '$otherRatio%',
+                      style: const TextStyle(
+                        color: Color(0xFF424242),
+                        fontSize: 14,
+                        fontFamily: 'Roboto',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -721,21 +1032,26 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   Widget _buildInsightsSection(AnalysisResult analysis) {
     final insights = _generateInsights(analysis);
     
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '핵심 인사이트',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '핵심 인사이트',
+            style: TextStyle(
+              color: Color(0xFF212121),
+              fontSize: 18,
+              fontFamily: 'Roboto',
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        ...insights.asMap().entries.map((entry) => 
-          _buildInsightItem(entry.key + 1, entry.value)
-        ).toList(),
-      ],
+          const SizedBox(height: 20),
+          ...insights.asMap().entries.map((entry) => 
+            _buildInsightItem(entry.key + 1, entry.value)
+          ).toList(),
+        ],
+      ),
     );
   }
 
@@ -743,9 +1059,98 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     List<String> insights = [];
     
     if (analysis.category == '발표') {
-      // 발표 시나리오 인사이트
-      final confidence = analysis.metrics.emotionMetrics.averageLikeability;
-      final persuasion = analysis.metrics.emotionMetrics.averageInterest;
+      // 발표 시나리오 인사이트 - 백엔드 계산값 우선 사용
+      double confidence, persuasion, speechRate;
+      
+      // 🔥 백엔드 계산값 우선 사용
+      final rawApiData = analysis.rawApiData;
+      if (rawApiData.isNotEmpty && rawApiData['keyMetrics'] != null) {
+        final keyMetrics = rawApiData['keyMetrics'] as Map<String, dynamic>;
+        final presentationMetrics = keyMetrics['presentation'] as Map<String, dynamic>?;
+        final speakingMetrics = keyMetrics['speaking'] as Map<String, dynamic>?;
+        
+        if (presentationMetrics != null && speakingMetrics != null) {
+          confidence = (presentationMetrics['confidence'] ?? 50).toDouble(); // 60→50 조정
+          persuasion = (presentationMetrics['persuasion'] ?? 55).toDouble(); // 70→55 조정
+          speechRate = (speakingMetrics['speed'] ?? 120).toDouble();
+          print('📊 인사이트: 백엔드 계산값 사용 - confidence=${confidence}, persuasion=${persuasion}, speed=${speechRate}');
+        } else {
+          // 폴백
+          confidence = _calculateSpeakingConfidence(analysis);
+          persuasion = _calculatePersuasionLevel(analysis);
+          speechRate = analysis.metrics.speakingMetrics.speechRate;
+          print('📊 인사이트: 폴백 계산값 사용');
+        }
+      } else {
+        // 폴백
+        confidence = _calculateSpeakingConfidence(analysis);
+        persuasion = _calculatePersuasionLevel(analysis);
+        speechRate = analysis.metrics.speakingMetrics.speechRate;
+        print('📊 인사이트: 폴백 계산값 사용');
+      }
+      
+      if (confidence >= 70) {
+        insights.add('발표 중 자신감이 높아 청중들의 주의를 잘 끌었습니다.');
+      } else {
+        insights.add('발표 중 자신감을 더 보여주면 더 설득력 있는 발표가 될 것입니다.');
+      }
+      
+      if (persuasion >= 70) {
+        insights.add('논리적이고 설득력 있는 내용 구성으로 메시지가 잘 전달되었습니다.');
+      } else {
+        insights.add('핵심 메시지를 더 명확하게 강조하면 설득력을 높일 수 있습니다.');
+      }
+      
+      if (speechRate >= 120 && speechRate <= 150) {
+        insights.add('적절한 말하기 속도로 청중이 이해하기 쉬웠을 것입니다.');
+      } else if (speechRate > 150) {
+        insights.add('말하기 속도가 빨라 중요한 내용을 놓칠 가능성이 있습니다.');
+      } else {
+        insights.add('말하기 속도를 조금 빠르게 하면 더 역동적인 발표가 될 것입니다.');
+      }
+      
+    } else if (analysis.category == '면접') {
+      // 면접 시나리오 인사이트 - 백엔드 계산값 우선 사용
+      double confidence, clarity, speechRate;
+      
+      final rawApiData = analysis.rawApiData;
+      if (rawApiData.isNotEmpty && rawApiData['keyMetrics'] != null) {
+        final keyMetrics = rawApiData['keyMetrics'] as Map<String, dynamic>;
+        final interviewMetrics = keyMetrics['interview'] as Map<String, dynamic>?;
+        final speakingMetrics = keyMetrics['speaking'] as Map<String, dynamic>?;
+        
+        if (interviewMetrics != null && speakingMetrics != null) {
+          confidence = (interviewMetrics['confidence'] ?? 50).toDouble(); // 60→50 조정
+          clarity = (interviewMetrics['clarity'] ?? 55).toDouble(); // 60→55 조정
+          speechRate = (speakingMetrics['speed'] ?? 120).toDouble();
+          print('📊 인사이트: 백엔드 계산값 사용 - confidence=${confidence}, clarity=${clarity}');
+        } else {
+          confidence = _calculateSpeakingConfidence(analysis);
+          clarity = analysis.metrics.speakingMetrics.clarity;
+          speechRate = analysis.metrics.speakingMetrics.speechRate;
+        }
+      } else {
+        confidence = _calculateSpeakingConfidence(analysis);
+        clarity = analysis.metrics.speakingMetrics.clarity;
+        speechRate = analysis.metrics.speakingMetrics.speechRate;
+      }
+      
+      if (confidence >= 70) {
+        insights.add('면접에서 자신감 있는 답변으로 좋은 인상을 남겼습니다.');
+      } else {
+        insights.add('면접 답변에서 좀 더 확신을 가지고 말하면 더 좋은 평가를 받을 수 있습니다.');
+      }
+      
+      if (clarity >= 70) {
+        insights.add('명확하고 체계적인 답변으로 의사소통 능력을 잘 보여주었습니다.');
+      } else {
+        insights.add('답변을 더 구조적으로 정리해서 전달하면 명확성을 높일 수 있습니다.');
+      }
+      
+    } else {
+      // 기본값으로 발표 인사이트 사용
+      final confidence = _calculateSpeakingConfidence(analysis);
+      final persuasion = _calculatePersuasionLevel(analysis);
       final speed = analysis.metrics.speakingMetrics.speechRate;
       
       if (confidence >= 70) {
@@ -767,165 +1172,72 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       } else {
         insights.add('말하기 속도를 조금 빠르게 하면 더 역동적인 발표가 될 것입니다.');
       }
-      
-    } else if (analysis.category == '면접') {
-      // 면접 시나리오 인사이트
-      final confidence = analysis.metrics.emotionMetrics.averageLikeability;
-      final clarity = analysis.metrics.speakingMetrics.clarity;
-      final stability = analysis.metrics.speakingMetrics.tonality;
-      
-      if (confidence >= 70) {
-        insights.add('면접관에게 자신감 있는 모습을 잘 보여주었습니다.');
-      } else {
-        insights.add('답변 시 더 확신을 가지고 말하면 좋은 인상을 줄 수 있습니다.');
-      }
-      
-      if (clarity >= 70) {
-        insights.add('질문에 대한 답변이 명확하고 체계적이었습니다.');
-      } else {
-        insights.add('답변을 더 구체적이고 명확하게 하면 더 좋을 것 같습니다.');
-      }
-      
-      if (stability >= 70) {
-        insights.add('안정적인 태도로 면접에 임했습니다.');
-      } else {
-        insights.add('긴장을 줄이고 더 자연스럽게 대화하는 연습이 필요합니다.');
-      }
-      
-    } else {
-      // 소개팅 시나리오 인사이트 (기본)
-      final likeability = analysis.metrics.emotionMetrics.averageLikeability;
-      final interest = analysis.metrics.emotionMetrics.averageInterest;
-      final listening = analysis.metrics.conversationMetrics.listeningScore;
-      
-      if (likeability >= 70) {
-        insights.add('상대방에게 긍정적인 인상을 주는 대화를 나눴습니다.');
-      } else {
-        insights.add('더 친근하고 편안한 분위기로 대화하면 좋을 것 같습니다.');
-      }
-      
-      if (interest >= 70) {
-        insights.add('흥미로운 주제들로 활발한 대화를 이어갔습니다.');
-      } else {
-        insights.add('공통 관심사를 찾아 더 깊이 있는 대화를 나누어보세요.');
-      }
-      
-      if (listening >= 70) {
-        insights.add('상대방의 말을 잘 들어주는 좋은 경청자였습니다.');
-      } else {
-        insights.add('상대방의 이야기에 더 관심을 보이고 반응해주세요.');
-      }
     }
     
     return insights;
-  }
-
-  Widget _buildInsightItem(int number, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 15.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Text(
-                number.toString(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: Colors.grey[800],
-                fontSize: 15,
-                height: 1.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSuggestionsSection(AnalysisResult analysis) {
-    final suggestions = _generateSuggestions(analysis);
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '개선 제안',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: suggestions.asMap().entries.map((entry) {
-              final suggestion = entry.value;
-              return Row(
-                children: [
-                  _buildSuggestionCard(suggestion['title']!, suggestion['content']!),
-                  if (entry.key < suggestions.length - 1) const SizedBox(width: 12),
-                ],
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
   }
 
   List<Map<String, String>> _generateSuggestions(AnalysisResult analysis) {
     List<Map<String, String>> suggestions = [];
     
     if (analysis.category == '발표') {
-      // 발표 시나리오 제안
-      final confidence = analysis.metrics.emotionMetrics.averageLikeability;
-      final speed = analysis.metrics.speakingMetrics.speechRate;
-      final clarity = analysis.metrics.speakingMetrics.clarity;
+      // 발표 시나리오 제안 - 백엔드 계산값 우선 사용
+      double confidence, persuasion;
+      
+      final rawApiData = analysis.rawApiData;
+      if (rawApiData.isNotEmpty && rawApiData['keyMetrics'] != null) {
+        final keyMetrics = rawApiData['keyMetrics'] as Map<String, dynamic>;
+        final presentationMetrics = keyMetrics['presentation'] as Map<String, dynamic>?;
+        
+        if (presentationMetrics != null) {
+          confidence = (presentationMetrics['confidence'] ?? 50).toDouble(); // 60→50 조정
+          persuasion = (presentationMetrics['persuasion'] ?? 55).toDouble(); // 70→55 조정
+          print('📊 제안: 백엔드 계산값 사용 - confidence=${confidence}, persuasion=${persuasion}');
+        } else {
+          confidence = _calculateSpeakingConfidence(analysis);
+          persuasion = _calculatePersuasionLevel(analysis);
+          print('📊 제안: 폴백 계산값 사용');
+        }
+      } else {
+        confidence = _calculateSpeakingConfidence(analysis);
+        persuasion = _calculatePersuasionLevel(analysis);
+        print('📊 제안: 폴백 계산값 사용');
+      }
       
       if (confidence < 60) {
         suggestions.add({
-          'title': '자신감 향상',
-          'content': '발표 전 충분한 연습과 준비를 통해 자신감을 높이세요. 어깨를 펴고 시선을 청중에게 향하는 것도 도움이 됩니다.'
+          'title': '자신감 있는 발표',
+          'content': '더 확신 있는 어조로 말하고, 중요한 포인트에서는 목소리 톤을 강조해보세요. 충분한 준비와 연습이 자신감의 기초입니다.'
         });
       }
       
-      if (speed > 150) {
+      if (persuasion < 60) {
         suggestions.add({
-          'title': '말하기 속도 조절',
-          'content': '중요한 포인트에서는 잠시 멈춤을 활용하고, 전체적으로 조금 더 천천히 말해보세요.'
-        });
-      }
-      
-      if (clarity < 60) {
-        suggestions.add({
-          'title': '발음 명확성',
-          'content': '핵심 단어는 더 명확하게 발음하고, 문장의 끝까지 또렷하게 말하는 연습을 해보세요.'
+          'title': '설득력 향상',
+          'content': '데이터와 구체적인 사례를 활용하여 논리적으로 설명하고, 핵심 메시지를 명확하게 전달해보세요.'
         });
       }
       
     } else if (analysis.category == '면접') {
-      // 면접 시나리오 제안
-      final confidence = analysis.metrics.emotionMetrics.averageLikeability;
-      final clarity = analysis.metrics.speakingMetrics.clarity;
+      // 면접 시나리오 제안 - 백엔드 계산값 우선 사용
+      double confidence, clarity;
+      
+      final rawApiData = analysis.rawApiData;
+      if (rawApiData.isNotEmpty && rawApiData['keyMetrics'] != null) {
+        final keyMetrics = rawApiData['keyMetrics'] as Map<String, dynamic>;
+        final interviewMetrics = keyMetrics['interview'] as Map<String, dynamic>?;
+        
+        if (interviewMetrics != null) {
+          confidence = (interviewMetrics['confidence'] ?? 50).toDouble(); // 60→50 조정
+          clarity = (interviewMetrics['clarity'] ?? 55).toDouble(); // 60→55 조정
+        } else {
+          confidence = _calculateSpeakingConfidence(analysis);
+          clarity = analysis.metrics.speakingMetrics.clarity;
+        }
+      } else {
+        confidence = _calculateSpeakingConfidence(analysis);
+        clarity = analysis.metrics.speakingMetrics.clarity;
+      }
       
       if (confidence < 60) {
         suggestions.add({
@@ -942,46 +1254,135 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       }
       
     } else {
-      // 소개팅 시나리오 제안 (기본)
-      final likeability = analysis.metrics.emotionMetrics.averageLikeability;
-      final listening = analysis.metrics.conversationMetrics.listeningScore;
+      // 기본값으로 발표 제안 사용
+      final confidence = _calculateSpeakingConfidence(analysis);
+      final persuasion = _calculatePersuasionLevel(analysis);
       
-      if (likeability < 60) {
+      if (confidence < 60) {
         suggestions.add({
-          'title': '공감 표현 늘리기',
-          'content': '"정말요?", "그렇군요", "재밌네요" 같은 공감 표현을 더 자주 사용하면 상대방이 더 편안하게 대화할 수 있습니다.'
+          'title': '자신감 있는 발표',
+          'content': '더 확신 있는 어조로 말하고, 중요한 포인트에서는 목소리 톤을 강조해보세요. 충분한 준비와 연습이 자신감의 기초입니다.'
         });
       }
       
-      if (listening < 60) {
+      if (persuasion < 60) {
         suggestions.add({
-          'title': '적극적 경청',
-          'content': '상대방의 말이 끝날 때까지 기다린 후 관련된 질문을 이어가면 더 깊이 있는 대화를 나눌 수 있습니다.'
+          'title': '설득력 향상',
+          'content': '데이터와 구체적인 사례를 활용하여 논리적으로 설명하고, 핵심 메시지를 명확하게 전달해보세요.'
         });
       }
     }
     
-    // 기본 제안 (모든 시나리오 공통)
-    if (suggestions.isEmpty) {
+    // 일반적인 제안들도 추가
+    if (suggestions.length < 3) {
       suggestions.add({
-        'title': '자연스러운 대화',
-        'content': '현재 수준을 잘 유지하면서 더 자연스럽고 편안한 대화를 이어가세요.'
+        'title': '효과적인 소통',
+        'content': '상대방의 반응을 살피며 말하고, 중요한 내용은 반복해서 강조하는 것이 좋습니다.'
+      });
+    }
+    
+    if (suggestions.length < 3) {
+      suggestions.add({
+        'title': '지속적인 연습',
+        'content': '꾸준한 발표 연습과 피드백을 통해 더 나은 커뮤니케이션 스킬을 기를 수 있습니다.'
       });
     }
     
     return suggestions;
   }
 
+  Widget _buildInsightItem(int number, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 15.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            margin: const EdgeInsets.only(right: 15),
+            decoration: ShapeDecoration(
+              color: const Color(0xFF3F51B5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Center(
+              child: Text(
+                number.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontFamily: 'Roboto',
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: Color(0xFF424242),
+                fontSize: 15,
+                fontFamily: 'Roboto',
+                fontWeight: FontWeight.w400,
+                height: 1.50,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuggestionsSection(AnalysisResult analysis) {
+    final suggestions = _generateSuggestions(analysis);
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '개선 제안',
+            style: TextStyle(
+              color: Color(0xFF212121),
+              fontSize: 18,
+              fontFamily: 'Roboto',
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            height: 124,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: suggestions.asMap().entries.map((entry) {
+                final suggestion = entry.value;
+                return Row(
+                  children: [
+                    _buildSuggestionCard(suggestion['title']!, suggestion['content']!),
+                    if (entry.key < suggestions.length - 1) const SizedBox(width: 15),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSuggestionCard(String title, String content) {
     return Container(
       width: 250,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.primary,
-          width: 1,
+      padding: const EdgeInsets.all(19),
+      decoration: ShapeDecoration(
+        color: const Color(0xFFF5F5F5),
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(width: 4, color: Color(0xFF3F51B5)),
+          borderRadius: BorderRadius.circular(16),
         ),
       ),
       child: Column(
@@ -989,19 +1390,24 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         children: [
           Text(
             title,
-            style: TextStyle(
-              color: AppColors.text,
+            style: const TextStyle(
+              color: Color(0xFF212121),
               fontSize: 16,
+              fontFamily: 'Roboto',
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 10),
-          Text(
-            content,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-              height: 1.5,
+          Expanded(
+            child: Text(
+              content,
+              style: const TextStyle(
+                color: Color(0xFF616161),
+                fontSize: 14,
+                fontFamily: 'Roboto',
+                fontWeight: FontWeight.w400,
+                height: 1.50,
+              ),
             ),
           ),
         ],
@@ -1010,123 +1416,134 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   }
 
   Widget _buildActionButtonsSection() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          child: ElevatedButton(
-            onPressed: () {
-              // 🔥 전체 보고서 보기 기능 구현 - DetailedReportScreen으로 이동
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => DetailedReportScreen(
-                    sessionId: widget.sessionId,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              height: 72,
+              decoration: ShapeDecoration(
+                color: const Color(0xFF3F51B5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    // 🔥 전체 보고서 보기 기능 구현 - DetailedReportScreen으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DetailedReportScreen(
+                          sessionId: widget.sessionId,
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.description,
+                          size: 20,
+                          color: Colors.white,
+                        ),
+                        SizedBox(width: 8),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '전체 보고서',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontFamily: 'Roboto',
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              '보기',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontFamily: 'Roboto',
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              textStyle: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
               ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.analytics,
-                  size: 20,
-                  color: Colors.white,
-                ),
-                const SizedBox(width: 8),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Text(
-                      '전체 보고서',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      '보기',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ),
           ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: () {
-              // 내보내기 기능 구현
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.grey[100],
-              foregroundColor: Colors.grey[800],
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              textStyle: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.share,
-                  size: 20,
-                  color: Colors.grey[800],
+          const SizedBox(width: 15),
+          Expanded(
+            child: Container(
+              height: 72,
+              decoration: ShapeDecoration(
+                color: const Color(0xFFF5F5F5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  '내보내기',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    // 홈으로 이동
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/main',
+                      (route) => false,
+                      arguments: {'initialTabIndex': 0}, // 홈 탭으로 이동
+                    );
+                  },
+                  child: const Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.home, size: 20, color: Color(0xFF424242)),
+                        SizedBox(width: 8),
+                        Text(
+                          '홈으로 이동',
+                          style: TextStyle(
+                            color: Color(0xFF424242),
+                            fontSize: 16,
+                            fontFamily: 'Roboto',
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   String _getSessionModeText(SessionMode mode) {
     switch (mode) {
-      case SessionMode.dating:
-        return '소개팅';
       case SessionMode.interview:
         return '면접';
       case SessionMode.business:
-        return '비즈니스';
+        return '발표';
       case SessionMode.coaching:
         return '코칭';
       default:
-        return '기타';
+        return '발표';
     }
   }
 
@@ -1136,8 +1553,6 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
 
   IconData _getSessionIcon(SessionMode mode) {
     switch (mode) {
-      case SessionMode.dating:
-        return Icons.favorite;
       case SessionMode.interview:
         return Icons.headset;
       case SessionMode.business:
@@ -1145,7 +1560,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       case SessionMode.coaching:
         return Icons.school;
       default:
-        return Icons.help;
+        return Icons.business;
     }
   }
 
@@ -1205,4 +1620,82 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
     if (listening >= 40) return '보통의 경청';
     return '경청 능력 향상 필요';
   }
+
+  double _calculatePersuasionLevel(AnalysisResult analysis) {
+    // 🔥 발표에서 설득력 = 톤(억양) + 명확성 조합 (말하기 패턴 탭과 동일)
+    final tonality = analysis.metrics.speakingMetrics.tonality;
+    final clarity = analysis.metrics.speakingMetrics.clarity;
+    
+    // 🔧 값이 0-1 범위인지 0-100 범위인지 확인하여 정규화
+    final normalizedTonality = tonality > 1 ? tonality : tonality * 100;
+    final normalizedClarity = clarity > 1 ? clarity : clarity * 100;
+    
+    // 발표 설득력 = 톤(50%) + 명확성(50%)
+    final persuasionScore = (normalizedTonality * 0.5 + normalizedClarity * 0.5);
+    
+    print('📊 분석결과 탭 설득력: 말하기 기반 계산 (${persuasionScore.toStringAsFixed(1)}%) - tonality=$normalizedTonality, clarity=$normalizedClarity');
+    return persuasionScore;
+  }
+
+  // 안전한 메트릭 값 추출 헬퍼 함수
+  double _getSafeMetricValue(double value, double defaultValue) {
+    if (value.isNaN || value.isInfinite || value <= 0) {
+      print('📊 메트릭 값 보정: ${value} → ${defaultValue} (기본값 적용)');
+      return defaultValue;
+    }
+    return value;
+  }
+
+  double _calculateSpeakingConfidence(AnalysisResult analysis) {
+    print('🔍 자신감 계산 시작...');
+    print('🔍 rawApiData 존재: ${analysis.rawApiData.isNotEmpty}');
+    print('🔍 emotionData 개수: ${analysis.emotionData.length}');
+    print('🔍 metrics 데이터: tonality=${analysis.metrics.speakingMetrics.tonality}, clarity=${analysis.metrics.speakingMetrics.clarity}');
+    
+    // 1. 실제 API 데이터에서 confidence 추출 시도
+    final rawApiData = analysis.rawApiData;
+    if (rawApiData.isNotEmpty && rawApiData['detailedTimeline'] != null) {
+      final detailedTimeline = rawApiData['detailedTimeline'] as List;
+      if (detailedTimeline.isNotEmpty) {
+        final confidenceValues = detailedTimeline
+            .map((point) => ((point['confidence'] ?? 0.6) as num).toDouble())
+            .where((conf) => conf > 0)
+            .toList();
+        
+        if (confidenceValues.isNotEmpty) {
+          final averageConfidence = confidenceValues.reduce((a, b) => a + b) / confidenceValues.length;
+          final result = (averageConfidence * 100).clamp(20.0, 95.0);
+          print('📊 자신감: timeline confidence 평균 (${result.toStringAsFixed(1)}%) - ${confidenceValues.length}개 포인트');
+          return result;
+        }
+      }
+    }
+    
+    // 2. emotionData의 평균값 사용
+    if (analysis.emotionData.isNotEmpty) {
+      final average = analysis.emotionData.map((e) => e.value).reduce((a, b) => a + b) / analysis.emotionData.length;
+      print('📊 자신감: emotionData 평균 (${average.toStringAsFixed(1)}%) - ${analysis.emotionData.length}개 포인트');
+      return average;
+    }
+    
+    // 3. 말하기 메트릭을 기반으로 자신감 계산
+    final tonality = analysis.metrics.speakingMetrics.tonality;
+    final clarity = analysis.metrics.speakingMetrics.clarity;
+    
+    // 값이 0-1 범위인지 0-100 범위인지 확인하여 정규화
+    final normalizedTonality = tonality > 1 ? tonality : tonality * 100;
+    final normalizedClarity = clarity > 1 ? clarity : clarity * 100;
+    
+    if (normalizedTonality > 0 || normalizedClarity > 0) {
+      // 톤과 명확성을 기반으로 자신감 계산
+      final confidenceScore = (normalizedTonality * 0.6 + normalizedClarity * 0.4).clamp(20.0, 95.0);
+      print('📊 자신감: 말하기 메트릭 기반 (${confidenceScore.toStringAsFixed(1)}%) - tonality=$normalizedTonality, clarity=$normalizedClarity');
+      return confidenceScore;
+    }
+    
+    // 4. 최종 백업: 기본값
+    print('📊 자신감: 기본값 사용 (55.0%) - 모든 데이터 소스 실패');
+    return 55.0; // 65.0→55.0 조정
+  }
 }
+

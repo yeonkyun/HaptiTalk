@@ -233,7 +233,7 @@ class SessionDetailTabEmotion extends StatelessWidget {
                           Icons.star,
                           size: 20,
                           color: Colors.green[600],
-                        ),
+              ),
                         SizedBox(width: 8),
                         Text(
                           '주요 성취',
@@ -244,7 +244,7 @@ class SessionDetailTabEmotion extends StatelessWidget {
                           ),
                         ),
                       ],
-                    ),
+              ),
                     SizedBox(height: 10),
                     Text(
                       _generateHighlightText(),
@@ -330,15 +330,52 @@ class SessionDetailTabEmotion extends StatelessWidget {
 
   // 특수 지표값
   double _getSpecialMetricValue() {
-    switch (_getSessionTypeKey()) {
-      case 'presentation':
-        return analysisResult.metrics.speakingMetrics.clarity;
-      case 'interview':
-        return analysisResult.metrics.speakingMetrics.tonality;
-      case 'dating':
-        return analysisResult.metrics.conversationMetrics.listeningScore;
-      default:
-        return 70.0;
+    // 🔥 백엔드에서 이미 계산된 값 우선 사용
+    final rawApiData = analysisResult.rawApiData;
+    final sessionTypeKey = _getSessionTypeKey();
+    
+    if (rawApiData.isNotEmpty && rawApiData['keyMetrics'] != null) {
+      final keyMetrics = rawApiData['keyMetrics'] as Map<String, dynamic>;
+      
+      switch (sessionTypeKey) {
+        case 'presentation':
+          final presentationMetrics = keyMetrics['presentation'] as Map<String, dynamic>?;
+          if (presentationMetrics != null && presentationMetrics['persuasion'] != null) {
+            final persuasion = (presentationMetrics['persuasion'] as num).toDouble();
+            print('📊 감정 탭 설득력: 백엔드 계산값 사용 ($persuasion%) - keyMetrics.presentation.persuasion');
+            return persuasion;
+          } else {
+            print('📊 감정 탭 설득력: 폴백 계산값 사용');
+            return analysisResult.metrics.speakingMetrics.clarity;
+          }
+        case 'interview':
+          final interviewMetrics = keyMetrics['interview'] as Map<String, dynamic>?;
+          if (interviewMetrics != null && interviewMetrics['stability'] != null) {
+            final stability = (interviewMetrics['stability'] as num).toDouble();
+            print('📊 감정 탭 안정감: 백엔드 계산값 사용 ($stability%) - keyMetrics.interview.stability');
+            return stability;
+          } else {
+            print('📊 감정 탭 안정감: 폴백 계산값 사용');
+            return analysisResult.metrics.speakingMetrics.tonality;
+          }
+        case 'dating':
+          // 소개팅은 경청 지수로 유지 (백엔드에 별도 지표 없음)
+          return analysisResult.metrics.conversationMetrics.listeningScore;
+        default:
+          return 70.0;
+      }
+    } else {
+      // 폴백 로직
+      switch (sessionTypeKey) {
+        case 'presentation':
+          return analysisResult.metrics.speakingMetrics.clarity;
+        case 'interview':
+          return analysisResult.metrics.speakingMetrics.tonality;
+        case 'dating':
+          return analysisResult.metrics.conversationMetrics.listeningScore;
+        default:
+          return 70.0;
+      }
     }
   }
 
@@ -598,8 +635,8 @@ class SessionDetailTabEmotion extends StatelessWidget {
   // 감정 게이지 위젯
   Widget _buildEmotionGauge(BuildContext context, EmotionMetrics emotionMetrics) {
     return Stack(
-      alignment: Alignment.center,
-      children: [
+        alignment: Alignment.center,
+        children: [
         // 배경 원
         SizedBox(
           width: 140,
@@ -626,30 +663,30 @@ class SessionDetailTabEmotion extends StatelessWidget {
                   ? AppColors.primary 
                   : Colors.orange
             ),
+            ),
           ),
-        ),
         // 중앙 텍스트
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
               '${emotionMetrics.averageLikeability.toInt()}%',
-              style: TextStyle(
+                style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF212121),
+                ),
               ),
-            ),
-            Text(
+              Text(
               _getPrimaryMetricName(),
-              style: TextStyle(
+                style: TextStyle(
                 fontSize: 12,
                 color: Color(0xFF616161),
+                ),
               ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
     );
   }
 
