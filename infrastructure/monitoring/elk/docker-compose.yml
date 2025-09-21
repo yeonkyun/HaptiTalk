@@ -7,7 +7,7 @@ services:
     environment:
       - discovery.type=single-node
       - bootstrap.system_call_filter=false
-      - "ES_JAVA_OPTS=${ES_JAVA_OPTS:-'-Xms512m -Xmx512m'}"
+      - "ES_JAVA_OPTS=${ES_JAVA_OPTS:-'-Xms512m -Xmx512m -Des.enforce.bootstrap.checks=false'}"
       - xpack.security.enabled=false
       - "ELASTIC_PASSWORD=${ELASTIC_PASSWORD}"
       - "xpack.security.transport.ssl.enabled=false"
