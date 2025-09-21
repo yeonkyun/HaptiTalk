@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.12
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.9.3
     container_name: haptitalk-elasticsearch
     environment:
       - discovery.type=single-node
@@ -16,6 +16,8 @@ services:
       - "indices.recovery.max_bytes_per_sec=50mb"
       - network.host=127.0.0.1
       - http.port=9200
+      - bootstrap.memory_lock=false
+      - discovery.zen.minimum_master_nodes=1
     ulimits:
       memlock:
         soft: -1
@@ -36,7 +38,7 @@ services:
         max-file: "3"
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:7.14.0
+    image: docker.elastic.co/kibana/kibana:7.9.3
     container_name: haptitalk-kibana
     ports:
       - "${KIBANA_PORT:-5601}:5601"
@@ -56,7 +58,7 @@ services:
         max-file: "3"
 
   logstash:
-    image: docker.elastic.co/logstash/logstash:7.14.0
+    image: docker.elastic.co/logstash/logstash:7.9.3
     container_name: haptitalk-logstash
     ports:
       - "${LOGSTASH_BEATS_PORT:-5044}:5044"
