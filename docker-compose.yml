@@ -519,8 +519,8 @@ services:
   # 인증 서비스
   auth-service:
     build:
-      context: ./api/auth-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./api/auth-service/Dockerfile
     container_name: haptitalk-auth-service
     restart: unless-stopped
     environment:
@@ -662,8 +662,8 @@ services:
   # 피드백 서비스
   feedback-service:
     build:
-      context: ./api/feedback-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./api/feedback-service/Dockerfile
     container_name: haptitalk-feedback-service
     restart: unless-stopped
     environment:
@@ -759,8 +759,8 @@ services:
   # 리포트 서비스
   report-service:
     build:
-      context: ./api/report-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./api/report-service/Dockerfile
     container_name: haptitalk-report-service
     restart: unless-stopped
     environment:
