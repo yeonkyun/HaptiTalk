@@ -5,12 +5,15 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 cd "$SCRIPT_DIR"
 
-# 환경 변수 파일이 있으면 로드
-if [ -f .env ]; then
-  echo "Loading environment variables from .env file"
+# 환경 변수 로드 (프로젝트 루트 .env 파일)
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../" && pwd)"
+if [ -f "$PROJECT_ROOT/.env" ]; then
+  echo "✅ 프로젝트 루트 환경 변수 로드 중..."
   set -a
-  source .env
+  source "$PROJECT_ROOT/.env"
   set +a
+else
+  echo "⚠️ .env 파일이 없습니다. 기본 설정을 사용합니다."
 fi
 
 # 네트워크 확인 및 생성

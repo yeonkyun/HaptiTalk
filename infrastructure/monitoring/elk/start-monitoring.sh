@@ -1,10 +1,23 @@
 #!/bin/bash
 
-# 환경 변수 설정 확인
-if [ ! -f .env ]; then
+# 환경 변수 로드 (프로젝트 루트 .env 파일)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../" && pwd)"
+
+if [ -f "$PROJECT_ROOT/.env" ]; then
+  echo "✅ 프로젝트 루트 환경 변수 로드 중..."
+  source "$PROJECT_ROOT/.env"
+  export $(cat "$PROJECT_ROOT/.env" | grep -v '#' | xargs)
+elif [ -f .env ]; then
+  echo "✅ 로컬 ELK 환경 변수 로드 중..."
+  source .env
+elif [ -f .env.example ]; then
   echo "환경 변수 파일(.env)이 없습니다. 예시 파일을 복사합니다."
   cp .env.example .env
+  source .env
   echo "환경 변수 파일이 생성되었습니다. 필요한 경우 편집하세요."
+else
+  echo "⚠️ 환경 변수 파일이 없습니다. 기본 설정을 사용합니다."
 fi
 
 # 권한 설정

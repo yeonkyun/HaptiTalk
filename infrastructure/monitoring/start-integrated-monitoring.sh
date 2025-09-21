@@ -10,6 +10,16 @@ echo -e "${YELLOW}HaptiTalk 통합 모니터링 시스템 시작 중...${NC}"
 # 현재 디렉토리 저장
 CURRENT_DIR=$(pwd)
 
+# 환경 변수 로드 (프로젝트 루트 .env 파일)
+PROJECT_ROOT="$(cd "$CURRENT_DIR/../../" && pwd)"
+if [ -f "$PROJECT_ROOT/.env" ]; then
+  echo "✅ 프로젝트 루트 환경 변수 로드 중..."
+  source "$PROJECT_ROOT/.env"
+  export $(cat "$PROJECT_ROOT/.env" | grep -v '#' | xargs)
+else
+  echo "⚠️ .env 파일이 없습니다. 기본 설정을 사용합니다."
+fi
+
 # ELK 스택 시작
 echo -e "${GREEN}ELK 스택 시작 중...${NC}"
 cd "$CURRENT_DIR/elk"

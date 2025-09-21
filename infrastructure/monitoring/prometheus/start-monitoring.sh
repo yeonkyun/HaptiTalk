@@ -10,10 +10,12 @@ echo "📊 HaptiTalk Prometheus/Grafana 모니터링 시스템 시작 중..."
 # 필요한 디렉토리 생성
 mkdir -p ./config
 
-# 환경 변수 로드
-if [ -f ./.env ]; then
-  echo "✅ 환경 변수 로드 중..."
-  source ./.env
+# 환경 변수 로드 (프로젝트 루트 .env 파일)
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../" && pwd)"
+if [ -f "$PROJECT_ROOT/.env" ]; then
+  echo "✅ 프로젝트 루트 환경 변수 로드 중..."
+  source "$PROJECT_ROOT/.env"
+  export $(cat "$PROJECT_ROOT/.env" | grep -v '#' | xargs)
 else
   echo "⚠️ .env 파일이 없습니다. 기본 설정을 사용합니다."
 fi
