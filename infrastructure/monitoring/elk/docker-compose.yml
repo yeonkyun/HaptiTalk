@@ -17,7 +17,6 @@ services:
       - network.host=0.0.0.0
       - transport.host=localhost
       - http.host=0.0.0.0
-      - cluster.initial_master_nodes=haptitalk-es-node
     ulimits:
       memlock:
         soft: -1
