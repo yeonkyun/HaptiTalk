@@ -1,5 +1,5 @@
 # CUDA 지원 PyTorch 기반 이미지 사용
-FROM nvidia/cuda:13.0.1-cudnn-devel-ubuntu22.04
+FROM nvidia/cuda:12.2.2-cudnn8-runtime-ubuntu22.04
 
 # 환경 변수 설정
 ENV PYTHONUNBUFFERED=1 \
