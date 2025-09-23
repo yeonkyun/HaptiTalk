@@ -15,7 +15,8 @@ class Settings(BaseSettings):
     
     # 오디오 관련 상수
     SAMPLE_RATE: int = 16000  # 오디오 샘플링 레이트 (Hz)
-    DEFAULT_BUFFER_SIZE: int = 960000  # 기본 오디오 버퍼 크기 (bytes)
+    # 15초 분량의 오디오 데이터 (16kHz, 16-bit, mono = 2바이트 * 16000 * 15 = 480,000바이트)
+    DEFAULT_BUFFER_SIZE: int = 16000 * 2 * 15  # 오디오 버퍼 크기 (bytes)
     
     # WhisperX 모델 설정
     WHISPER_MODEL: str = "turbo"  # 사용할 모델 (tiny, base, small, medium, large, large-v3)
@@ -46,7 +47,7 @@ class Settings(BaseSettings):
     
     # 시스템 리소스 제한
     MAX_WORKERS: int = 4  # 병렬 작업자 수
-    MAX_AUDIO_BUFFER_MB: int = 15  # 최대 오디오 버퍼 크기(MB) - 30초 분량
+    MAX_AUDIO_BUFFER_MB: int = 15  # 최대 오디오 버퍼 크기(MB)
     
     # 시나리오별 VAD 파라미터 (음성 감지 민감도)
     SCENARIO_VAD_PARAMS: Dict[str, Dict[str, Any]] = {
