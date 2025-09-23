@@ -1,0 +1,60 @@
+version: '2.4'
+
+services:
+  stt-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: haptitalk_stt-service:latest
+    container_name: haptitalk-stt-service
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      # WORKDIR이 /stt-service로 설정되어 있어 Python이 app 모듈을 잘 찾을 수 있습니다.
+      # 이 설정은 불필요할 수 있으나, 명시적으로 지정하려면 아래와 같이 프로젝트 루트로 지정해야 합니다.
+      - PYTHONPATH=/stt-service
+      # STT 모델 설정
+      - WHISPER_MODEL=large-v3
+      - DEVICE=cuda
+      - COMPUTE_TYPE=float32
+      - CPU_THREADS=4
+      # API 설정
+      - API_V1_STR=/api/v1
+      - PROJECT_NAME=STT Service
+      # 시스템 리소스 설정
+      - MAX_WORKERS=8
+      - MAX_AUDIO_BUFFER_MB=15
+      # 임시 파일 경로
+      - TEMP_AUDIO_DIR=/tmp/stt_audio
+    volumes:
+      # [수정] Dockerfile에서 생성한 /stt-service/logs 경로와 일치시킵니다.
+      - ./logs:/stt-service/logs
+      # 임시 오디오 파일 볼륨 마운트 (이 부분은 올바르게 설정되었습니다)
+      - stt_audio_temp:/tmp/stt_audio
+    # GPU 지원을 위한 설정
+    runtime: nvidia
+    # 네트워크 설정
+    networks:
+      - haptitalk_network
+    # 헬스체크
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:80/api/v1/health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 60s
+    # 의존성 및 순서
+    depends_on: []
+    # [수정] 아래 command는 Dockerfile의 CMD를 덮어쓰므로 uvicorn 서버를 실행하려면
+    # 반드시 주석 처리하거나 삭제해야 합니다.
+    # command: tail -f /dev/null
+
+volumes:
+  stt_audio_temp:
+    driver: local
+
+networks:
+  haptitalk_network:
+    driver: bridge
+    name: haptitalk_network
