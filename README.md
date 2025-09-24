@@ -4,7 +4,9 @@
 > 실시간 대화 분석과 햅틱 피드백을 결합한 AI 서비스 기반 커뮤니케이션 코칭 시스템
 <img width="1424" height="696" alt="image" src="https://github.com/user-attachments/assets/478e5c83-512c-4a04-a37c-164b84421c7b" />
 
+[소개 영상](https://www.youtube.com/watch?v=s1fxJsoVDjs)
 [시연 영상](https://www.youtube.com/watch?v=nllbIaujAKU)
+
 
 ---
 
