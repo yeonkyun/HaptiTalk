@@ -21,7 +21,7 @@ python-dotenv==1.0.1      # 환경 변수 로드
 numpy>=2.0.0              # 오디오 처리
 
 # PyTorch는 미리 설치된 버전 사용
-# torch==2.7.0
-# torchaudio==2.7.0
-# torchvision==0.22.0 
-# ctranslate2<4.5.0
+ torch==2.7.0
+ torchaudio==2.7.0
+ torchvision==0.22.0 
+ ctranslate2<4.5.0
