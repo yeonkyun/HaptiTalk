@@ -1,27 +1,29 @@
-# HaptiTalk
-### 실시간 대화 분석 및 햅틱 피드백 커뮤니케이션 코칭 시스템
+# HaptiTalk - 실시간 대화 코칭 시스템
 
 > 실시간 대화 분석과 햅틱 피드백을 결합한 AI 서비스 기반 커뮤니케이션 코칭 시스템
-<img width="1424" height="696" alt="image" src="https://github.com/user-attachments/assets/478e5c83-512c-4a04-a37c-164b84421c7b" />
-
+<img width="1039" height="584" alt="image" src="https://github.com/user-attachments/assets/329919ee-8b35-4d75-931a-d3430f7dea73" />
+<br>
+<br>
+<br>
 
 | 영상 종류 | 썸네일 및 링크 |
 |:--:|:--:|
-| 소개 영상 | [![소개 영상](https://img.youtube.com/vi/s1fxJsoVDjs/0.jpg)](https://www.youtube.com/watch?v=s1fxJsoVDjs) |
-| 시연 영상 | [![시연 영상](https://img.youtube.com/vi/nllbIaujAKU/0.jpg)](https://www.youtube.com/watch?v=nllbIaujAKU) |
+| 소개 영상 | [![소개 영상](https://github.com/user-attachments/assets/d0faa8a4-3ae1-4765-8206-34717aac0bef)](https://www.youtube.com/watch?v=s1fxJsoVDjs) |
+| 시연 영상 | [![시연 영상](https://github.com/user-attachments/assets/bb6fe102-613a-4e65-b099-7186531c36d7)](https://www.youtube.com/watch?v=nllbIaujAKU) |
 
 
 ---
 
 ## 프로젝트 개요
 
-HaptiTalk은 발표, 면접, 소개팅 등 실제 대면 상황에서 **스마트워치를 통한 은밀한 햅틱 피드백**으로 즉각적인 대화 개선을 제공하는 혁신적인 AI 시스템입니다. **HaptiTalk**은 기존 커뮤니케이션 코칭 도구의 한계를 뛰어넘는 실시간 솔루션을 제시합니다.
+**HaptiTalk**은 발표, 면접 등 실제 대면 상황에서 **스마트워치를 통한 은밀한 햅틱 피드백**으로 즉각적인 대화 코칭을 제공하는 시스템입니다.
+**HaptiTalk**은 기존 커뮤니케이션 코칭 도구의 한계를 뛰어넘는 실시간 솔루션을 제시합니다.
 
 ### 핵심 가치
-- **실시간 대화 분석**: WhisperX 기반 고성능 STT 및 AI 감정 인식
-- **혁신적 햅틱 피드백**: 상대방 모르게 받는 자연스러운 실시간 코칭
+- **실시간 대화 분석**: WhisperX 기반 고성능 STT 및 음성 분석
+- **은밀한 햅틱(진동) 피드백**: 상대방 모르게 받는 자연스러운 실시간 코칭
 - **세그먼트 기반 분석**: 기존 방식 대비 85% 향상된 말하기 속도 측정 정확도
-- **시나리오별 맞춤화**: 발표/면접/소개팅 상황별 특화된 분석 및 피드백
+- **시나리오별 맞춤화**: 발표/면접 상황별 특화된 분석 및 피드백
 
 ---
 
@@ -30,7 +32,7 @@ HaptiTalk은 발표, 면접, 소개팅 등 실제 대면 상황에서 **스마�
 ### 프로젝트 구성원
 | 역할 | 이름 | 전문 분야 | 연락처 |
 |------|------|----------|--------|
-| **팀장 & 풀스택** | 최태산 | 백엔드, DevOps, 인프라 | xotks7524@gmail.com |
+| **팀장 & 풀스택** | 최태산 | 시스템 설계/통합, DevOps | xotks7524@gmail.com |
 | **AI/ML** | 정연균 | 음성처리, 감정분석 | jungyk411@sunmoon.ac.kr |
 | **프론트엔드** | 이은범 | Flutter, 모바일 개발 | bum17822@naver.com |
 
@@ -40,43 +42,62 @@ HaptiTalk은 발표, 면접, 소개팅 등 실제 대면 상황에서 **스마�
 ---
 
 ## 시스템 아키텍처
+<img width="1411" height="682" alt="image" src="https://github.com/user-attachments/assets/ff463093-0990-4ed1-a6b3-ac951eb65b12" />
 
-### 시스템 구조
-![아키텍처](https://github.com/user-attachments/assets/1e781e4b-52a8-40af-9b1a-f52b8a0c8c60)
-- **마이크로서비스 기반**: 9개의 독립적인 서비스로 구성
-- **Docker 컨테이너화**: 확장 가능하고 안정적인 배포 환경
-- **Kong API Gateway**: 중앙 집중식 라우팅 및 JWT 인증
-- **실시간 처리**: WebSocket 기반 양방향 통신
 
-### AI 처리 파이프라인
-![image](https://github.com/user-attachments/assets/1d7e5c7a-9a12-4b06-88d3-0ca0ff23564e)
+## AI 처리 파이프라인
+<img width="1039" height="396" alt="image" src="https://github.com/user-attachments/assets/6d1de731-681d-438c-9b0a-21284b3c9bda" />
+
+<img width="1423" height="245" alt="image" src="https://github.com/user-attachments/assets/c8a1aa65-8842-4cc6-a79b-86c56ab2e019" />
+
 ![image](https://github.com/user-attachments/assets/3bf49042-8658-41fb-b948-31c242a204fa)
+
+<img width="1429" height="157" alt="image" src="https://github.com/user-attachments/assets/724fdec2-3e70-4dc1-9706-a97d56e5f368" />
+
 
 - **STT Engine**: WhisperX v3.3.4 기반 실시간 음성 인식
 - **Emotion Analysis**: Wav2Vec2-XLSR 모델로 7가지 감정 분류
 - **Speaker Diarization**: pyannote.audio 3.1 다중 화자 식별
 - **AI Report**: Google Gemini API 기반 맞춤형 분석 보고서
+  
+---
+
+## 주요 기능
+<img width="1040" height="586" alt="image" src="https://github.com/user-attachments/assets/78a3c86d-451f-423e-84d2-8530316b7edc" />
+
+<img width="1041" height="585" alt="image" src="https://github.com/user-attachments/assets/22c776c4-f1af-462e-be83-2b0cd70198f7" />
+
+<img width="1037" height="585" alt="image" src="https://github.com/user-attachments/assets/21efecde-0f3b-4777-842b-0e5756f63a92" />
 
 ---
 
-## 모바일 애플리케이션
-
 ### 주요 화면 구성
 
-#### 메인 화면들
-| 로그인 화면 | 메인 화면 | 세션 생성 화면 | 실시간 분석 화면 |
+| 로그인 화면 | 회원가입 화면 | 메인 화면 | 프로필 화면 |
 |:---:|:---:|:---:|:---:|
-| <img width="250" alt="image" src="https://github.com/user-attachments/assets/1c423ed1-91bc-4e55-8cd2-21514e67be33" /> | <img width="250" alt="image" src="https://github.com/user-attachments/assets/179e2e86-6c3f-4614-a046-5bcb9c405134" /> | <img width="250" alt="image" src="https://github.com/user-attachments/assets/d80b2e10-3fe6-434d-a4a1-646909256d43" /> | <img width="250" alt="image" src="https://github.com/user-attachments/assets/627ce189-3376-4979-b0c5-64c9266213a1" /> |
+| <img width="245" alt="image" src="https://github.com/user-attachments/assets/8c659218-9a73-4936-8eeb-9392ff6efe85" /> | <img width="245" alt="image" src="https://github.com/user-attachments/assets/10fec808-9551-4dc7-9759-6e4b11d918c7" /> | <img width="245" alt="image" src="https://github.com/user-attachments/assets/822816ff-fcd9-4e82-a0f8-21d0371ff779" /> | <img width="245" alt="image" src="https://github.com/user-attachments/assets/a4592d77-5704-4dd3-99af-342683947534" /> |
 
-#### 분석 및 기록 화면들  
-| 분석 요약 화면 | 감정/호감도 | 말하기 패턴 | 대화 주제 |
-|:---:|:---:|:---:|:---:|
-| <img width="250" alt="image" src="https://github.com/user-attachments/assets/35c274c1-a215-4650-8fa6-db57e3a16396" /> | <img width="250" alt="image" src="https://github.com/user-attachments/assets/d8aadb13-f26b-47f5-8422-cf1637f072bf" /> | <img width="250" alt="image" src="https://github.com/user-attachments/assets/6877edc6-ed07-4651-a9bb-3beca68da498" /> | <img width="250" alt="image" src="https://github.com/user-attachments/assets/e29e7296-e407-436a-af38-b1ba9272216b" /> |
 
-#### Apple Watch 연동
-| Watch 메인 | 세션 화면 | 햅틱 피드백 | 설정 |
+| 새 세션 시작 화면 | 실시간 분석 화면 | 햅틱 패턴 연습 화면 | 설정 화면 |
 |:---:|:---:|:---:|:---:|
-| <img width="250" alt="image" src="https://github.com/user-attachments/assets/a3bb6b90-742f-45d2-a56f-1dad53ed9098" /> | <img width="250" alt="image" src="https://github.com/user-attachments/assets/142af5a2-82b7-4cbc-aa14-50b40774eb06" /> | <img width="250" alt="image" src="https://github.com/user-attachments/assets/aeec22f4-ea41-4763-a3f2-e9d252268b61" /> | <img width="250" alt="image" src="https://github.com/user-attachments/assets/3e612959-fa26-4eb1-995a-f65071d19f7c" /> |
+| <img width="245" alt="image" src="https://github.com/user-attachments/assets/1d2a175a-7457-4dc4-8421-9799cfed65df" /> | <img width="245" alt="image" src="https://github.com/user-attachments/assets/a5d7debf-d2e0-4dc3-8d3f-6017e2f14643" /> | <img width="245" alt="image" src="https://github.com/user-attachments/assets/05375aa2-ed82-4a58-b260-c9bd3f041608" /> | <img width="245" alt="image" src="https://github.com/user-attachments/assets/2728ff25-73df-40b1-99b3-8658b23cf1b1" /> |
+
+
+| 분석 요약 화면 | 타임라인 화면 | 말하기 패턴 화면 | 대화 주제 화면 |
+|:---:|:---:|:---:|:---:|
+| <img width="245" alt="image" src="https://github.com/user-attachments/assets/f330e46d-d020-4df5-9507-efe572d21910" /> | <img width="245" alt="image" src="https://github.com/user-attachments/assets/ac4f7ce4-5826-4697-9338-c9d276bab81d" /> | <img width="245" alt="image" src="https://github.com/user-attachments/assets/8ee09f36-e0d2-4ae6-8bdb-321619a03da4" /> | <img width="245" alt="image" src="https://github.com/user-attachments/assets/3d0b8e02-55d4-4b41-9a67-83c85fcd41a9" /> |
+
+
+#### Apple Watch 화면 
+| 메인 화면 | 세션 화면 | 설정 화면 |
+|:---:|:---:|:---:|
+| <img width="200" alt="image" src="https://github.com/user-attachments/assets/a3a98071-23d7-425e-bef1-da1280fa74df" /> | <img width="200" alt="image" src="https://github.com/user-attachments/assets/6bbecd6c-5229-4982-a141-33bc3d4b2eec" /> | <img width="200" alt="image" src="https://github.com/user-attachments/assets/95d1e8c7-2150-44c4-9147-f40cd8159f7c" /> |
+
+
+#### Apple Watch 햅틱 피드백 애니메이션
+| 말하기 속도 조절 | 필러워드 감지 | 자신감 상승 | 자신감 하락 |
+|:---:|:---:|:---:|:---:|
+| <img width="200" alt="image" src="https://github.com/user-attachments/assets/4b439997-b831-4608-9340-e20275a2846b" /> | <img width="200" alt="image" src="https://github.com/user-attachments/assets/440b2ad6-f50c-40f9-bc37-dc6af64c9d4b" /> | <img width="200" alt="image" src="https://github.com/user-attachments/assets/c1158e26-7d03-4f01-9380-ce6f6fd76331" /> | <img width="200" alt="image" src="https://github.com/user-attachments/assets/2f94286c-ca2c-4a61-b000-303a5a96e811" /> |
 
 ---
 
@@ -159,7 +180,6 @@ average_wpm = sum(segment_wpms) / len(segments)  # 순수 발화 시간만 계�
 | 시나리오 | VAD 임계값 | 침묵 허용 | 감정 가중치 | 분석 초점 |
 |---------|-----------|----------|-----------|----------|
 | **면접** | 0.7 | 1000ms | 중립(1.3x) | 자신감, 명확성 |
-| **소개팅** | 0.6 | 500ms | 기쁨(1.2x) | 호감도, 공감 |
 | **발표** | 0.75 | 800ms | 안정감 중심 | 전달력, 설득력 |
 
 ---
@@ -227,7 +247,7 @@ average_wpm = sum(segment_wpms) / len(segments)  # 순수 발화 시간만 계�
 - **선문대학교 SW중심대학 창업 아이디어 경진대회 최우수상** (2025)
 - **선문대학교 SW중심대학 기업연계 프로젝트 우수팀 경진대회 대상** (2025)
 - **한국디지털콘텐츠학회 하계종합학술대회 대학생 논문경진대회 대상**
-- **특허 출원 진행중**
+- **특허 출원 (완)**
 
 ---
 
