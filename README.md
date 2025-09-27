@@ -54,7 +54,7 @@
 - **AI Report**: Google Gemini API 기반 맞춤형 분석 보고서
 
 ## ERD
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/ab24dac0-8f7e-4463-bf8c-ddd9006e9083" />
+<img width="1036" height="710" alt="image" src="https://github.com/user-attachments/assets/c91750d5-b5dd-4dbb-9d1c-0a4601cdacc6" />
 
 ## MongoDB Schema Diagram
 <img width="1048" height="593" alt="image" src="https://github.com/user-attachments/assets/d37e2c0d-c697-4d40-96bd-35cfc9ce0066" />
