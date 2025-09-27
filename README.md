@@ -2,17 +2,6 @@
 
 > 실시간 대화 분석과 햅틱 피드백을 결합한 AI 서비스 기반 커뮤니케이션 코칭 시스템
 <img width="1039" height="584" alt="image" src="https://github.com/user-attachments/assets/329919ee-8b35-4d75-931a-d3430f7dea73" />
-<br>
-<br>
-<br>
-
-| 영상 종류 | 썸네일 및 링크 |
-|:--:|:--:|
-| 소개 영상 | [![소개 영상](https://github.com/user-attachments/assets/d0faa8a4-3ae1-4765-8206-34717aac0bef)](https://www.youtube.com/watch?v=s1fxJsoVDjs) |
-| 시연 영상 | [![시연 영상](https://github.com/user-attachments/assets/bb6fe102-613a-4e65-b099-7186531c36d7)](https://www.youtube.com/watch?v=nllbIaujAKU) |
-
-
----
 
 ## 프로젝트 개요
 
@@ -28,14 +17,20 @@
 ---
 
 ## 개발팀
+개발 기간: **2025년 3월 4일 ~ 6월 12일** (총 14주)
 | 역할 | 이름 | 전문 분야 | 연락처 |
 |------|------|----------|--------|
 | **팀장 & 풀스택** | 최태산 | 시스템 설계/통합, DevOps | xotks7524@gmail.com |
 | **AI/ML** | 정연균 | 음성처리, 감정분석 | jungyk411@sunmoon.ac.kr |
 | **프론트엔드** | 이은범 | Flutter, 모바일 개발 | bum17822@naver.com |
 
-### MVP 개발 기간
-**2025년 3월 4일 ~ 6월 12일** (총 14주)
+---
+
+| 영상 종류 | 썸네일 및 링크 |
+|:--:|:--:|
+| 소개 영상 | [![소개 영상](https://github.com/user-attachments/assets/d0faa8a4-3ae1-4765-8206-34717aac0bef)](https://www.youtube.com/watch?v=s1fxJsoVDjs) |
+| 시연 영상 | [![시연 영상](https://github.com/user-attachments/assets/bb6fe102-613a-4e65-b099-7186531c36d7)](https://www.youtube.com/watch?v=nllbIaujAKU) |
+
 
 ---
 
@@ -57,7 +52,13 @@
 - **Emotion Analysis**: Wav2Vec2-XLSR 모델로 7가지 감정 분류
 - **Speaker Diarization**: pyannote.audio 3.1 다중 화자 식별
 - **AI Report**: Google Gemini API 기반 맞춤형 분석 보고서
-  
+
+## ERD
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/ab24dac0-8f7e-4463-bf8c-ddd9006e9083" />
+
+## MongoDB Schema Diagram
+<img width="1048" height="593" alt="image" src="https://github.com/user-attachments/assets/d37e2c0d-c697-4d40-96bd-35cfc9ce0066" />
+
 ---
 
 ## 주요 기능
@@ -244,8 +245,8 @@ average_wpm = sum(segment_wpms) / len(segments)  # 순수 발화 시간만 계�
 ### 수상 및 특허
 - **선문대학교 SW중심대학 창업 아이디어 경진대회 최우수상** (2025)
 - **선문대학교 SW중심대학 기업연계 프로젝트 우수팀 경진대회 대상** (2025)
-- **한국디지털콘텐츠학회 하계종합학술대회 대학생 논문경진대회 대상**
-- **특허 출원 (완)**
+- **한국디지털콘텐츠학회 하계종합학술대회 대학생 논문경진대회 대상** (2025)
+- **특허 출원 (완)** 
 
 ---
 
