@@ -25,7 +25,7 @@ app = FastAPI(
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 모든 오리진 허용 (프로덕션에서는 제한 필요)
+    allow_origins=["https://stt.eumgyeol.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -76,4 +76,4 @@ def read_root():
 
 if __name__ == "__main__":
     # 개발 서버 실행
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True) 
+    uvicorn.run("app.main:app", host="0.0.0.0", port=80, reload=True) 

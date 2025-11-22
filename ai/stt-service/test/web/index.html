@@ -456,7 +456,7 @@
                 this.audioBuffer = [];
                 this.audioBufferDuration = 0;
                 this.bufferStartTime = null;
-                this.bufferDuration = 30; // 60초
+                this.bufferDuration = 15; // 15초
                 this.totalAudioSent = 0;
                 this.totalAudioReceived = 0;
                 
@@ -868,7 +868,7 @@
                     this.bufferStartTime = Date.now();
                     this.audioBufferDuration = 0;
                     document.getElementById('bufferStatus').style.display = 'block';
-                    this.addLog('info', `30초 버퍼링 시작 - PCM 배열 길이: ${pcmData.length}, 오디오 길이: ${audioDuration.toFixed(3)}초`);
+                    this.addLog('info', `15초 버퍼링 시작 - PCM 배열 길이: ${pcmData.length}, 오디오 길이: ${audioDuration.toFixed(3)}초`);
                 }
                 
                 this.audioBuffer.push(pcmData);
@@ -879,7 +879,7 @@
                     this.addLog('info', `버퍼 상태: ${this.audioBuffer.length}개 청크, 총 ${this.audioBufferDuration.toFixed(1)}초`);
                 }
                 
-                // 오디오 기준 30초가 되면 전송
+                // 오디오 기준 15초가 되면 전송
                 if (this.audioBufferDuration >= this.bufferDuration) {
                     this.sendBufferedAudio();
                 }
@@ -959,7 +959,7 @@
                 this.bufferStartTime = isFinal ? null : Date.now();
                 
                 if (!isFinal) {
-                    this.addLog('info', '새로운 30초 버퍼링 시작');
+                    this.addLog('info', '새로운 15초 버퍼링 시작');
                 }
             }
             
