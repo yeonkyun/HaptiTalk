@@ -661,7 +661,6 @@ class STTWebSocketManager:
         logger.info(f"오디오 데이터 버퍼에 추가: {connection_id}, 추가된 크기: {len(binary_data)} bytes, 현재 버퍼 크기: {len(session['buffer'])} bytes")
         
         # 버퍼 크기 확인 및 처리
-        # 30초 분량의 오디오 데이터 (16kHz, 16-bit, mono = 2바이트 * 16000 * 30 = 960,000바이트)
         buffer_threshold = min(settings.DEFAULT_BUFFER_SIZE, settings.MAX_AUDIO_BUFFER_MB * 1024 * 1024)
         
         if len(session["buffer"]) >= buffer_threshold and not session["is_processing"]:
