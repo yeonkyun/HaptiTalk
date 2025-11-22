@@ -100,24 +100,24 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
     
     private func updateConnectionStatus() {
         let session = WCSession.default
+        let wasConnected = self.isConnected
         self.isConnected = session.activationState == .activated && session.isReachable
         
         #if os(watchOS)
         if self.isConnected {
-            // 연결된 상태에서는 기기 이름 요청
-            // iPhone의 응답이 있을 떄 그때 connectedDevice가 업데이트됨
-            // 처음 연결시에는 "연결 안됨"으로 유지
-            if self.pairedDeviceName == nil {
+            // 🚀 연결 상태가 변경되고 기기 이름이 없을 때만 요청
+            if self.pairedDeviceName == nil && !wasConnected {
+                print("Watch: 🔄 첫 연결 - 기기 이름 요청")
                 requestDeviceNameFromiPhone()
-            } else {
+            } else if let deviceName = self.pairedDeviceName {
                 // 이미 기기 이름을 받았다면 사용
-                self.connectedDevice = self.pairedDeviceName ?? "연결 안됨"
-                print("Watch: ✅ 연결된 기기 타입 설정: \(self.connectedDevice)")
+                self.connectedDevice = deviceName
+                print("Watch: ✅ 기존 기기 이름 사용: \(self.connectedDevice)")
             }
         } else {
             // 연결되지 않은 상태
             self.connectedDevice = "연결 안됨"
-            self.pairedDeviceName = nil // 연결이 끊기면 저장된 기기 이름 초기화
+            // pairedDeviceName은 유지 (재연결 시 재사용)
         }
         #endif
         
@@ -131,7 +131,9 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
             if let error = error {
                 print("Watch: Session activation error - \(error.localizedDescription)")
             }
-            self.updateConnectionStatus()
+            
+            // 🚀 즉시 연결 상태만 업데이트 (기기 이름 요청은 나중에)
+            self.isConnected = session.activationState == .activated && session.isReachable
             
             // 🚀 Watch에서 먼저 iPhone에 연결 신호 전송
             if activationState == .activated {
@@ -143,6 +145,14 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
                 
                 self.sendToiPhone(message: connectionSignal)
                 print("Watch: 📡 iPhone에 연결 신호 전송")
+                
+                // ⏱️ 2초 후에 기기 모델명 요청 (초기 랙 방지)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    if self.pairedDeviceName == nil && self.isConnected {
+                        print("Watch: 🔄 지연된 기기 이름 요청")
+                        self.requestDeviceNameFromiPhone()
+                    }
+                }
             }
         }
     }
@@ -166,20 +176,37 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
     }
     
     func session(_ session: WCSession, didReceiveMessage message: [String : Any], replyHandler: @escaping ([String : Any]) -> Void) {
-        print("Watch received message with reply handler from iPhone: \(message)")
-        DispatchQueue.main.async {
-            self.handleMessageFromiPhone(message)
+        let receivedTime = Date().timeIntervalSince1970
+        
+        // 전송-수신 지연 시간 측정
+        if let iosSendTime = message["iosSendTime"] as? Double {
+            let delay = receivedTime - iosSendTime
+            print("Watch: ⏱️ 메시지 지연 시간: \(String(format: "%.3f", delay))초")
             
-            // iPhone에 직접 응답
-            let response = [
-                "status": "received",
-                "action": message["action"] as? String ?? "unknown", 
-                "timestamp": Date().timeIntervalSince1970,
-                "watchAppActive": true
-            ] as [String : Any]
-            
-            replyHandler(response)
-            print("Watch: 📡 iPhone에 직접 응답 완료 - \(response)")
+            if delay > 1.0 {
+                print("Watch: ⚠️ 경고: 메시지 지연이 1초 이상입니다!")
+            }
+        }
+        
+        print("Watch: ⚡ 메시지 수신 - action: \(message["action"] as? String ?? "unknown")")
+        
+        // 🚀 즉시 응답 (블로킹 방지)
+        let response = [
+            "status": "received",
+            "action": message["action"] as? String ?? "unknown", 
+            "timestamp": receivedTime,
+            "watchAppActive": true
+        ] as [String : Any]
+        
+        replyHandler(response)
+        print("Watch: 📡 즉시 응답 완료")
+        
+        // 🎯 높은 우선순위로 즉시 처리
+        DispatchQueue.global(qos: .userInteractive).async {
+            // 햅틱은 메인 스레드에서 실행해야 함
+            DispatchQueue.main.sync {
+                self.handleMessageFromiPhone(message)
+            }
         }
     }
     
@@ -192,8 +219,19 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
     
     func sessionReachabilityDidChange(_ session: WCSession) {
         DispatchQueue.main.async {
-            print("Watch: Reachability changed - isReachable: \(session.isReachable)")
-            self.updateConnectionStatus()
+            print("Watch: 🔄 Reachability changed - isReachable: \(session.isReachable)")
+            let wasConnected = self.isConnected
+            self.isConnected = session.activationState == .activated && session.isReachable
+            
+            // 🚀 연결 상태가 변경되었을 때만 기기 이름 요청
+            #if os(watchOS)
+            if self.isConnected && !wasConnected && self.pairedDeviceName == nil {
+                print("Watch: 🔄 Reachability 복구 - 기기 이름 요청")
+                self.requestDeviceNameFromiPhone()
+            } else if self.isConnected && self.pairedDeviceName != nil {
+                self.connectedDevice = self.pairedDeviceName!
+            }
+            #endif
         }
     }
     
@@ -249,7 +287,14 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
     }
     
     private func handleMessageFromiPhone(_ message: [String: Any]) {
-        guard let action = message["action"] as? String else { return }
+        print("Watch: 🔍 handleMessageFromiPhone 시작 - 전체 메시지: \(message)")
+        
+        guard let action = message["action"] as? String else {
+            print("Watch: ⚠️ action 필드가 없음!")
+            return
+        }
+        
+        print("Watch: 🎯 action 확인됨: \(action)")
         
         switch action {
         // 필요 없어진 deviceNameResponse 케이스 제거
@@ -579,81 +624,142 @@ class AppState: NSObject, ObservableObject, WCSessionDelegate {
         let device = WKInterfaceDevice.current()
         
         print("🎯 Watch: MVP 햅틱 패턴 실행 시작 - ID: \(patternId), 패턴: \(pattern)")
-        print("🎯 Watch: 햅틱 실행 전 디바이스 상태 확인 완료")
         
-        switch patternId {
-        case "D1": 
-            print("🎯 Watch: D1 패턴 실행 중...")
-            playSpeedControlPattern(device: device)      // 전달력: 속도 조절
-            print("🎯 Watch: D1 패턴 실행 완료")
-        case "C1": 
-            print("🎯 Watch: C1 패턴 실행 중...")
-            playConfidenceBoostPattern(device: device)   // 자신감: 상승
-            print("🎯 Watch: C1 패턴 실행 완료")
-        case "C2": 
-            print("🎯 Watch: C2 패턴 실행 중...")
-            playConfidenceAlertPattern(device: device)   // 자신감: 하락 (안정화)
-            print("🎯 Watch: C2 패턴 실행 완료")
-        case "F1": 
-            print("🎯 Watch: F1 패턴 실행 중...")
-            playFillerWordAlertPattern(device: device)   // 필러워드 감지
-            print("🎯 Watch: F1 패턴 실행 완료")
-        // R1 패턴 제거됨 - 새로운 4개 핵심 패턴 설계(D1, C1, C2, F1)에 포함되지 않음
-        default: 
-            print("🎯 Watch: 기본 햅틱 패턴 실행 중...")
-            playDefaultHaptic(device: device)
-            print("🎯 Watch: 기본 햅틱 패턴 실행 완료")
+        // 🚀 햅틱을 백그라운드 스레드에서 순차 실행 (메인 스레드 블로킹 방지)
+        DispatchQueue.global(qos: .userInitiated).async {
+            switch patternId {
+            case "D1": 
+                print("🎯 Watch: D1 패턴 실행 중...")
+                self.playSpeedControlPattern(device: device)
+                print("🎯 Watch: D1 패턴 실행 완료")
+            case "C1": 
+                print("🎯 Watch: C1 패턴 실행 중...")
+                self.playConfidenceBoostPattern(device: device)
+                print("🎯 Watch: C1 패턴 실행 완료")
+            case "C2": 
+                print("🎯 Watch: C2 패턴 실행 중...")
+                self.playConfidenceAlertPattern(device: device)
+                print("🎯 Watch: C2 패턴 실행 완료")
+            case "F1": 
+                print("🎯 Watch: F1 패턴 실행 중...")
+                self.playFillerWordAlertPattern(device: device)
+                print("🎯 Watch: F1 패턴 실행 완료")
+            default: 
+                print("🎯 Watch: 기본 햅틱 패턴 실행 중...")
+                DispatchQueue.main.sync {
+                    self.playDefaultHaptic(device: device)
+                }
+                print("🎯 Watch: 기본 햅틱 패턴 실행 완료")
+            }
+            
+            print("🎯 Watch: MVP 햅틱 패턴 전체 완료 - ID: \(patternId)")
         }
-        
-        print("🎯 Watch: MVP 햅틱 패턴 실행 완료 - ID: \(patternId)")
         #endif
     }
     
-    // 📊 D1: 속도 조절 패턴 (급한 리듬 - 3연타)
+    // 📊 D1: 속도 조절 패턴 (급한 리듬 - 매우 강한 3연타)
     private func playSpeedControlPattern(device: WKInterfaceDevice) {
-        print("🎯 Watch: D1 햅틱 실행 - 첫 번째 진동")
-        device.play(.notification)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            print("🎯 Watch: D1 햅틱 실행 - 두 번째 진동")
+        print("🎯 Watch: D1 햅틱 실행 시작 - 매우 강한 3연타")
+        
+        // 🔥 첫 번째 매우 강한 진동 (3개 햅틱 즉시 연속 실행)
+        DispatchQueue.main.sync {
             device.play(.notification)
+            device.play(.notification)
+            device.play(.notification)
+            print("🎯 Watch: D1 - 1번째 진동 (notification x3 - 매우 강함)!")
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            print("🎯 Watch: D1 햅틱 실행 - 세 번째 진동")
+        
+        Thread.sleep(forTimeInterval: 0.8)
+        
+        // 🔥 두 번째 매우 강한 진동
+        DispatchQueue.main.sync {
             device.play(.notification)
+            device.play(.notification)
+            device.play(.notification)
+            print("🎯 Watch: D1 - 2번째 진동 (notification x3 - 매우 강함)!")
+        }
+        
+        Thread.sleep(forTimeInterval: 0.8)
+        
+        // 🔥 세 번째 매우 강한 진동
+        DispatchQueue.main.sync {
+            device.play(.notification)
+            device.play(.notification)
+            device.play(.notification)
+            print("🎯 Watch: D1 - 3번째 진동 (notification x3 - 매우 강함)! ✅")
         }
     }
     
-    // 💪 C1: 자신감 상승 패턴 (상승 웨이브)
+    // 💪 C1: 자신감 상승 패턴 (명확한 3단계 상승 - 약→중→강)
     private func playConfidenceBoostPattern(device: WKInterfaceDevice) {
-        print("🎯 Watch: C1 햅틱 실행 - 첫 번째 진동 (click)")
-        device.play(.click)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            print("🎯 Watch: C1 햅틱 실행 - 두 번째 진동 (directionUp)")
-            device.play(.directionUp)
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            print("🎯 Watch: C1 햅틱 실행 - 세 번째 진동 (success)")
-            device.play(.success)
-        }
-    }
-    
-    // 🧘 C2: 자신감 하락 패턴 (부드러운 경고)
-    private func playConfidenceAlertPattern(device: WKInterfaceDevice) {
-        print("🎯 Watch: C2 햅틱 실행 - 첫 번째 진동")
-        device.play(.notification)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            print("🎯 Watch: C2 햅틱 실행 - 두 번째 진동")
-            device.play(.notification)
-        }
-    }
-    
-    // 🗣️ F1: 필러워드 감지 패턴 (가벼운 지적)
-    private func playFillerWordAlertPattern(device: WKInterfaceDevice) {
-        print("🎯 Watch: F1 햅틱 실행 - 첫 번째 진동")
-        device.play(.click)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            print("🎯 Watch: F1 햅틱 실행 - 두 번째 진동")
+        print("🎯 Watch: C1 햅틱 실행 시작 - 명확한 3단계 상승")
+        
+        // 🔥 첫 번째 진동 (약함 - click x2)
+        DispatchQueue.main.sync {
             device.play(.click)
+            device.play(.click)
+            print("🎯 Watch: C1 - 1번째 진동 (click x2) - 약함")
+        }
+        
+        Thread.sleep(forTimeInterval: 0.7)
+        
+        // 🔥 두 번째 진동 (중간 - directionUp x2)
+        DispatchQueue.main.sync {
+            device.play(.directionUp)
+            device.play(.directionUp)
+            print("🎯 Watch: C1 - 2번째 진동 (directionUp x2) - 중간")
+        }
+        
+        Thread.sleep(forTimeInterval: 0.7)
+        
+        // 🔥 세 번째 진동 (매우 강함 - notification x3)
+        DispatchQueue.main.sync {
+            device.play(.notification)
+            device.play(.notification)
+            device.play(.notification)
+            print("🎯 Watch: C1 - 3번째 진동 (notification x3) - 매우 강함! ✅")
+        }
+    }
+    
+    // 🧘 C2: 자신감 하락 패턴 (강한 경고 2연타)
+    private func playConfidenceAlertPattern(device: WKInterfaceDevice) {
+        print("🎯 Watch: C2 햅틱 실행 시작 - 강한 경고 2연타")
+        
+        // 🔥 첫 번째 강한 진동 (notification x2)
+        DispatchQueue.main.sync {
+            device.play(.notification)
+            device.play(.notification)
+            print("🎯 Watch: C2 - 1번째 진동 (notification x2 - 강함)!")
+        }
+        
+        Thread.sleep(forTimeInterval: 1.0)  // 긴 간격 (D1보다 느림)
+        
+        // 🔥 두 번째 강한 진동 (notification x2)
+        DispatchQueue.main.sync {
+            device.play(.notification)
+            device.play(.notification)
+            print("🎯 Watch: C2 - 2번째 진동 (notification x2 - 강함)! ✅")
+        }
+    }
+    
+    // 🗣️ F1: 필러워드 감지 패턴 (약한 진동 2번)
+    private func playFillerWordAlertPattern(device: WKInterfaceDevice) {
+        print("🎯 Watch: F1 햅틱 실행 시작 - 약한 2연타 (start)")
+        
+        // 🔥 첫 번째 진동 (약하지만 느껴지는 - start x2)
+        DispatchQueue.main.sync {
+            device.play(.start)
+            device.play(.start)
+            print("🎯 Watch: F1 - 1번째 진동 (start x2 - 약함)!")
+        }
+        
+        Thread.sleep(forTimeInterval: 0.5)
+        
+        // 🔥 두 번째 진동 (약하지만 느껴지는 - start x2)
+        DispatchQueue.main.sync {
+            device.play(.start)
+            device.play(.start)
+            print("🎯 Watch: F1 - 2번째 진동 (start x2 - 약함)! ✅")
         }
     }
     

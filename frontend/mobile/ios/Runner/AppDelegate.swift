@@ -96,12 +96,15 @@ import WatchConnectivity
          let category = args["category"] as? String,
          let patternId = args["patternId"] as? String {
         
+        let sendTime = Date().timeIntervalSince1970
+        
         var watchMessage: [String: Any] = [
           "action": "hapticFeedbackWithPattern",
           "message": message,
           "pattern": pattern,
           "category": category,
-          "patternId": patternId
+          "patternId": patternId,
+          "iosSendTime": sendTime  // 전송 시간 기록
         ]
         
         if let sessionType = args["sessionType"] as? String {
@@ -112,6 +115,7 @@ import WatchConnectivity
           watchMessage["timestamp"] = timestamp
         }
         
+        print("iOS: ⏰ 전송 시작 시각: \(sendTime)")
         sendToWatch(message: watchMessage)
         result("Pattern haptic sent")
       } else {
@@ -156,30 +160,30 @@ import WatchConnectivity
   
   private func sendToWatch(message: [String: Any]) {
     let session = WCSession.default
-    print("iOS: Attempting to send message - \(message)")
+    print("iOS: ⚡ 메시지 전송 시도 (우선순위 높음) - \(message)")
     
-    // 기본적인 연결 상태만 체크 (isWatchAppInstalled 제외)
+    // 기본적인 연결 상태만 체크
     guard session.activationState == .activated,
           session.isPaired else {
-      print("iOS: Session not ready - activationState: \(session.activationState.rawValue), isPaired: \(session.isPaired)")
+      print("iOS: ❌ Session not ready - activationState: \(session.activationState.rawValue), isPaired: \(session.isPaired)")
       return
     }
     
-    // isWatchAppInstalled가 부정확할 수 있으므로 실제 전송을 시도
-    print("iOS: 🚀 Watch 앱 설치 상태 무시하고 메시지 전송 시도")
+    // 🚀 isReachable 체크 없이 무조건 sendMessage 시도 (더 빠름)
+    print("iOS: 🚀 즉시 메시지 전송 시도 (reachable 체크 생략)")
     
-    if session.isReachable {
+    // 메시지 전송을 높은 우선순위 큐에서 실행
+    DispatchQueue.global(qos: .userInteractive).async {
       session.sendMessage(message, replyHandler: { response in
-        print("iOS: ✅ Watch가 응답함! 실제로 연결됨 - \(response)")
+        print("iOS: ✅ Watch 응답 수신 - \(response)")
       }) { error in
-        print("iOS: ❌ 메시지 전송 실패 - \(error.localizedDescription)")
+        print("iOS: ⚠️ sendMessage 실패, applicationContext로 재시도 - \(error.localizedDescription)")
         
-        // 메시지 전송 실패 시 applicationContext로 재시도
-        self.sendViaApplicationContext(message)
+        // 실패 시에만 applicationContext 사용
+        DispatchQueue.main.async {
+          self.sendViaApplicationContext(message)
+        }
       }
-    } else {
-      print("iOS: Watch가 reachable하지 않음, applicationContext로 전송")
-      sendViaApplicationContext(message)
     }
   }
   
