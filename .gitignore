@@ -64,5 +64,12 @@ playground.xcworkspace
 
 
 # act 로컬 설정 파일
-.actrc
 .secrets
+.actrc
+.secrets.aider.chat.history.md
+.aider.input.history
+frontend/mobile/ios/haptitalk/
+frontend/mobile/ios/haptitalkTests/
+frontend/mobile/ios/haptitalkUITests/
+frontend/mobile/ios/Runner.xcodeproj/xcshareddata/xcschemes/haptitalk.xcscheme
+.aider.chat.history.md
