@@ -1,7 +1,7 @@
 const analyticsService = require('../services/analytics.service');
 const logger = require('../utils/logger');
 const { formatResponse, formatErrorResponse } = require('../utils/responseFormatter');
-const { Double } = require('mongodb');
+const { Double, Int32 } = require('mongodb');
 
 /**
  * 세그먼트 데이터 저장 (15초마다 호출)
@@ -17,35 +17,47 @@ const saveSegment = async (req, res) => {
         // 디버깅: 원본 analysis 데이터 로깅
         logger.info(`원본 analysis 데이터: ${JSON.stringify(analysis)}`);
         
-        // MongoDB 스키마 검증을 위해 int를 double로 변환
-        // MongoDB BSON Double 타입을 사용하여 명시적으로 double로 변환
+        // MongoDB 스키마에 맞게 타입 변환
+        // speakingSpeed, likability, interest: int
+        // confidence, volume, pitch: double
         const processedAnalysis = analysis ? { ...analysis } : {};
         
-        // 각 숫자 필드를 MongoDB Double 타입으로 변환
+        // int 필드 변환 (speakingSpeed, likability, interest)
+        const toInt = (value) => {
+            if (value === undefined || value === null) return value;
+            const numValue = Number(value);
+            logger.info(`값 변환 (int): ${value} (${typeof value}) -> ${numValue} -> Int32(${numValue})`);
+            return new Int32(Math.round(numValue));
+        };
+        
+        // double 필드 변환 (confidence, volume, pitch)
         const toDouble = (value) => {
             if (value === undefined || value === null) return value;
             const numValue = Number(value);
-            logger.info(`값 변환: ${value} (${typeof value}) -> ${numValue} -> Double(${numValue})`);
+            logger.info(`값 변환 (double): ${value} (${typeof value}) -> ${numValue} -> Double(${numValue})`);
             return new Double(numValue);
         };
         
+        // int 필드들
+        if (processedAnalysis.speakingSpeed !== undefined) {
+            processedAnalysis.speakingSpeed = toInt(processedAnalysis.speakingSpeed);
+        }
+        if (processedAnalysis.likability !== undefined) {
+            processedAnalysis.likability = toInt(processedAnalysis.likability);
+        }
+        if (processedAnalysis.interest !== undefined) {
+            processedAnalysis.interest = toInt(processedAnalysis.interest);
+        }
+        
+        // double 필드들
         if (processedAnalysis.confidence !== undefined) {
             processedAnalysis.confidence = toDouble(processedAnalysis.confidence);
-        }
-        if (processedAnalysis.pitch !== undefined) {
-            processedAnalysis.pitch = toDouble(processedAnalysis.pitch);
         }
         if (processedAnalysis.volume !== undefined) {
             processedAnalysis.volume = toDouble(processedAnalysis.volume);
         }
-        if (processedAnalysis.speakingSpeed !== undefined) {
-            processedAnalysis.speakingSpeed = toDouble(processedAnalysis.speakingSpeed);
-        }
-        if (processedAnalysis.likability !== undefined) {
-            processedAnalysis.likability = toDouble(processedAnalysis.likability);
-        }
-        if (processedAnalysis.interest !== undefined) {
-            processedAnalysis.interest = toDouble(processedAnalysis.interest);
+        if (processedAnalysis.pitch !== undefined) {
+            processedAnalysis.pitch = toDouble(processedAnalysis.pitch);
         }
         
         // 디버깅: 변환된 analysis 데이터 로깅
