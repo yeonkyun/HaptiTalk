@@ -6,7 +6,7 @@ const analyticsController = require('../controllers/analytics.controller');
 
 const router = express.Router();
 
-// 세그먼트 데이터 저장 (30초마다 호출)
+// 세그먼트 데이터 저장 (15초마다 호출)
 router.post(
     '/segments/:sessionId',
     authenticate,

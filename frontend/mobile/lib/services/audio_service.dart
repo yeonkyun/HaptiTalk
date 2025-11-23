@@ -14,11 +14,11 @@ class AudioService {
   bool _isInitialized = false;
   StreamSubscription<Uint8List>? _audioStreamSubscription;
   
-  // 30초 버퍼링 관련 변수들
+  // 15초 버퍼링 관련 변수들
   List<int> _audioBuffer = [];
   Timer? _bufferTimer;
-  static const Duration bufferDuration = Duration(seconds: 30); // 30초 단위로 전송
-  static const int maxBufferSize = 30 * 16000 * 2; // 30초 * 샘플레이트 * 2바이트(16bit)
+  static const Duration bufferDuration = Duration(seconds: 15); // 15초 단위로 전송
+  static const int maxBufferSize = 15 * 16000 * 2; // 15초 * 샘플레이트 * 2바이트(16bit)
   
   // 실제 기기용 안전한 오디오 설정
   static const int sampleRate = 16000; // 원래대로 되돌림 (더 안전함)
@@ -222,10 +222,10 @@ class AudioService {
       await _sttService.startRecording();
       print('✅ STT 녹음 시작 성공');
 
-      // 30초 버퍼 초기화
+      // 15초 버퍼 초기화
       _audioBuffer.clear();
       
-      // 30초 타이머 시작
+      // 15초 타이머 시작
       _startBufferTimer();
 
       // 오디오 스트림 리스닝 (버퍼링 방식)
@@ -424,7 +424,7 @@ class AudioService {
     };
   }
 
-  /// 30초 타이머 시작
+  /// 15초 타이머 시작
   void _startBufferTimer() {
     _bufferTimer = Timer.periodic(bufferDuration, (Timer timer) {
       _sendBufferedAudio();

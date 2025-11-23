@@ -575,14 +575,14 @@ class SessionDetailTabTimeline extends StatelessWidget {
       return changePoints;
     }
 
-    // 🔧 30초 단위 세그먼트 기반 변화 포인트 분석
+    // 🔧 15초 단위 세그먼트 기반 변화 포인트 분석
     final totalDuration = analysisResult.metrics.totalDuration;
-    const segmentInterval = 30; // 30초 간격
+    const segmentInterval = 15; // 15초 간격
     final totalSegments = (totalDuration / segmentInterval).ceil();
     
     print('🔍 변화포인트 분석: totalDuration=${totalDuration}s, totalSegments=${totalSegments}');
     
-    // 🔥 30초부터 시작 (0초는 세션 준비 시간이므로 제외)
+    // 🔥 15초부터 시작 (0초는 세션 준비 시간이므로 제외)
     for (int segmentIndex = 1; segmentIndex < totalSegments && segmentIndex < emotionData.length; segmentIndex++) {
       final timeInSeconds = segmentIndex * segmentInterval;
       final time = _formatTimeFromDuration(timeInSeconds);
@@ -651,13 +651,13 @@ class SessionDetailTabTimeline extends StatelessWidget {
         changePoints.add(_buildChangePointItem(
           '전체 진행',
           '안정적인 ${_getPrimaryMetricName()}',
-          '30초 단위 분석 결과 일관된 수준을 유지했습니다.',
+          '15초 단위 분석 결과 일관된 수준을 유지했습니다.',
           true,
         ));
       }
     }
     
-    print('✅ 변화포인트 생성 완료: ${changePoints.length}개 (30초부터 시작)');
+    print('✅ 변화포인트 생성 완료: ${changePoints.length}개 (15초부터 시작)');
     return changePoints;
   }
   
@@ -873,7 +873,7 @@ class EmotionGraphPainter extends CustomPainter {
     if (emotionData.isNotEmpty) {
       print('🎨 실제 감정 데이터로 그래프 그리기');
 
-      // 🔥 30초마다 포인트 생성 (모든 데이터, 그래프 영역 내에서)
+      // 🔥 15초마다 포인트 생성 (모든 데이터, 그래프 영역 내에서)
       dataPoints = emotionData.asMap().entries.map((entry) {
         final index = entry.key;
         final data = entry.value;
@@ -942,7 +942,7 @@ class EmotionGraphPainter extends CustomPainter {
       print('🎨 곡선 경로 그리기 완료');
     }
 
-    // 🔥 모든 30초 포인트에 작은 점 표시
+    // 🔥 모든 15초 포인트에 작은 점 표시
     final pointPaint = Paint()
       ..color = AppColors.primary
       ..style = PaintingStyle.fill;
@@ -958,7 +958,7 @@ class EmotionGraphPainter extends CustomPainter {
       canvas.drawCircle(dataPoints[i], 3, pointPaint);
     }
     
-    print('🎨 모든 30초 포인트 표시 완료: ${dataPoints.length}개');
+    print('🎨 모든 15초 포인트 표시 완료: ${dataPoints.length}개');
 
     // 🔥 첫 번째와 마지막 포인트 강조 (약간 더 크게)
     if (dataPoints.isNotEmpty) {
@@ -987,7 +987,7 @@ class EmotionGraphPainter extends CustomPainter {
     if (emotionData.isNotEmpty) {
       for (int i = 0; i < emotionData.length; i++) {
         final x = leftMargin + (emotionData.length == 1 ? graphWidth / 2 : graphWidth * i / (emotionData.length - 1));
-        final timeInSeconds = i * 30; // 30초 간격
+        final timeInSeconds = i * 15; // 15초 간격
         final timeLabel = _formatTimeFromSeconds(timeInSeconds);
         
         final textPainter = TextPainter(

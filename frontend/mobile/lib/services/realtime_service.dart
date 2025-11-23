@@ -1,11 +1,11 @@
 import 'dart:convert';
+import 'dart:async'; // Timer 및 TimeoutException 사용을 위해 추가
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:logger/logger.dart';
 import '../config/app_config.dart';
 import '../models/stt/stt_response.dart';
 import 'auth_service.dart';
-import 'dart:async'; // 🔧 Timer 사용을 위해 추가
 
 class RealtimeService {
   static final RealtimeService _instance = RealtimeService._internal();
@@ -220,32 +220,50 @@ class RealtimeService {
     _onRealtimeMetrics = callback;
   }
 
-  /// 세그먼트 데이터를 report-service/analytics에 저장 (30초마다 호출)
+  /// 세그먼트 데이터를 report-service/analytics에 저장 (15초마다 호출)
   Future<bool> saveSegment(String sessionId, Map<String, dynamic> segmentData) async {
     try {
       final url = '${AppConfig.apiBaseUrl}/reports/analytics/segments/$sessionId';
-      _logger.i('📤 세그먼트 저장 요청 URL: $url');
-      _logger.i('📤 AppConfig.apiBaseUrl: ${AppConfig.apiBaseUrl}');
+      print('📤 [API] 세그먼트 저장 요청 시작');
+      print('📤 [API] 요청 URL: $url');
+      print('📤 [API] AppConfig.apiBaseUrl: ${AppConfig.apiBaseUrl}');
+      print('📤 [API] 세그먼트 인덱스: ${segmentData['segmentIndex']}');
+      
+      final accessToken = await _getAccessToken();
+      print('📤 [API] 액세스 토큰 길이: ${accessToken?.length ?? 0}');
+      
+      if (accessToken == null || accessToken.isEmpty) {
+        print('❌ [API] 액세스 토큰이 없습니다!');
+        return false;
+      }
       
       final response = await http.post(
         Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${await _getAccessToken()}',
+          'Authorization': 'Bearer $accessToken',
         },
         body: json.encode(segmentData),
-      );
+      ).timeout(Duration(seconds: 10), onTimeout: () {
+        print('❌ [API] 요청 타임아웃 (10초)');
+        throw TimeoutException('세그먼트 저장 요청 타임아웃');
+      });
+
+      print('📤 [API] 응답 상태 코드: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-        _logger.i('✅ 세그먼트 저장 성공: ${segmentData['segmentIndex']}');
+        print('✅ [API] 세그먼트 ${segmentData['segmentIndex']} 저장 성공');
+        print('✅ [API] 응답 데이터: $responseData');
         return true;
       } else {
-        _logger.e('❌ 세그먼트 저장 실패: ${response.statusCode} - ${response.body}');
+        print('❌ [API] 세그먼트 저장 실패: ${response.statusCode}');
+        print('❌ [API] 응답 본문: ${response.body}');
         return false;
       }
-    } catch (e) {
-      _logger.e('❌ 세그먼트 저장 오류: $e');
+    } catch (e, stackTrace) {
+      print('❌ [API] 세그먼트 저장 예외 발생: $e');
+      print('❌ [API] 스택 트레이스: $stackTrace');
       return false;
     }
   }

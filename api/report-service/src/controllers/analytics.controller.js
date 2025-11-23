@@ -3,7 +3,7 @@ const logger = require('../utils/logger');
 const { formatResponse, formatErrorResponse } = require('../utils/responseFormatter');
 
 /**
- * 세그먼트 데이터 저장 (30초마다 호출)
+ * 세그먼트 데이터 저장 (15초마다 호출)
  */
 const saveSegment = async (req, res) => {
     try {
@@ -12,13 +12,35 @@ const saveSegment = async (req, res) => {
         const userId = req.user.id;
 
         logger.info(`세그먼트 저장 요청: sessionId=${sessionId}, segmentIndex=${segmentIndex}, userId=${userId}`);
+        
+        // MongoDB 스키마 검증을 위해 int를 double로 변환
+        const processedAnalysis = analysis || {};
+        if (processedAnalysis.confidence !== undefined) {
+            processedAnalysis.confidence = parseFloat(processedAnalysis.confidence);
+        }
+        if (processedAnalysis.pitch !== undefined) {
+            processedAnalysis.pitch = parseFloat(processedAnalysis.pitch);
+        }
+        if (processedAnalysis.volume !== undefined) {
+            processedAnalysis.volume = parseFloat(processedAnalysis.volume);
+        }
+        if (processedAnalysis.speakingSpeed !== undefined) {
+            processedAnalysis.speakingSpeed = parseFloat(processedAnalysis.speakingSpeed);
+        }
+        if (processedAnalysis.likability !== undefined) {
+            processedAnalysis.likability = parseFloat(processedAnalysis.likability);
+        }
+        if (processedAnalysis.interest !== undefined) {
+            processedAnalysis.interest = parseFloat(processedAnalysis.interest);
+        }
+        
         const segmentData = {
             sessionId,
             userId,
             segmentIndex: parseInt(segmentIndex, 10),
             timestamp: new Date(timestamp),
             transcription: transcription || '',
-            analysis: analysis || {},
+            analysis: processedAnalysis,
             hapticFeedbacks: hapticFeedbacks || [],
             suggestedTopics: suggestedTopics || []
         };

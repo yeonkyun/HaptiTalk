@@ -765,12 +765,16 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
           print('📊 관심도 업데이트: $_interest (패턴: $speechPattern)');
         }
         
-        // 발화 밀도에 따른 호감도 업데이트
+        // 발화 밀도에 따른 지표 업데이트 (세션 타입에 따라 다름)
         final speechDensity = speechMetrics['speech_density'] as num?;
         print('🔍 speech_density: $speechDensity');
         if (speechDensity != null) {
           _likability = _mapDensityToLikability(speechDensity.toDouble());
-          print('📊 호감도 업데이트: $_likability (밀도: ${speechDensity.toStringAsFixed(2)})');
+          
+          // 세션 타입에 따라 다른 로그 메시지
+          final metricName = _currentScenario == 'presentation' ? '자신감' : 
+                            _currentScenario == 'interview' ? '안정감' : '호감도';
+          print('📊 $metricName 업데이트: $_likability (밀도: ${speechDensity.toStringAsFixed(2)})');
         }
       } else {
         print('⚠️ speech_metrics가 metadata에 없습니다');
@@ -1733,10 +1737,10 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     }
   }
 
-  /// 🔥 세그먼트 저장 타이머 시작 (30초마다)
+  /// 🔥 세그먼트 저장 타이머 시작 (15초마다)
   void _startSegmentSaveTimer() {
     _segmentStartTime = DateTime.now();
-    _segmentSaveTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+    _segmentSaveTimer = Timer.periodic(Duration(seconds: 15), (timer) {
       if (!mounted) {
         timer.cancel();
         return;
@@ -1745,7 +1749,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       _currentSegmentIndex++;
       _resetSegmentData();
     });
-    print('📊 세그먼트 저장 타이머 시작 (30초 간격)');
+    print('📊 세그먼트 저장 타이머 시작 (15초 간격)');
   }
 
   /// 🔥 현재 세그먼트 데이터를 서버에 저장
@@ -1756,22 +1760,26 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
     }
 
     try {
+      print('📤 세그먼트 저장 시도: sessionId=${widget.sessionId}, index=$_currentSegmentIndex');
+      
       final segmentData = {
         'segmentIndex': _currentSegmentIndex,
         'timestamp': _segmentStartTime!.toIso8601String(),
         'transcription': _transcription,
         'analysis': {
           'emotionState': _emotionState,
-          'speakingSpeed': _speakingSpeed,
-          'likability': _likability,
-          'interest': _interest,
-          'confidence': _calculateConfidence(), // 실제 신뢰도 값 계산
-          'volume': _calculateVolume(), // 실제 볼륨 값 계산
-          'pitch': _calculatePitch(), // 실제 피치 값 계산
+          'speakingSpeed': _speakingSpeed.toDouble(), // int -> double 변환
+          'likability': _likability.toDouble(), // int -> double 변환
+          'interest': _interest.toDouble(), // int -> double 변환
+          'confidence': _calculateConfidence().toDouble(), // double 보장
+          'volume': _calculateVolume().toDouble(), // double 보장
+          'pitch': _calculatePitch().toDouble(), // double 보장
         },
         'hapticFeedbacks': List.from(_segmentHapticFeedbacks),
         'suggestedTopics': List.from(_suggestedTopics),
       };
+
+      print('📤 세그먼트 데이터: transcription 길이=${_transcription.length}, hapticFeedbacks=${_segmentHapticFeedbacks.length}개');
 
       final success = await _realtimeService.saveSegment(widget.sessionId, segmentData);
       
@@ -1781,8 +1789,9 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
         print('❌ 세그먼트 $_currentSegmentIndex 저장 실패');
       }
 
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('❌ 세그먼트 저장 중 오류: $e');
+      print('❌ 스택 트레이스: $stackTrace');
     }
   }
 
@@ -2134,7 +2143,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  '30초 단위',
+                  '15초 단위',
                   style: TextStyle(
                     color: AppColors.primary,
                     fontSize: 10,
@@ -2146,7 +2155,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            _transcription.isEmpty ? '음성을 30초 단위로 분석하고 있습니다...' : _transcription,
+            _transcription.isEmpty ? '음성을 15초 단위로 분석하고 있습니다...' : _transcription,
             style: TextStyle(
               color: _transcription.isEmpty ? AppColors.disabledText : AppColors.lightText,
           fontSize: 16,

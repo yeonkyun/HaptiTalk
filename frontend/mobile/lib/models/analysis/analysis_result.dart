@@ -79,7 +79,7 @@ class AnalysisResult {
         
         for (int i = 0; i < detailedTimeline.length; i++) {
           final timePoint = _safeCastMap(detailedTimeline[i]);
-          final timestamp = (timePoint['timestamp'] ?? (i + 1) * 30).toDouble();
+          final timestamp = (timePoint['timestamp'] ?? (i + 1) * 15).toDouble();
           final emotionScore = (timePoint['emotion_score'] ?? 0.5) as num;
           final confidence = (timePoint['confidence'] ?? 0.7) as num;
           
@@ -101,12 +101,12 @@ class AnalysisResult {
       } else {
         print('⚠️ detailedTimeline이 비어있음, 기본 데이터 생성');
         
-        // 기본 데이터 생성 (3분 = 6개 포인트)
-        final segments = Math.max<int>(6, (duration / 30).ceil());
+        // 기본 데이터 생성 (3분 = 12개 포인트)
+        final segments = Math.max<int>(12, (duration / 15).ceil());
         final random = Math.Random();
         
         for (int i = 0; i < segments; i++) {
-          final timestamp = ((i + 1) * 30).toDouble();
+          final timestamp = ((i + 1) * 15).toDouble();
           final baseScore = 0.7;
           final variation = (random.nextDouble() - 0.5) * 0.2;
           final positiveRatio = (baseScore + variation).clamp(0.3, 0.9);

@@ -903,7 +903,7 @@ const reportService = {
                 const timeBasedChange = Math.sin(progress * Math.PI) * 0.08; // 시간 기반 변화
                 
                 return {
-                    timestamp: (index + 1) * 30, // 🔥 30초부터 시작 (0초 제외)
+                    timestamp: (index + 1) * 15, // 🔥 15초부터 시작 (0초 제외)
                     emotion_score: Math.max(0, Math.min(1, validatedEmotion + emotionVariation + timeBasedChange)), // 변동 추가
                     speaking_rate: Math.max(60, Math.min(180, validatedSpeaking)), // 60-180 WPM 범위
                     confidence: Math.max(0, Math.min(1, validatedConfidence + confidenceVariation + timeBasedChange)), // 변동 추가
@@ -918,7 +918,7 @@ const reportService = {
 
         // 🔥 실제 데이터가 없을 때는 keyMetrics 기반으로 일관된 타임라인 생성
         const duration = sessionAnalytics.summary?.duration || 180;
-        const segmentCount = Math.ceil(duration / 30); // 30초 단위
+        const segmentCount = Math.ceil(duration / 15); // 15초 단위
         
         // 🔥 keyMetrics와 완전히 동일한 값 사용
         const keyMetrics = this._generateKeyMetrics(sessionAnalytics);
@@ -933,7 +933,7 @@ const reportService = {
 
         const detailedTimeline = [];
         
-        // 🔥 30초부터 시작 (index 1부터), 발표용 말하기 자신감 기반
+        // 🔥 15초부터 시작 (index 1부터), 발표용 말하기 자신감 기반
         for (let i = 1; i <= segmentCount; i++) {
             const progress = (i - 1) / Math.max(1, segmentCount - 1); // 0 ~ 1
             
@@ -946,7 +946,7 @@ const reportService = {
             const timeBasedChange = Math.sin(progress * Math.PI) * 0.1; // 중간에 피크
 
             detailedTimeline.push({
-                timestamp: i * 30, // 30초 단위
+                timestamp: i * 15, // 15초 단위
                 emotion_score: Math.max(0, Math.min(1, baseEmotionScore + emotionVariation + timeBasedChange)), // 말하기 자신감 기반
                 speaking_rate: Math.max(80, Math.min(160, baseSpeakingRate + rateVariation)),
                 confidence: Math.max(0, Math.min(1, baseConfidence + confidenceVariation + timeBasedChange)), // 동일한 말하기 자신감
@@ -954,7 +954,7 @@ const reportService = {
             });
         }
 
-        logger.info(`📊 keyMetrics 기반 timeline 생성 완료: ${detailedTimeline.length}개 포인트 (30초부터 시작)`);
+        logger.info(`📊 keyMetrics 기반 timeline 생성 완료: ${detailedTimeline.length}개 포인트 (15초부터 시작)`);
         logger.info(`📊 생성된 timeline 샘플: ${detailedTimeline.slice(0, 3).map(t => `${t.timestamp}s: emotion=${(t.emotion_score * 100).toFixed(0)}%, speaking=${t.speaking_rate.toFixed(0)}WPM, confidence=${(t.confidence * 100).toFixed(0)}%`).join(', ')}`);
         return detailedTimeline;
     },

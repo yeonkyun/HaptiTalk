@@ -511,7 +511,7 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       dataPoints = 5;
     }
     
-    // 30초 간격으로 라벨 생성
+    // 15초 간격으로 라벨 생성
     for (int i = 0; i < dataPoints; i++) {
       int timeInSeconds;
       
@@ -519,8 +519,8 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
         // 마지막 포인트는 실제 세션 종료 시간
         timeInSeconds = totalSeconds;
       } else {
-        // 나머지는 30초 간격
-        timeInSeconds = i * 30;
+        // 나머지는 15초 간격
+        timeInSeconds = i * 15;
       }
       
       final minutes = timeInSeconds ~/ 60;
@@ -532,14 +532,14 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   }
 
   List<double> _generatePresentationData(AnalysisResult analysis) {
-    // 🔥 실제 detailedTimeline 데이터가 있으면 30초 간격 그대로 사용
+    // 🔥 실제 detailedTimeline 데이터가 있으면 15초 간격 그대로 사용
     if (analysis.emotionData.isNotEmpty) {
-      print('✅ 발표 그래프: 실제 30초 간격 데이터 사용 (${analysis.emotionData.length}개 포인트)');
+      print('✅ 발표 그래프: 실제 15초 간격 데이터 사용 (${analysis.emotionData.length}개 포인트)');
       
-      // 30초 간격 데이터를 그대로 사용 (압축하지 않음)
+      // 15초 간격 데이터를 그대로 사용 (압축하지 않음)
       List<double> presentationValues = analysis.emotionData.map((e) => e.value).toList();
       
-      print('📊 발표 그래프 30초 간격: ${presentationValues.take(5).map((v) => v.toStringAsFixed(1)).join(', ')}... (총 ${presentationValues.length}개)');
+      print('📊 발표 그래프 15초 간격: ${presentationValues.take(5).map((v) => v.toStringAsFixed(1)).join(', ')}... (총 ${presentationValues.length}개)');
       return presentationValues;
     }
     
@@ -560,14 +560,14 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   }
 
   List<double> _generateInterviewData(AnalysisResult analysis) {
-    // 🔥 실제 detailedTimeline 데이터가 있으면 30초 간격 그대로 사용
+    // 🔥 실제 detailedTimeline 데이터가 있으면 15초 간격 그대로 사용
     if (analysis.emotionData.isNotEmpty) {
-      print('✅ 면접 그래프: 실제 30초 간격 데이터 사용 (${analysis.emotionData.length}개 포인트)');
+      print('✅ 면접 그래프: 실제 15초 간격 데이터 사용 (${analysis.emotionData.length}개 포인트)');
       
-      // 30초 간격 데이터를 그대로 사용 (압축하지 않음)
+      // 15초 간격 데이터를 그대로 사용 (압축하지 않음)
       List<double> interviewValues = analysis.emotionData.map((e) => e.value).toList();
       
-      print('📊 면접 그래프 30초 간격: ${interviewValues.take(5).map((v) => v.toStringAsFixed(1)).join(', ')}... (총 ${interviewValues.length}개)');
+      print('📊 면접 그래프 15초 간격: ${interviewValues.take(5).map((v) => v.toStringAsFixed(1)).join(', ')}... (총 ${interviewValues.length}개)');
       return interviewValues;
     }
     
@@ -589,14 +589,14 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
   }
 
   List<double> _generateEmotionData(AnalysisResult analysis) {
-    // 🔥 실제 detailedTimeline 데이터가 있으면 30초 간격 그대로 사용
+    // 🔥 실제 detailedTimeline 데이터가 있으면 15초 간격 그대로 사용
     if (analysis.emotionData.isNotEmpty) {
-      print('✅ 감정 그래프: 실제 30초 간격 데이터 사용 (${analysis.emotionData.length}개 포인트)');
+      print('✅ 감정 그래프: 실제 15초 간격 데이터 사용 (${analysis.emotionData.length}개 포인트)');
       
-      // 30초 간격 데이터를 그대로 사용 (압축하지 않음)
+      // 15초 간격 데이터를 그대로 사용 (압축하지 않음)
       List<double> emotionValues = analysis.emotionData.map((e) => e.value).toList();
       
-      print('📊 감정 그래프 30초 간격: ${emotionValues.take(5).map((v) => v.toStringAsFixed(1)).join(', ')}... (총 ${emotionValues.length}개)');
+      print('📊 감정 그래프 15초 간격: ${emotionValues.take(5).map((v) => v.toStringAsFixed(1)).join(', ')}... (총 ${emotionValues.length}개)');
       return emotionValues;
     }
     

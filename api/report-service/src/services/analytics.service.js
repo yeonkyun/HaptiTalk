@@ -244,7 +244,7 @@ const analyzeSegments = (segments, sessionType, totalDuration) => {
         logger.info(`analyzeSegments 시작: segments=${segments.length}, sessionType=${sessionType}`);
         
         const totalSegments = segments.length;
-        const estimatedDuration = totalDuration || (totalSegments * 30); // 30초 단위
+        const estimatedDuration = totalDuration || (totalSegments * 15); // 15초 단위
 
         // 1. 기본 통계 계산
         let statistics;
@@ -871,8 +871,8 @@ const generateTimeline = (segments) => {
         }
 
         const timeline = segments.map((segment, index) => {
-            // 🔥 실제 타임스탬프 계산 (30초 단위)
-            const timestamp = index * 30;
+            // 🔥 실제 타임스탬프 계산 (15초 단위)
+            const timestamp = index * 15;
             
             // 🔥 감정 점수 추출 - 실제 데이터 우선, 없으면 기본값
             let emotionScores = {
@@ -1075,8 +1075,8 @@ const calculateSilencePeriods = (segments) => {
         const segment = segments[i];
         if (!segment.transcription || segment.transcription.trim().length === 0) {
             silencePeriods.push({
-                start: i * 30,
-                duration: 30,
+                start: i * 15,
+                duration: 15,
                 type: 'silence'
             });
         }
