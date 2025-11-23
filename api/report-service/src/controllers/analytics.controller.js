@@ -1,6 +1,7 @@
 const analyticsService = require('../services/analytics.service');
 const logger = require('../utils/logger');
 const { formatResponse, formatErrorResponse } = require('../utils/responseFormatter');
+const { Double } = require('mongodb');
 
 /**
  * 세그먼트 데이터 저장 (15초마다 호출)
@@ -13,26 +14,42 @@ const saveSegment = async (req, res) => {
 
         logger.info(`세그먼트 저장 요청: sessionId=${sessionId}, segmentIndex=${segmentIndex}, userId=${userId}`);
         
+        // 디버깅: 원본 analysis 데이터 로깅
+        logger.info(`원본 analysis 데이터: ${JSON.stringify(analysis)}`);
+        
         // MongoDB 스키마 검증을 위해 int를 double로 변환
-        const processedAnalysis = analysis || {};
+        // MongoDB BSON Double 타입을 사용하여 명시적으로 double로 변환
+        const processedAnalysis = analysis ? { ...analysis } : {};
+        
+        // 각 숫자 필드를 MongoDB Double 타입으로 변환
+        const toDouble = (value) => {
+            if (value === undefined || value === null) return value;
+            const numValue = Number(value);
+            logger.info(`값 변환: ${value} (${typeof value}) -> ${numValue} -> Double(${numValue})`);
+            return new Double(numValue);
+        };
+        
         if (processedAnalysis.confidence !== undefined) {
-            processedAnalysis.confidence = parseFloat(processedAnalysis.confidence);
+            processedAnalysis.confidence = toDouble(processedAnalysis.confidence);
         }
         if (processedAnalysis.pitch !== undefined) {
-            processedAnalysis.pitch = parseFloat(processedAnalysis.pitch);
+            processedAnalysis.pitch = toDouble(processedAnalysis.pitch);
         }
         if (processedAnalysis.volume !== undefined) {
-            processedAnalysis.volume = parseFloat(processedAnalysis.volume);
+            processedAnalysis.volume = toDouble(processedAnalysis.volume);
         }
         if (processedAnalysis.speakingSpeed !== undefined) {
-            processedAnalysis.speakingSpeed = parseFloat(processedAnalysis.speakingSpeed);
+            processedAnalysis.speakingSpeed = toDouble(processedAnalysis.speakingSpeed);
         }
         if (processedAnalysis.likability !== undefined) {
-            processedAnalysis.likability = parseFloat(processedAnalysis.likability);
+            processedAnalysis.likability = toDouble(processedAnalysis.likability);
         }
         if (processedAnalysis.interest !== undefined) {
-            processedAnalysis.interest = parseFloat(processedAnalysis.interest);
+            processedAnalysis.interest = toDouble(processedAnalysis.interest);
         }
+        
+        // 디버깅: 변환된 analysis 데이터 로깅
+        logger.info(`변환된 analysis 데이터: ${JSON.stringify(processedAnalysis)}`);
         
         const segmentData = {
             sessionId,
