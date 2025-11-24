@@ -427,7 +427,7 @@ class SessionDetailTabTopics extends StatelessWidget {
     
     switch (sessionType) {
       case 'presentation':
-        defaultTopics = ['비즈니스', '전략', '기술', '혁신', '성과', '미래', '계획', '분석'];
+        defaultTopics = ['HaptiTalk', '실시간 코칭', '햅틱 피드백', '음성 분석', '시스템 아키텍처', 'MSA', 'Whisper', '스마트워치', '리포트', '기대 효과'];
         break;
       case 'interview':
         defaultTopics = ['경험', '프로젝트', '기술', '팀워크', '성과', '목표', '역량', '비전'];
@@ -468,12 +468,13 @@ class SessionDetailTabTopics extends StatelessWidget {
     final topics = analysisResult.metrics.topicMetrics.topics;
     
     if (topics.isEmpty) {
-      // 기본 분포 (이미지와 유사)
+      // 기본 분포 (HaptiTalk 발표 내용 기반)
       return [
-        TopicDistribution('여행 & 사진', 35, Color(0xFF6200EA)),
-        TopicDistribution('음식 & 카페', 20, Color(0xFF03DAC6)),
-        TopicDistribution('영화 & 음악', 20, Color(0xFFFF6200)),
-        TopicDistribution('기타 주제', 25, Color(0xFF757575)),
+        TopicDistribution('솔루션 소개', 20, Color(0xFF6200EA)),
+        TopicDistribution('기술 설명', 30, Color(0xFF03DAC6)),
+        TopicDistribution('사용법 및 기능', 20, Color(0xFFFF6200)),
+        TopicDistribution('결과 및 마무리', 15, Color(0xFF757575)),
+        TopicDistribution('오프닝 및 문제 제기', 15, Color(0xFF4CAF50)),
       ];
     }
     

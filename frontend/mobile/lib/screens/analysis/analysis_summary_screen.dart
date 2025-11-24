@@ -511,21 +511,41 @@ class _AnalysisSummaryScreenState extends State<AnalysisSummaryScreen> {
       dataPoints = 5;
     }
     
-    // 15초 간격으로 라벨 생성
+    // 🎯 라벨 표시 간격 자동 조정 (겹침 방지)
+    int labelInterval = 1; // 기본: 모든 포인트에 라벨 표시
+    
+    if (dataPoints > 12) {
+      // 12개 초과: 4개마다 표시 (약 60초 간격)
+      labelInterval = 4;
+    } else if (dataPoints > 8) {
+      // 8개 초과: 3개마다 표시 (약 45초 간격)
+      labelInterval = 3;
+    } else if (dataPoints > 5) {
+      // 5개 초과: 2개마다 표시 (약 30초 간격)
+      labelInterval = 2;
+    }
+    
+    // 15초 간격으로 라벨 생성 (간격에 맞는 것만)
     for (int i = 0; i < dataPoints; i++) {
-      int timeInSeconds;
-      
-      if (i == dataPoints - 1) {
-        // 마지막 포인트는 실제 세션 종료 시간
-        timeInSeconds = totalSeconds;
+      // 첫 번째, 마지막, 그리고 간격에 맞는 포인트만 라벨 추가
+      if (i == 0 || i == dataPoints - 1 || i % labelInterval == 0) {
+        int timeInSeconds;
+        
+        if (i == dataPoints - 1) {
+          // 마지막 포인트는 실제 세션 종료 시간
+          timeInSeconds = totalSeconds;
+        } else {
+          // 나머지는 15초 간격
+          timeInSeconds = i * 15;
+        }
+        
+        final minutes = timeInSeconds ~/ 60;
+        final seconds = timeInSeconds % 60;
+        labels.add('${minutes}:${seconds.toString().padLeft(2, '0')}');
       } else {
-        // 나머지는 15초 간격
-        timeInSeconds = i * 15;
+        // 표시하지 않는 위치에는 빈 문자열 추가 (Row의 spacing 유지를 위해)
+        labels.add('');
       }
-      
-      final minutes = timeInSeconds ~/ 60;
-      final seconds = timeInSeconds % 60;
-      labels.add('${minutes}:${seconds.toString().padLeft(2, '0')}');
     }
     
     return labels;

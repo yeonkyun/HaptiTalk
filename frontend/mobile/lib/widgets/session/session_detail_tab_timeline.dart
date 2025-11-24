@@ -983,22 +983,39 @@ class EmotionGraphPainter extends CustomPainter {
       print('🎨 시작/끝점 강조 완료');
     }
 
-    // 🔥 x축 시간 라벨 추가
+    // 🔥 x축 시간 라벨 추가 (겹침 방지를 위한 간격 조정)
     if (emotionData.isNotEmpty) {
+      // 🎯 라벨 표시 간격 자동 조정
+      int labelInterval = 1; // 기본: 모든 포인트에 라벨 표시
+      
+      if (emotionData.length > 12) {
+        // 12개 초과: 4개마다 표시 (약 60초 간격)
+        labelInterval = 4;
+      } else if (emotionData.length > 8) {
+        // 8개 초과: 3개마다 표시 (약 45초 간격)
+        labelInterval = 3;
+      } else if (emotionData.length > 5) {
+        // 5개 초과: 2개마다 표시 (약 30초 간격)
+        labelInterval = 2;
+      }
+      
       for (int i = 0; i < emotionData.length; i++) {
-        final x = leftMargin + (emotionData.length == 1 ? graphWidth / 2 : graphWidth * i / (emotionData.length - 1));
-        final timeInSeconds = i * 15; // 15초 간격
-        final timeLabel = _formatTimeFromSeconds(timeInSeconds);
-        
-        final textPainter = TextPainter(
-          text: TextSpan(text: timeLabel, style: textStyle),
-          textDirection: TextDirection.ltr,
-        );
-        textPainter.layout();
-        textPainter.paint(
-          canvas, 
-          Offset(x - textPainter.width / 2, topMargin + graphHeight + 5)
-        );
+        // 첫 번째, 마지막, 그리고 간격에 맞는 포인트만 라벨 표시
+        if (i == 0 || i == emotionData.length - 1 || i % labelInterval == 0) {
+          final x = leftMargin + (emotionData.length == 1 ? graphWidth / 2 : graphWidth * i / (emotionData.length - 1));
+          final timeInSeconds = i * 15; // 15초 간격
+          final timeLabel = _formatTimeFromSeconds(timeInSeconds);
+          
+          final textPainter = TextPainter(
+            text: TextSpan(text: timeLabel, style: textStyle),
+            textDirection: TextDirection.ltr,
+          );
+          textPainter.layout();
+          textPainter.paint(
+            canvas, 
+            Offset(x - textPainter.width / 2, topMargin + graphHeight + 5)
+          );
+        }
       }
     }
     

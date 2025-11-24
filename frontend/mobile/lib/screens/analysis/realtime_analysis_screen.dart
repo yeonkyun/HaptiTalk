@@ -77,6 +77,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
   Map<String, dynamic> _currentSegmentData = {};
   List<Map<String, dynamic>> _segmentHapticFeedbacks = [];
   DateTime? _segmentStartTime;
+  Map<String, dynamic>? _lastSTTMetadata; // 🔥 마지막 STT 메타데이터 저장
 
   String _lastWatchSyncData = '';
 
@@ -651,6 +652,12 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
         print('📝 전사 결과 수신: ${response.text?.substring(0, min(50, response.text?.length ?? 0))}...');
         print('📊 isFinal: ${response.isFinal}, metadata 존재: ${response.metadata != null}');
         print('📊 metadata 내용: ${response.metadata}');
+        
+        // 🔥 STT 메타데이터 저장 (세그먼트 저장 시 사용)
+        if (response.metadata != null) {
+          _lastSTTMetadata = response.metadata;
+          print('🔥 STT 메타데이터 저장 완료');
+        }
         
         // 모든 전사 결과에 대해 분석 데이터 업데이트 (텍스트 유무와 관계없이)
         setState(() {
@@ -1775,11 +1782,22 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
           'volume': _calculateVolume().toDouble(), // double 보장
           'pitch': _calculatePitch().toDouble(), // double 보장
         },
+        // 🔥 STT 상세 메타데이터 추가 (백엔드 분석용)
+        'sttData': _lastSTTMetadata != null ? {
+          'text': _transcription,
+          'speech_metrics': _lastSTTMetadata!['speech_metrics'],
+          'variability_metrics': _lastSTTMetadata!['variability_metrics'],
+          'syllable_metrics': _lastSTTMetadata!['syllable_metrics'],
+          'segments': _lastSTTMetadata!['segments'],
+          'scenario': _lastSTTMetadata!['scenario'],
+          'language': _lastSTTMetadata!['language'],
+        } : null,
         'hapticFeedbacks': List.from(_segmentHapticFeedbacks),
         'suggestedTopics': List.from(_suggestedTopics),
       };
 
       print('📤 세그먼트 데이터: transcription 길이=${_transcription.length}, hapticFeedbacks=${_segmentHapticFeedbacks.length}개');
+      print('📤 STT 메타데이터 포함: ${_lastSTTMetadata != null}');
 
       final success = await _realtimeService.saveSegment(widget.sessionId, segmentData);
       
@@ -1798,6 +1816,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
   /// 🔥 세그먼트 데이터 초기화
   void _resetSegmentData() {
     _segmentHapticFeedbacks.clear();
+    _lastSTTMetadata = null; // 🔥 STT 메타데이터도 초기화
     _segmentStartTime = DateTime.now();
     print('🔄 세그먼트 $_currentSegmentIndex 데이터 초기화');
   }
@@ -1995,8 +2014,8 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
                       _buildMetricsSection(),
                       const SizedBox(height: 15),
                       if (_feedback.isNotEmpty) _buildFeedbackSection(),
-                      const SizedBox(height: 15),
-                      _buildSuggestedTopicsSection(),
+                      // 🔥 대화 주제 추천 제거 (불필요한 정보)
+                      // _buildSuggestedTopicsSection(),
                       const SizedBox(height: 30),
                     ],
                   ),
@@ -2154,13 +2173,19 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            _transcription.isEmpty ? '음성을 15초 단위로 분석하고 있습니다...' : _transcription,
-            style: TextStyle(
-              color: _transcription.isEmpty ? AppColors.disabledText : AppColors.lightText,
-          fontSize: 16,
-          height: 1.5,
-        ),
+          // 🔥 고정 높이로 제한하고 스크롤 가능하게 수정
+          Container(
+            height: 120, // 고정 높이 (약 5줄)
+            child: SingleChildScrollView(
+              child: Text(
+                _transcription.isEmpty ? '음성을 15초 단위로 분석하고 있습니다...' : _transcription,
+                style: TextStyle(
+                  color: _transcription.isEmpty ? AppColors.disabledText : AppColors.lightText,
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+              ),
+            ),
           ),
         ],
       ),
