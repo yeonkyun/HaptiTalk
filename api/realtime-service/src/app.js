@@ -296,6 +296,13 @@ const startServer = async () => {
             io.to(`session:${sessionId}`).emit('feedback', message);
             logger.debug(`Redis를 통해 피드백 전달: ${sessionId}`, { component: 'messaging', type: 'redis' });
         });
+
+        // 🔥 1-2. Redis를 통한 실시간 지표 구독 (feedback-service에서 전송)
+        messagingSystem.subscribeRedis('metrics:channel:*', (channel, message) => {
+            const sessionId = channel.split(':')[2];
+            io.to(`session:${sessionId}`).emit('realtime_metrics', message);
+            logger.debug(`Redis를 통해 실시간 지표 전달: ${sessionId}`, { component: 'messaging', type: 'redis' });
+        });
         
         // 2. Kafka를 통한 분석 결과 구독 (지속성 및 신뢰성)
         await messagingSystem.subscribeKafka(KAFKA_TOPIC_ANALYSIS_RESULTS, (topic, message) => {

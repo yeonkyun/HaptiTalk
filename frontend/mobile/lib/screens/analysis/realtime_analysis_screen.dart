@@ -55,6 +55,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
   int _speakingSpeed = 0;
   int _likability = 0;
   int _interest = 0;
+  int _clarity = 0; // 명확성 지표 추가
   String _currentScenario = 'presentation'; // 기본 시나리오를 발표로 변경
 
   String _lastHapticMessage = '';  // 🚫 중복 햅틱 방지
@@ -274,6 +275,10 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
             _interest = (metrics['persuasion'] as num).round(); // persuasion을 interest 위치에
             print('📊 발표 설득력 업데이트: $_interest');
           }
+          if (metrics['clarity'] != null) {
+            _clarity = (metrics['clarity'] as num).round(); // clarity 추가
+            print('📊 발표 명확성 업데이트: $_clarity');
+          }
           
         } else if (_currentScenario == 'interview') {
           // 면접 시나리오: confidence, stability, clarity
@@ -284,6 +289,10 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
           if (metrics['stability'] != null) {
             _interest = (metrics['stability'] as num).round();
             print('📊 면접 안정감 업데이트: $_interest');
+          }
+          if (metrics['clarity'] != null) {
+            _clarity = (metrics['clarity'] as num).round(); // clarity 추가
+            print('📊 면접 명확성 업데이트: $_clarity');
           }
           
         } else {
@@ -1277,7 +1286,7 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
       }
       
       // 🔥 초기 상태(모든 값이 0 또는 기본값)일 때는 전송하지 않음
-      if (_likability == 0 && _interest == 0 && _speakingSpeed == 0 && _emotionState == '대기 중' && _feedback.isEmpty) {
+      if (_likability == 0 && _interest == 0 && _clarity == 0 && _speakingSpeed == 0 && _emotionState == '대기 중' && _feedback.isEmpty) {
         print('⏭️ Watch 동기화 스킵: 초기 상태 (의미있는 데이터 없음)');
         return;
       }
@@ -2261,9 +2270,9 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
                 Expanded(
                   child: _buildMetricCard(
                     title: '명확성',
-                    value: _emotionState,
+                    value: '$_clarity%',
                     icon: Icons.radio_button_checked,
-                    isTextValue: true,
+                    progressValue: _clarity / 100,
                   ),
                 ),
               ],
@@ -2296,18 +2305,18 @@ class _RealtimeAnalysisScreenState extends State<RealtimeAnalysisScreen> {
                 Expanded(
                   child: _buildMetricCard(
                     title: '명확성',
-                    value: '$_interest%',
+                    value: '$_clarity%',
                     icon: Icons.radio_button_checked,
-                    progressValue: _interest / 100,
+                    progressValue: _clarity / 100,
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: _buildMetricCard(
                     title: '안정감',
-                    value: _emotionState,
+                    value: '$_interest%',
                     icon: Icons.sentiment_satisfied_alt,
-                    isTextValue: true,
+                    progressValue: _interest / 100,
                   ),
                 ),
               ],

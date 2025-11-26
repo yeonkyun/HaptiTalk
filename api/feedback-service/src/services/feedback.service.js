@@ -353,9 +353,22 @@ const processSTTAnalysisAndGenerateFeedback = async (params) => {
             textLength: text?.length,
             scenario,
             language,
-            wpm: speechMetrics?.evaluationWpm,
+            wpm: speechMetrics?.evaluation_wpm || speechMetrics?.evaluationWpm,
             emotion: emotionAnalysis?.primaryEmotion?.emotionKr
         });
+
+        // 🔥 실시간 지표 계산 (analytics-core 사용)
+        const AnalyticsCore = require('../../api/shared/analytics-core');
+        const speechData = {
+            evaluation_wpm: speechMetrics?.evaluation_wpm || speechMetrics?.evaluationWpm || 120,
+            speech_density: speechMetrics?.speech_density || speechMetrics?.speechDensity || 0.5,
+            speech_pattern: speechMetrics?.speech_pattern || speechMetrics?.speechPattern || 'normal',
+            tonality: speechMetrics?.tonality || 0.7,
+            clarity: speechMetrics?.clarity || 0.7
+        };
+        
+        const realtimeMetrics = AnalyticsCore.calculateRealtimeMetrics(speechData, scenario);
+        logger.info(`실시간 지표 계산 완료: ${sessionId}`, { metrics: realtimeMetrics });
 
         // 1. 사용자 피드백 설정 조회
         const userSettings = await getUserSettings(userId);
@@ -445,16 +458,20 @@ const processSTTAnalysisAndGenerateFeedback = async (params) => {
         // 9. 실시간 서비스로 햅틱 피드백 전송 (Redis Pub/Sub)
         await sendHapticFeedbackToRealtimeService(sessionId, feedback);
 
+        // 🔥 10. 실시간 지표를 realtime-service로 전송 (Redis Pub/Sub)
+        await sendRealtimeMetricsToRealtimeService(sessionId, realtimeMetrics);
+
         logger.info(`STT 분석 기반 피드백 생성 성공: ${feedback.id}`, {
             userId,
             sessionId,
             feedbackType: feedbackDecision.type,
+            metrics: realtimeMetrics,
             patternId,
             priority: feedbackDecision.priority,
             intensity: userSettings.haptic_strength
         });
 
-        return feedback;
+        return { feedback, realtimeMetrics };
     } catch (error) {
         logger.error('Error in processSTTAnalysisAndGenerateFeedback:', error);
         throw error;
@@ -1145,6 +1162,37 @@ const sendHapticFeedbackToRealtimeService = async (sessionId, feedback) => {
         logger.error(`햅틱 피드백 실시간 서비스 전송 실패: ${sessionId}`, {
             error: error.message,
             feedbackId: feedback.id
+        });
+        return false;
+    }
+};
+
+/**
+ * 🔥 실시간 지표를 realtime-service로 전송 (Redis Pub/Sub)
+ */
+const sendRealtimeMetricsToRealtimeService = async (sessionId, metrics) => {
+    try {
+        const metricsCommand = {
+            type: 'realtime_metrics',
+            sessionId,
+            metrics,
+            timestamp: new Date().toISOString()
+        };
+
+        // Redis 채널로 실시간 서비스에 지표 전송
+        await redisClient.publish(
+            `metrics:channel:${sessionId}`,
+            JSON.stringify(metricsCommand)
+        );
+
+        logger.debug(`실시간 지표 realtime-service 전송 성공: ${sessionId}`, {
+            metrics
+        });
+
+        return true;
+    } catch (error) {
+        logger.error(`실시간 지표 realtime-service 전송 실패: ${sessionId}`, {
+            error: error.message
         });
         return false;
     }

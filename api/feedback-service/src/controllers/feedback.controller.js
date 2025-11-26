@@ -63,7 +63,7 @@ const analyzeSTTAndGenerateFeedback = async (req, res, next) => {
         const { sessionId, text, speechMetrics, emotionAnalysis, scenario, language } = req.body;
         const userId = req.user.id;
 
-        const feedback = await feedbackService.processSTTAnalysisAndGenerateFeedback({
+        const result = await feedbackService.processSTTAnalysisAndGenerateFeedback({
             userId,
             sessionId,
             text,
@@ -74,10 +74,14 @@ const analyzeSTTAndGenerateFeedback = async (req, res, next) => {
             timestamp: new Date()
         });
 
+        // 🔥 피드백과 실시간 지표 모두 응답에 포함
         return res.status(httpStatus.OK).json(formatResponse(
             true,
-            { feedback },
-            'STT 분석 기반 피드백이 생성되었습니다.'
+            { 
+                feedback: result?.feedback || null,
+                realtimeMetrics: result?.realtimeMetrics || null
+            },
+            'STT 분석 기반 피드백 및 실시간 지표가 생성되었습니다.'
         ));
     } catch (error) {
         next(error);
