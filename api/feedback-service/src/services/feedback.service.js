@@ -357,18 +357,28 @@ const processSTTAnalysisAndGenerateFeedback = async (params) => {
             emotion: emotionAnalysis?.primaryEmotion?.emotionKr
         });
 
-        // 🔥 실시간 지표 계산 (analytics-core 사용)
+        // 🔥 실시간 지표 계산 (analytics-core 사용) - 항상 수행
         const AnalyticsCore = require('../../api/shared/analytics-core');
+        
+        // STT 데이터에서 필요한 필드 추출 (단어 확신도 평균으로 clarity 추정)
+        const words = speechMetrics?.words || [];
+        const avgWordProbability = words.length > 0 
+            ? words.reduce((sum, w) => sum + (w.probability || 0), 0) / words.length 
+            : 0.7;
+        
         const speechData = {
             evaluation_wpm: speechMetrics?.evaluation_wpm || speechMetrics?.evaluationWpm || 120,
             speech_density: speechMetrics?.speech_density || speechMetrics?.speechDensity || 0.5,
             speech_pattern: speechMetrics?.speech_pattern || speechMetrics?.speechPattern || 'normal',
-            tonality: speechMetrics?.tonality || 0.7,
-            clarity: speechMetrics?.clarity || 0.7
+            tonality: avgWordProbability, // 단어 확신도로 tonality 추정
+            clarity: avgWordProbability  // 단어 확신도로 clarity 추정
         };
         
         const realtimeMetrics = AnalyticsCore.calculateRealtimeMetrics(speechData, scenario);
-        logger.info(`실시간 지표 계산 완료: ${sessionId}`, { metrics: realtimeMetrics });
+        logger.info(`실시간 지표 계산 완료: ${sessionId}`, { metrics: realtimeMetrics, speechData });
+
+        // 🔥 실시간 지표는 피드백과 별개로 항상 전송
+        await sendRealtimeMetricsToRealtimeService(sessionId, realtimeMetrics);
 
         // 1. 사용자 피드백 설정 조회
         const userSettings = await getUserSettings(userId);
@@ -377,8 +387,9 @@ const processSTTAnalysisAndGenerateFeedback = async (params) => {
         const shouldSendFeedback = await checkFeedbackInterval(userId, userSettings.minimum_interval_seconds);
         logger.info(`피드백 간격 체크 결과: ${userId}`, { shouldSendFeedback, minInterval: userSettings.minimum_interval_seconds });
         if (!shouldSendFeedback) {
-            logger.info(`피드백 생성 스킵 - 최소 간격 미충족: ${userId}`);
-            return null;
+            logger.info(`피드백 생성 스킵 - 최소 간격 미충족: ${userId}`, { realtimeMetricsSent: true });
+            // 🔥 피드백은 스킵하지만 실시간 지표는 이미 전송됨
+            return { feedback: null, realtimeMetrics };
         }
 
         // 3. STT 분석 결과 기반 피드백 결정 (8개 MVP 패턴 활용)
