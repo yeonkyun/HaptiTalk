@@ -86,6 +86,7 @@ class STTProcessor:
             "vad_filter": settings.TRANSCRIBE_PARAMS.get("vad_filter", True),
             "task": settings.TRANSCRIBE_PARAMS.get("task", "transcribe"),
             "condition_on_previous_text": settings.TRANSCRIBE_PARAMS.get("condition_on_previous_text", True),
+            "initial_prompt": settings.TRANSCRIBE_PARAMS.get("initial_prompt", ""),
             "vad_parameters": vad_params
         }
         

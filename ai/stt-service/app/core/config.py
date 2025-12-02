@@ -19,10 +19,13 @@ class Settings(BaseSettings):
     DEFAULT_BUFFER_SIZE: int = 16000 * 2 * 15  # 오디오 버퍼 크기 (bytes)
     
     # WhisperX 모델 설정
-    WHISPER_MODEL: str = "turbo"  # 사용할 모델 (tiny, base, small, medium, large, large-v3)
+    WHISPER_MODEL: str = "large-v3"  # 사용할 모델 (tiny, base, small, medium, large, large-v3)
     DEVICE: str = "cuda"  # 사용할 장치 ("cuda" 또는 "cpu")
-    COMPUTE_TYPE: str = "float16"  # 연산 정밀도 (float16, float32, int8)
+    COMPUTE_TYPE: str = "float32"  # 연산 정밀도 (float16, float32, int8)
     CPU_THREADS: int = 4  # CPU 스레드 수
+    
+    # 간투어 포함을 위한 초기 프롬프트
+    FILLER_WORDS_INITIAL_PROMPT: str = "I was like, was like, I'm like, you know what I mean, kind of, um, ah, huh, and so, so um, uh, and um, like um, so like, like it's, it's like, i mean, yeah, ok so, uh so, so uh, yeah so, you know, it's uh, uh and, and uh, like, kind, 어, 음, 그, 이제, 아, 뭔가, 좀, 약간, 그런데, 그니까, 뭔가 이제"
     
     # Transcribe 매개변수 설정
     TRANSCRIBE_PARAMS: Dict[str, Any] = {
@@ -31,6 +34,7 @@ class Settings(BaseSettings):
         "vad_filter": True,
         "task": "transcribe",
         "condition_on_previous_text": True,
+        "initial_prompt": FILLER_WORDS_INITIAL_PROMPT,
         "vad_parameters": {
             "min_silence_duration_ms": 700,
             "min_speech_duration_ms": 250,
